@@ -1,0 +1,17 @@
+{
+  "id": "headquarters",
+  "name": "Quartier Général",
+  "description": "Le cœur de votre village. Plus son niveau est élevé, plus les autres bâtiments se construisent vite.",
+  "maxLevel": 30,
+  "baseStats": {
+    "baseCost": { 
+      "wood": 200, 
+      "clay": 170, 
+      "iron": 90, 
+      "food": 0 
+    },
+    "baseBuildTime": 120,
+    "costMultiplier": 1.5,
+    "timeMultiplier": 1.2
+  }
+}

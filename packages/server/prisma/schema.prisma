@@ -1,0 +1,76 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Player {
+  id          String    @id @default(uuid())
+  username    String    @unique
+  email       String    @unique
+  password    String    // Haché avec bcrypt
+  villages    Village[]
+  createdAt   DateTime  @default(now())
+  
+  totalPoints Int       @default(0)
+}
+
+model Village {
+  id          String   @id @default(uuid())
+  name        String
+  x           Int
+  y           Int
+  
+  // Ressources (Aligné sur ton EconomyService et le mobile)
+  wood        Float    @default(500)
+  stone       Float    @default(500) // Remplacé "clay" par "stone" pour matcher ton code
+  iron        Float    @default(400)
+  food        Float    @default(100)
+
+  // Niveaux de production simplifiés pour le Tick initial
+  // Note : En phase 2, ces valeurs seront calculées depuis BuildingInstance
+  timberCampLevel Int @default(1)
+  quarryLevel     Int @default(1)
+  ironMineLevel   Int @default(1)
+
+  // Horodatage (Utilise "lastTick" pour corriger l'erreur TS du EconomyService)
+  lastTick    DateTime @default(now())
+
+  // Relation avec le Player
+  player      Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  playerId    String
+
+  buildings   BuildingInstance[]
+  buildQueue  BuildingQueue? 
+
+  // Index pour la carte du monde
+  @@unique([x, y])
+}
+
+model BuildingInstance {
+  id          String   @id @default(uuid())
+  buildingId  String   // ex: 'timber_camp', 'headquarters'
+  level       Int      @default(0)
+  
+  village     Village  @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  villageId   String
+
+  updatedAt   DateTime @updatedAt
+
+  @@unique([villageId, buildingId]) 
+}
+
+model BuildingQueue {
+  id          String   @id @default(uuid())
+  buildingId  String   
+  targetLevel Int      
+  
+  startsAt    DateTime @default(now())
+  endsAt      DateTime 
+  
+  village     Village  @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  villageId   String   @unique 
+}

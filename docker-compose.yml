@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # La base de données pour le stockage permanent (PostgreSQL)
+  db:
+    image: postgres:15
+    container_name: mmorts-db
+    restart: always
+    environment:
+      POSTGRES_USER: yildirim
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mmorts_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Le moteur de temps pour la file d'attente (Redis)
+  redis:
+    image: redis:alpine
+    container_name: mmorts-redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
