@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { calcResourceProduction, calcMaxStorage } from '@mmorts/shared';
+import { ProductionFormulas, calcMaxStorage } from '@mmorts/shared';
 
 export class VillageService {
   // On utilise le prisma passé au constructeur (depuis le main.ts)
@@ -24,23 +24,23 @@ export class VillageService {
 
     // Attention : Vérifie que tes IDs de bâtiments en JSON sont bien woodcutter, clay_pit, etc.
     const woodLevel = getLevel('woodcutter');
-    const clayLevel = getLevel('clay_pit');
+    const stoneLevel = getLevel('clay_pit');
     const ironLevel = getLevel('iron_mine');
     const warehouseLevel = getLevel('warehouse');
 
     // 3. Calculer le temps écoulé
     const now = new Date();
-    const hoursPassed = (now.getTime() - village.lastUpdate.getTime()) / (1000 * 3600);
+    const hoursPassed = (now.getTime() - village.lastTick.getTime()) / (1000 * 3600);
 
     // 4. Calculer la production
-    const woodProd = calcResourceProduction(woodLevel);
-    const clayProd = calcResourceProduction(clayLevel);
-    const ironProd = calcResourceProduction(ironLevel);
+      const woodProd = ProductionFormulas.getHourlyRate(woodLevel);
+      const stoneProd = ProductionFormulas.getHourlyRate(stoneLevel);  // anciennement clayLevel
+      const ironProd = ProductionFormulas.getHourlyRate(ironLevel);
     const maxStorage = calcMaxStorage(warehouseLevel);
     
     // 5. Calculer le nouveau stock
     const newWood = Math.min(village.wood + (woodProd * hoursPassed), maxStorage);
-    const newClay = Math.min(village.clay + (clayProd * hoursPassed), maxStorage);
+    const newStone = Math.min(village.stone + (stoneProd * hoursPassed), maxStorage);
     const newIron = Math.min(village.iron + (ironProd * hoursPassed), maxStorage);
 
     // 6. Sauvegarder
@@ -48,9 +48,9 @@ export class VillageService {
       where: { id: villageId },
       data: {
         wood: newWood,
-        clay: newClay,
+        stone: newStone,
         iron: newIron,
-        lastUpdate: now,
+        lastTick: now,
       },
     });
   }

@@ -1,14 +1,18 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.calcResourceProduction = void 0;
-/**
- * Calcule la production horaire selon le niveau du bâtiment.
- * Basé sur la logique Tribal Wars.
- */
-const calcResourceProduction = (level, baseProd = 30, multiplier = 1.5) => {
-    if (level === 0)
-        return 5; // Production de base minimale
-    return Math.round(baseProd * Math.pow(multiplier, level - 1));
+exports.ProductionFormulas = exports.calcResourceProduction = void 0;
+const calcResourceProduction = (level, elapsedMs) => {
+    const hourlyRate = level === 0 ? 5 : Math.round(30 * Math.pow(1.5, level - 1));
+    return (hourlyRate / 3600000) * elapsedMs;
 };
 exports.calcResourceProduction = calcResourceProduction;
+// Garde ProductionFormulas si tu l'utilises ailleurs côté mobile
+exports.ProductionFormulas = {
+    getHourlyRate: (level) => {
+        if (level === 0)
+            return 5;
+        return Math.round(30 * Math.pow(1.5, level - 1));
+    },
+    calculateGain: exports.calcResourceProduction,
+};
 //# sourceMappingURL=production.formulas.js.map

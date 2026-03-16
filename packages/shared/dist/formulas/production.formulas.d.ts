@@ -1,6 +1,6 @@
-/**
- * Calcule la production horaire selon le niveau du bâtiment.
- * Basé sur la logique Tribal Wars.
- */
-export declare const calcResourceProduction: (level: number, baseProd?: number, multiplier?: number) => number;
+export declare const calcResourceProduction: (level: number, elapsedMs: number) => number;
+export declare const ProductionFormulas: {
+    getHourlyRate: (level: number) => number;
+    calculateGain: (level: number, elapsedMs: number) => number;
+};
 //# sourceMappingURL=production.formulas.d.ts.map
