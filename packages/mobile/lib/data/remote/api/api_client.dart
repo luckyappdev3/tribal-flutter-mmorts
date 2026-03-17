@@ -19,22 +19,19 @@ class ApiClient {
     // INTERCEPTEUR JWT 
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
-        // On récupère le token depuis la box Hive dédiée à l'auth 
-        var authBox = await Hive.openBox('auth');
-        String? token = authBox.get('jwt_token');
-
-        if (token != null) {
-          options.headers['Authorization'] = 'Bearer $token';
-        }
-        return handler.next(options);
-      },
-      onError: (DioException e, handler) {
-        if (e.response?.statusCode == 401) {
-          // Logique de redirection vers login ou refresh token 
-          print("Erreur d'authentification : Token invalide.");
-        }
-        return handler.next(e);
-      },
+  final authBox = Hive.box('auth');  // ← utilise la box déjà ouverte
+  final String? token = authBox.get('jwt_token');
+  if (token != null) {
+    options.headers['Authorization'] = 'Bearer $token';
+  }
+  return handler.next(options);
+},
+onError: (DioException e, handler) {
+  if (e.response?.statusCode == 401) {
+    print("Erreur d'authentification : Token invalide.");
+  }
+  return handler.next(e);
+},
     ));
   }
 }

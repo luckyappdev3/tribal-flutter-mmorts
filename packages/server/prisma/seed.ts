@@ -11,14 +11,14 @@ async function main() {
   await prisma.village.deleteMany();
   await prisma.player.deleteMany();
 
-  const hashedPassword = await bcrypt.hash('password123', 10);
+  const hashedPassword = await bcrypt.hash('a', 10);
 
   // 2. Création du Joueur
   const player = await prisma.player.create({
     data: {
       username: 'GuerrierTest',
       email: 'a',
-      password: 'a',
+      password: hashedPassword,
     },
   });
   console.log(`✅ Joueur créé : ${player.username}`);
