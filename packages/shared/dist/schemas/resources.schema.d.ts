@@ -1,17 +1,17 @@
 import { z } from 'zod';
 export declare const ResourcesSchema: z.ZodObject<{
     wood: z.ZodNumber;
-    clay: z.ZodNumber;
+    stone: z.ZodNumber;
     iron: z.ZodNumber;
     food: z.ZodDefault<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     wood: number;
-    clay: number;
+    stone: number;
     iron: number;
     food: number;
 }, {
     wood: number;
-    clay: number;
+    stone: number;
     iron: number;
     food?: number | undefined;
 }>;

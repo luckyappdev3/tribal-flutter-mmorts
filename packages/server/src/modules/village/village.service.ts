@@ -22,9 +22,9 @@ export class VillageService {
     const getLevel = (type: string) => 
       village.buildings.find(b => b.buildingId === type)?.level || 0;
 
-    // Attention : Vérifie que tes IDs de bâtiments en JSON sont bien woodcutter, clay_pit, etc.
-    const woodLevel = getLevel('woodcutter');
-    const stoneLevel = getLevel('clay_pit');
+    // Attention : Vérifie que tes IDs de bâtiments en JSON sont bien timber_camp, clay_pit, etc.
+    const woodLevel = getLevel('timber_camp');
+    const stoneLevel = getLevel('quarry');
     const ironLevel = getLevel('iron_mine');
     const warehouseLevel = getLevel('warehouse');
 

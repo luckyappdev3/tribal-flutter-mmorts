@@ -22,6 +22,8 @@ class EconomyService {
         // 3. Calcul des gains via les formules du package shared
         // On passe le niveau du camp de bois (timberCampLevel) et le temps écoulé
         const woodGain = (0, shared_1.calcResourceProduction)(village.timberCampLevel, elapsedMs);
+        const stoneGain = (0, shared_1.calcResourceProduction)(village.quarryLevel, elapsedMs);
+        const ironGain = (0, shared_1.calcResourceProduction)(village.ironMineLevel, elapsedMs);
         // Note : Tu pourras ajouter ici stoneGain, ironGain etc. avec leurs niveaux respectifs
         // const stoneGain = calcResourceProduction(village.quarryLevel, elapsedMs);
         // 4. Mise à jour atomique en base de données
@@ -29,6 +31,8 @@ class EconomyService {
             where: { id: villageId },
             data: {
                 wood: { increment: woodGain },
+                stone: { increment: stoneGain }, // ← manquait
+                iron: { increment: ironGain }, // ← manquait
                 // On pourrait aussi incrémenter stone: { increment: stoneGain } ici
                 lastTick: now, // On met à jour le timestamp pour le prochain calcul
             }

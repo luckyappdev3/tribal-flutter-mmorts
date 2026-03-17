@@ -44,7 +44,7 @@ export class ConstructionService {
       
       if (!village || 
           village.wood < costs.wood || 
-          village.clay < costs.clay || 
+          village.stone < costs.stone || 
           village.iron < costs.iron) {
         throw new Error("Ressources insuffisantes pour lancer l'amélioration.");
       }
@@ -54,7 +54,7 @@ export class ConstructionService {
         where: { id: villageId },
         data: {
           wood: { decrement: costs.wood },
-          clay: { decrement: costs.clay },
+          stone: { decrement: costs.stone },
           iron: { decrement: costs.iron },
         }
       });

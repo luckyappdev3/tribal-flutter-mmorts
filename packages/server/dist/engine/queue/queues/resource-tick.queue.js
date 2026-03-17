@@ -26,7 +26,7 @@ const startGlobalResourceTick = async () => {
     // Ajoute un job qui s'exécute toutes les 10 secondes
     await exports.resourceTickQueue.add('global-resource-tick', { mode: 'all' }, // On peut passer des données ici si besoin
     {
-        repeat: { every: 10000 }, // 10000ms = 10s
+        repeat: { every: 1000 }, // 10000ms = 10s
         jobId: 'global-tick'
     });
 };

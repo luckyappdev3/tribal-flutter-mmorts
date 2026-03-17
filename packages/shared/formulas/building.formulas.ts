@@ -14,7 +14,7 @@ export function calculateCostForLevel(definition: BuildingDefinition, level: num
 
   return {
     wood: Math.floor(definition.baseStats.baseCost.wood * multiplier),
-    clay: Math.floor(definition.baseStats.baseCost.clay * multiplier),
+    stone: Math.floor(definition.baseStats.baseCost.stone * multiplier),
     iron: Math.floor(definition.baseStats.baseCost.iron * multiplier),
     // Utilisation de || 0 pour garantir un calcul même si food est absent du JSON
     food: Math.floor((definition.baseStats.baseCost.food || 0) * multiplier),

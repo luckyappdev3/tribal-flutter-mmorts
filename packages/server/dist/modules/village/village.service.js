@@ -22,31 +22,31 @@ class VillageService {
             throw new Error('Village non trouvé');
         // 2. Extraire les niveaux
         const getLevel = (type) => village.buildings.find(b => b.buildingId === type)?.level || 0;
-        // Attention : Vérifie que tes IDs de bâtiments en JSON sont bien woodcutter, clay_pit, etc.
-        const woodLevel = getLevel('woodcutter');
-        const clayLevel = getLevel('clay_pit');
+        // Attention : Vérifie que tes IDs de bâtiments en JSON sont bien timber_camp, clay_pit, etc.
+        const woodLevel = getLevel('timber_camp');
+        const stoneLevel = getLevel('quarry');
         const ironLevel = getLevel('iron_mine');
         const warehouseLevel = getLevel('warehouse');
         // 3. Calculer le temps écoulé
         const now = new Date();
-        const hoursPassed = (now.getTime() - village.lastUpdate.getTime()) / (1000 * 3600);
+        const hoursPassed = (now.getTime() - village.lastTick.getTime()) / (1000 * 3600);
         // 4. Calculer la production
-        const woodProd = (0, shared_1.calcResourceProduction)(woodLevel);
-        const clayProd = (0, shared_1.calcResourceProduction)(clayLevel);
-        const ironProd = (0, shared_1.calcResourceProduction)(ironLevel);
+        const woodProd = shared_1.ProductionFormulas.getHourlyRate(woodLevel);
+        const stoneProd = shared_1.ProductionFormulas.getHourlyRate(stoneLevel); // anciennement clayLevel
+        const ironProd = shared_1.ProductionFormulas.getHourlyRate(ironLevel);
         const maxStorage = (0, shared_1.calcMaxStorage)(warehouseLevel);
         // 5. Calculer le nouveau stock
         const newWood = Math.min(village.wood + (woodProd * hoursPassed), maxStorage);
-        const newClay = Math.min(village.clay + (clayProd * hoursPassed), maxStorage);
+        const newStone = Math.min(village.stone + (stoneProd * hoursPassed), maxStorage);
         const newIron = Math.min(village.iron + (ironProd * hoursPassed), maxStorage);
         // 6. Sauvegarder
         return await this.prisma.village.update({
             where: { id: villageId },
             data: {
                 wood: newWood,
-                clay: newClay,
+                stone: newStone,
                 iron: newIron,
-                lastUpdate: now,
+                lastTick: now,
             },
         });
     }

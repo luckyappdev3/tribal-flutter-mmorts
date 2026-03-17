@@ -6,17 +6,17 @@ export declare const VillageSharedSchema: z.ZodObject<{
     y: z.ZodNumber;
     resources: z.ZodObject<{
         wood: z.ZodNumber;
-        clay: z.ZodNumber;
+        stone: z.ZodNumber;
         iron: z.ZodNumber;
         food: z.ZodDefault<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         wood: number;
-        clay: number;
+        stone: number;
         iron: number;
         food: number;
     }, {
         wood: number;
-        clay: number;
+        stone: number;
         iron: number;
         food?: number | undefined;
     }>;
@@ -31,7 +31,7 @@ export declare const VillageSharedSchema: z.ZodObject<{
     y: number;
     resources: {
         wood: number;
-        clay: number;
+        stone: number;
         iron: number;
         food: number;
     };
@@ -46,7 +46,7 @@ export declare const VillageSharedSchema: z.ZodObject<{
     y: number;
     resources: {
         wood: number;
-        clay: number;
+        stone: number;
         iron: number;
         food?: number | undefined;
     };
