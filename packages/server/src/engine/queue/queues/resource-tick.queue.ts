@@ -30,7 +30,7 @@ export const startGlobalResourceTick = async () => {
     'global-resource-tick', 
     { mode: 'all' }, // On peut passer des données ici si besoin
     { 
-      repeat: { every: 10000 }, // 10000ms = 10s
+      repeat: { every: 1000 }, // 10000ms = 10s
       jobId: 'global-tick' 
     }
   );

@@ -1,5 +1,5 @@
 export const calcResourceProduction = (level: number, elapsedMs: number): number => {
-  const hourlyRate = level === 0 ? 5 : Math.round(30 * Math.pow(1.5, level - 1));
+  const hourlyRate = level === 0 ? 5 : Math.round(36000 * Math.pow(1.5, level - 1));
   return (hourlyRate / 3600000) * elapsedMs;
 };
 
@@ -7,7 +7,7 @@ export const calcResourceProduction = (level: number, elapsedMs: number): number
 export const ProductionFormulas = {
   getHourlyRate: (level: number): number => {
     if (level === 0) return 5;
-    return Math.round(30 * Math.pow(1.5, level - 1));
+    return Math.round(36000 * Math.pow(1.5, level - 1));
   },
   calculateGain: calcResourceProduction,
 };
