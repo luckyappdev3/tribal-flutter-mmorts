@@ -8,7 +8,7 @@ var zod_1 = require("zod");
  */
 exports.ResourcesSchema = zod_1.z.object({
     wood: zod_1.z.number().min(0),
-    clay: zod_1.z.number().min(0),
+    stone: zod_1.z.number().min(0),
     iron: zod_1.z.number().min(0),
     food: zod_1.z.number().min(0).default(0),
 });

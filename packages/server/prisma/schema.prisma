@@ -26,7 +26,7 @@ model Village {
   
   // Ressources (Aligné sur ton EconomyService et le mobile)
   wood        Float    @default(500)
-  stone       Float    @default(500) // Remplacé "clay" par "stone" pour matcher ton code
+  stone       Float    @default(500) 
   iron        Float    @default(400)
   food        Float    @default(100)
 

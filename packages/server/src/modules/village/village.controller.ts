@@ -98,6 +98,7 @@ export async function villageRoutes(fastify: FastifyInstance) {
       const result = await fastify.constructionService.startUpgrade(id, buildingId);
       return result;
     } catch (error: any) {
+      console.log("❌ [DEBUG UPGRADE] Error message:", error.message);
       return reply.status(400).send({ error: error.message });
     }
   });

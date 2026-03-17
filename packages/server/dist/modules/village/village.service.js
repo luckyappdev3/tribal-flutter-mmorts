@@ -22,7 +22,7 @@ class VillageService {
             throw new Error('Village non trouvé');
         // 2. Extraire les niveaux
         const getLevel = (type) => village.buildings.find(b => b.buildingId === type)?.level || 0;
-        // Attention : Vérifie que tes IDs de bâtiments en JSON sont bien timber_camp, clay_pit, etc.
+        // Attention : Vérifie que tes IDs de bâtiments en JSON sont bien timber_camp, quarry, etc.
         const woodLevel = getLevel('timber_camp');
         const stoneLevel = getLevel('quarry');
         const ironLevel = getLevel('iron_mine');
@@ -32,7 +32,7 @@ class VillageService {
         const hoursPassed = (now.getTime() - village.lastTick.getTime()) / (1000 * 3600);
         // 4. Calculer la production
         const woodProd = shared_1.ProductionFormulas.getHourlyRate(woodLevel);
-        const stoneProd = shared_1.ProductionFormulas.getHourlyRate(stoneLevel); // anciennement clayLevel
+        const stoneProd = shared_1.ProductionFormulas.getHourlyRate(stoneLevel); 
         const ironProd = shared_1.ProductionFormulas.getHourlyRate(ironLevel);
         const maxStorage = (0, shared_1.calcMaxStorage)(warehouseLevel);
         // 5. Calculer le nouveau stock

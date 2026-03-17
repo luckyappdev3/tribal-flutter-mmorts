@@ -44,7 +44,7 @@ export class ConstructionService {
       if (
         !village ||
         village.wood  < costs.wood  ||
-        village.stone < costs.stone || // ← était costs.clay
+        village.stone < costs.stone || // 
         village.iron  < costs.iron
       ) {
         throw new Error('Ressources insuffisantes pour lancer l\'amélioration.');
@@ -53,9 +53,9 @@ export class ConstructionService {
       await tx.village.update({
         where: { id: villageId },
         data: {
-          wood:  { decrement: costs.wood  },
-          stone: { decrement: costs.stone }, // ← était costs.clay
-          iron:  { decrement: costs.iron  },
+          wood:  { decrement: costs.wood  || 0 },
+          stone: { decrement: costs.stone || 0 }, // Si c'est undefined, ça devient 0
+          iron:  { decrement: costs.iron  || 0 },
         },
       });
 
