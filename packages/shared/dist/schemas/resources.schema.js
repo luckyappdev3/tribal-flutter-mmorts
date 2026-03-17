@@ -4,7 +4,7 @@ exports.ResourcesSchema = void 0;
 const zod_1 = require("zod");
 exports.ResourcesSchema = zod_1.z.object({
     wood: zod_1.z.number().min(0),
-    stone: zod_1.z.number().min(0),
+    stone: zod_1.z.number().min(0), // ← renommé depuis clay, aligné sur Prisma
     iron: zod_1.z.number().min(0),
     food: zod_1.z.number().min(0).default(0),
 });

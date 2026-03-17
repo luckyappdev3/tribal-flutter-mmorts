@@ -12,7 +12,7 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _emailController = TextEditingController();
+  final _emailController    = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
@@ -20,47 +20,26 @@ class _LoginPageState extends State<LoginPage> {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) return;
 
     setState(() => _isLoading = true);
-    
+
     try {
-      // 1. Appel API Login
       final authApi = getIt<AuthApi>();
-      final result = await authApi.login(
-        _emailController.text,
-        _passwordController.text,
-      );
-      
-      final String token = result['token'];
+      final result  = await authApi.login(_emailController.text.trim(), _passwordController.text);
+
+      final String token     = result['token'];
       final String villageId = result['villageId'].toString();
 
-      // 2. Initialisation du Temps Réel (Socket)
       final socketService = getIt<SocketService>();
-      socketService.init(
-        baseUrl: "http://localhost:3000", // À adapter selon ton env (10.0.2.2 pour Android)
-        token: token,
-      );
-
-      // 3. Connexion et ralliement au village
+      socketService.init(baseUrl: 'http://localhost:3000', token: token);
       socketService.connect();
       socketService.joinVillage(villageId);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Bienvenue, Sire ! Connexion réussie."),
-            backgroundColor: Colors.green,
-          ),
-        );
-        
-        // 4. Navigation vers la page principale du village
-        context.go('/'); 
+        context.go('/');
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Erreur : Impossible de rejoindre le royaume ($e)"),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Identifiants invalides : $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -71,58 +50,92 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("MMORTS - Authentification"),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Center(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.shield, size: 80, color: Colors.amber),
-                const SizedBox(height: 32),
-                TextField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: "Email du souverain",
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email),
+      backgroundColor: const Color(0xFF1A1A1A),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              const SizedBox(height: 48),
+              const Icon(Icons.shield, size: 80, color: Colors.amber),
+              const SizedBox(height: 16),
+              const Text(
+                'MMORTS',
+                style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 4),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Entrez dans votre Royaume',
+                style: TextStyle(color: Colors.white54, fontSize: 14),
+              ),
+              const SizedBox(height: 48),
+
+              TextField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                style: const TextStyle(color: Colors.white),
+                decoration: _inputDec('Email', Icons.email),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _passwordController,
+                obscureText: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: _inputDec('Mot de passe', Icons.lock),
+              ),
+              const SizedBox(height: 32),
+
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber[800],
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 4,
                   ),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _passwordController,
-                  decoration: const InputDecoration(
-                    labelText: "Mot de passe",
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock),
-                  ),
-                  obscureText: true,
-                ),
-                const SizedBox(height: 32),
-                _isLoading 
-                  ? const CircularProgressIndicator() 
-                  : SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.amber[800],
-                          foregroundColor: Colors.white,
+                  onPressed: _isLoading ? null : _handleLogin,
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                      : const Text(
+                          'ENTRER DANS LE JEU',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 1),
                         ),
-                        onPressed: _handleLogin, 
-                        child: const Text("ENTRER DANS LE JEU", style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-              ],
-            ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+              TextButton(
+                onPressed: () => context.goNamed('register'),
+                child: const Text(
+                  'Pas encore de compte ? S\'inscrire',
+                  style: TextStyle(color: Colors.amber),
+                ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+
+  InputDecoration _inputDec(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: Colors.white54),
+      prefixIcon: Icon(icon, color: Colors.amber),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.white24),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.amber),
+      ),
+      filled: true,
+      fillColor: const Color(0xFF262626),
     );
   }
 

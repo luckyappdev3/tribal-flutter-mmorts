@@ -1,0 +1,18 @@
+{
+  "id": "quarry",
+  "name": "Carrière",
+  "description": "Extrait la pierre des collines voisines. Indispensable pour construire des fortifications.",
+  "maxLevel": 30,
+  "baseStats": {
+    "baseCost": {
+      "wood": 65,
+      "stone": 50,
+      "iron": 40,
+      "food": 0
+    },
+    "baseBuildTime": 12,
+    "costMultiplier": 1.2,
+    "timeMultiplier": 1.1,
+    "productionBase": 36000
+  }
+}

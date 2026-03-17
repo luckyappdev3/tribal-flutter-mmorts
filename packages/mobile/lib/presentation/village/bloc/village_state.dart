@@ -8,10 +8,13 @@ class VillageState with _$VillageState {
   const factory VillageState.loaded({
     required String id,
     required String name,
-    required int wood,
-    required int stone,
-    required int iron,
-    // On pourra ajouter la file de construction ici plus tard [cite: 150]
+    required double wood,
+    required double stone,
+    required double iron,
+    // Taux de production par seconde pour l'interpolation locale
+    @Default(0.0) double woodRate,
+    @Default(0.0) double stoneRate,
+    @Default(0.0) double ironRate,
   }) = _Loaded;
   const factory VillageState.error(String message) = _Error;
 }

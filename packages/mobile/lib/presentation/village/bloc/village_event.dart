@@ -3,6 +3,7 @@ part 'village_event.freezed.dart';
 
 @freezed
 class VillageEvent with _$VillageEvent {
-  const factory VillageEvent.loadRequested(String villageId) = _LoadRequested;
-  const factory VillageEvent.resourcesUpdated(Map<String, dynamic> data) = _ResourcesUpdated;
+  const factory VillageEvent.loadRequested(String villageId)               = _LoadRequested;
+  const factory VillageEvent.resourcesUpdated(Map<String, dynamic> data)   = _ResourcesUpdated;
+  const factory VillageEvent.localTick()                                    = _LocalTick;
 }

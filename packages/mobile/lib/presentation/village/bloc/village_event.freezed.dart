@@ -20,18 +20,21 @@ mixin _$VillageEvent {
   TResult when<TResult extends Object?>({
     required TResult Function(String villageId) loadRequested,
     required TResult Function(Map<String, dynamic> data) resourcesUpdated,
+    required TResult Function() localTick,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function(String villageId)? loadRequested,
     TResult? Function(Map<String, dynamic> data)? resourcesUpdated,
+    TResult? Function()? localTick,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function(String villageId)? loadRequested,
     TResult Function(Map<String, dynamic> data)? resourcesUpdated,
+    TResult Function()? localTick,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
@@ -39,18 +42,21 @@ mixin _$VillageEvent {
   TResult map<TResult extends Object?>({
     required TResult Function(_LoadRequested value) loadRequested,
     required TResult Function(_ResourcesUpdated value) resourcesUpdated,
+    required TResult Function(_LocalTick value) localTick,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(_LoadRequested value)? loadRequested,
     TResult? Function(_ResourcesUpdated value)? resourcesUpdated,
+    TResult? Function(_LocalTick value)? localTick,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
     TResult Function(_LoadRequested value)? loadRequested,
     TResult Function(_ResourcesUpdated value)? resourcesUpdated,
+    TResult Function(_LocalTick value)? localTick,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
@@ -148,6 +154,7 @@ class _$LoadRequestedImpl implements _LoadRequested {
   TResult when<TResult extends Object?>({
     required TResult Function(String villageId) loadRequested,
     required TResult Function(Map<String, dynamic> data) resourcesUpdated,
+    required TResult Function() localTick,
   }) {
     return loadRequested(villageId);
   }
@@ -157,6 +164,7 @@ class _$LoadRequestedImpl implements _LoadRequested {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function(String villageId)? loadRequested,
     TResult? Function(Map<String, dynamic> data)? resourcesUpdated,
+    TResult? Function()? localTick,
   }) {
     return loadRequested?.call(villageId);
   }
@@ -166,6 +174,7 @@ class _$LoadRequestedImpl implements _LoadRequested {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function(String villageId)? loadRequested,
     TResult Function(Map<String, dynamic> data)? resourcesUpdated,
+    TResult Function()? localTick,
     required TResult orElse(),
   }) {
     if (loadRequested != null) {
@@ -179,6 +188,7 @@ class _$LoadRequestedImpl implements _LoadRequested {
   TResult map<TResult extends Object?>({
     required TResult Function(_LoadRequested value) loadRequested,
     required TResult Function(_ResourcesUpdated value) resourcesUpdated,
+    required TResult Function(_LocalTick value) localTick,
   }) {
     return loadRequested(this);
   }
@@ -188,6 +198,7 @@ class _$LoadRequestedImpl implements _LoadRequested {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(_LoadRequested value)? loadRequested,
     TResult? Function(_ResourcesUpdated value)? resourcesUpdated,
+    TResult? Function(_LocalTick value)? localTick,
   }) {
     return loadRequested?.call(this);
   }
@@ -197,6 +208,7 @@ class _$LoadRequestedImpl implements _LoadRequested {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(_LoadRequested value)? loadRequested,
     TResult Function(_ResourcesUpdated value)? resourcesUpdated,
+    TResult Function(_LocalTick value)? localTick,
     required TResult orElse(),
   }) {
     if (loadRequested != null) {
@@ -295,6 +307,7 @@ class _$ResourcesUpdatedImpl implements _ResourcesUpdated {
   TResult when<TResult extends Object?>({
     required TResult Function(String villageId) loadRequested,
     required TResult Function(Map<String, dynamic> data) resourcesUpdated,
+    required TResult Function() localTick,
   }) {
     return resourcesUpdated(data);
   }
@@ -304,6 +317,7 @@ class _$ResourcesUpdatedImpl implements _ResourcesUpdated {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function(String villageId)? loadRequested,
     TResult? Function(Map<String, dynamic> data)? resourcesUpdated,
+    TResult? Function()? localTick,
   }) {
     return resourcesUpdated?.call(data);
   }
@@ -313,6 +327,7 @@ class _$ResourcesUpdatedImpl implements _ResourcesUpdated {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function(String villageId)? loadRequested,
     TResult Function(Map<String, dynamic> data)? resourcesUpdated,
+    TResult Function()? localTick,
     required TResult orElse(),
   }) {
     if (resourcesUpdated != null) {
@@ -326,6 +341,7 @@ class _$ResourcesUpdatedImpl implements _ResourcesUpdated {
   TResult map<TResult extends Object?>({
     required TResult Function(_LoadRequested value) loadRequested,
     required TResult Function(_ResourcesUpdated value) resourcesUpdated,
+    required TResult Function(_LocalTick value) localTick,
   }) {
     return resourcesUpdated(this);
   }
@@ -335,6 +351,7 @@ class _$ResourcesUpdatedImpl implements _ResourcesUpdated {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(_LoadRequested value)? loadRequested,
     TResult? Function(_ResourcesUpdated value)? resourcesUpdated,
+    TResult? Function(_LocalTick value)? localTick,
   }) {
     return resourcesUpdated?.call(this);
   }
@@ -344,6 +361,7 @@ class _$ResourcesUpdatedImpl implements _ResourcesUpdated {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(_LoadRequested value)? loadRequested,
     TResult Function(_ResourcesUpdated value)? resourcesUpdated,
+    TResult Function(_LocalTick value)? localTick,
     required TResult orElse(),
   }) {
     if (resourcesUpdated != null) {
@@ -364,4 +382,115 @@ abstract class _ResourcesUpdated implements VillageEvent {
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$ResourcesUpdatedImplCopyWith<_$ResourcesUpdatedImpl> get copyWith =>
       throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$LocalTickImplCopyWith<$Res> {
+  factory _$$LocalTickImplCopyWith(
+          _$LocalTickImpl value, $Res Function(_$LocalTickImpl) then) =
+      __$$LocalTickImplCopyWithImpl<$Res>;
+}
+
+/// @nodoc
+class __$$LocalTickImplCopyWithImpl<$Res>
+    extends _$VillageEventCopyWithImpl<$Res, _$LocalTickImpl>
+    implements _$$LocalTickImplCopyWith<$Res> {
+  __$$LocalTickImplCopyWithImpl(
+      _$LocalTickImpl _value, $Res Function(_$LocalTickImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of VillageEvent
+  /// with the given fields replaced by the non-null parameter values.
+}
+
+/// @nodoc
+
+class _$LocalTickImpl implements _LocalTick {
+  const _$LocalTickImpl();
+
+  @override
+  String toString() {
+    return 'VillageEvent.localTick()';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType && other is _$LocalTickImpl);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String villageId) loadRequested,
+    required TResult Function(Map<String, dynamic> data) resourcesUpdated,
+    required TResult Function() localTick,
+  }) {
+    return localTick();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String villageId)? loadRequested,
+    TResult? Function(Map<String, dynamic> data)? resourcesUpdated,
+    TResult? Function()? localTick,
+  }) {
+    return localTick?.call();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String villageId)? loadRequested,
+    TResult Function(Map<String, dynamic> data)? resourcesUpdated,
+    TResult Function()? localTick,
+    required TResult orElse(),
+  }) {
+    if (localTick != null) {
+      return localTick();
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(_LoadRequested value) loadRequested,
+    required TResult Function(_ResourcesUpdated value) resourcesUpdated,
+    required TResult Function(_LocalTick value) localTick,
+  }) {
+    return localTick(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(_LoadRequested value)? loadRequested,
+    TResult? Function(_ResourcesUpdated value)? resourcesUpdated,
+    TResult? Function(_LocalTick value)? localTick,
+  }) {
+    return localTick?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(_LoadRequested value)? loadRequested,
+    TResult Function(_ResourcesUpdated value)? resourcesUpdated,
+    TResult Function(_LocalTick value)? localTick,
+    required TResult orElse(),
+  }) {
+    if (localTick != null) {
+      return localTick(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class _LocalTick implements VillageEvent {
+  const factory _LocalTick() = _$LocalTickImpl;
 }

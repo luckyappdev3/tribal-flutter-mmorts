@@ -17,8 +17,8 @@ async function main() {
   const player = await prisma.player.create({
     data: {
       username: 'GuerrierTest',
-      email: 'test@mmorts.com',
-      password: hashedPassword,
+      email: 'a',
+      password: 'a',
     },
   });
   console.log(`✅ Joueur créé : ${player.username}`);
@@ -31,7 +31,7 @@ async function main() {
       y: 500,
       playerId: player.id,
       wood: 500,
-      clay: 500,
+      stone: 500,
       iron: 400,
       //food: 100, // Initialisé pour ton ResourcesSchema
     },
@@ -42,16 +42,11 @@ async function main() {
   // On ajoute le QG ET le camp de bois pour tester la production
   await prisma.buildingInstance.createMany({
     data: [
-      {
-        buildingId: 'headquarters',
-        level: 1,
-        villageId: village.id,
-      },
-      {
-        buildingId: 'timber_camp', // Identique à l'id dans timber_camp.json
-        level: 1,
-        villageId: village.id,
-      },
+      { buildingId: 'headquarters', level: 1, villageId: village.id },
+    { buildingId: 'timber_camp',  level: 1, villageId: village.id },
+    { buildingId: 'quarry',       level: 1, villageId: village.id }, // ← ajouter
+    { buildingId: 'iron_mine',    level: 1, villageId: village.id }, // ← ajouter
+    { buildingId: 'warehouse',    level: 1, villageId: village.id }, // ← ajouter
     ],
   });
   

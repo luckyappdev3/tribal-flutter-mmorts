@@ -1,0 +1,18 @@
+{
+  "id": "warehouse",
+  "name": "Entrepôt",
+  "description": "Augmente la capacité de stockage des ressources du village. Sans entrepôt, la production s'arrête.",
+  "maxLevel": 30,
+  "baseStats": {
+    "baseCost": {
+      "wood": 90,
+      "stone": 85,
+      "iron": 30,
+      "food": 0
+    },
+    "baseBuildTime": 20,
+    "costMultiplier": 1.2,
+    "timeMultiplier": 1.1,
+    "capacityBase": 1000
+  }
+}

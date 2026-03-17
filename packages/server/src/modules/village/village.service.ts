@@ -2,15 +2,9 @@ import { PrismaClient } from '@prisma/client';
 import { ProductionFormulas, calcMaxStorage } from '@mmorts/shared';
 
 export class VillageService {
-  // On utilise le prisma passé au constructeur (depuis le main.ts)
   constructor(private prisma: PrismaClient) {}
 
-  /**
-   * Calcule et met à jour les ressources produites depuis la dernière visite.
-   * Renommé en updateResources pour matcher l'appel du ConstructionService
-   */
   async updateResources(villageId: string) {
-    // 1. Récupérer le village avec ses bâtiments
     const village = await this.prisma.village.findUnique({
       where: { id: villageId },
       include: { buildings: true },
@@ -18,38 +12,33 @@ export class VillageService {
 
     if (!village) throw new Error('Village non trouvé');
 
-    // 2. Extraire les niveaux
-    const getLevel = (type: string) => 
-      village.buildings.find(b => b.buildingId === type)?.level || 0;
+    const getLevel = (bid: string) =>
+      village.buildings.find(b => b.buildingId === bid)?.level || 0;
 
-    // Attention : Vérifie que tes IDs de bâtiments en JSON sont bien timber_camp, clay_pit, etc.
-    const woodLevel = getLevel('timber_camp');
-    const stoneLevel = getLevel('quarry');
-    const ironLevel = getLevel('iron_mine');
+    // IDs alignés sur les fichiers JSON dans game-data/buildings/
+    const woodLevel      = getLevel('timber_camp');
+    const stoneLevel     = getLevel('quarry');
+    const ironLevel      = getLevel('iron_mine');
     const warehouseLevel = getLevel('warehouse');
 
-    // 3. Calculer le temps écoulé
     const now = new Date();
-    const hoursPassed = (now.getTime() - village.lastTick.getTime()) / (1000 * 3600);
+    const hoursPassed = (now.getTime() - village.lastTick.getTime()) / 3600000;
 
-    // 4. Calculer la production
-      const woodProd = ProductionFormulas.getHourlyRate(woodLevel);
-      const stoneProd = ProductionFormulas.getHourlyRate(stoneLevel);  // anciennement clayLevel
-      const ironProd = ProductionFormulas.getHourlyRate(ironLevel);
-    const maxStorage = calcMaxStorage(warehouseLevel);
-    
-    // 5. Calculer le nouveau stock
-    const newWood = Math.min(village.wood + (woodProd * hoursPassed), maxStorage);
-    const newStone = Math.min(village.stone + (stoneProd * hoursPassed), maxStorage);
-    const newIron = Math.min(village.iron + (ironProd * hoursPassed), maxStorage);
+    const woodProd  = ProductionFormulas.getHourlyRate(woodLevel);
+    const stoneProd = ProductionFormulas.getHourlyRate(stoneLevel);
+    const ironProd  = ProductionFormulas.getHourlyRate(ironLevel);
+    const max       = calcMaxStorage(warehouseLevel);
 
-    // 6. Sauvegarder
+    const newWood  = Math.min(village.wood  + woodProd  * hoursPassed, max);
+    const newStone = Math.min(village.stone + stoneProd * hoursPassed, max);
+    const newIron  = Math.min(village.iron  + ironProd  * hoursPassed, max);
+
     return await this.prisma.village.update({
       where: { id: villageId },
       data: {
-        wood: newWood,
-        stone: newStone,
-        iron: newIron,
+        wood:     newWood,
+        stone:    newStone,
+        iron:     newIron,
         lastTick: now,
       },
     });

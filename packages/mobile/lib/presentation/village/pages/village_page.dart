@@ -1,158 +1,233 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../bloc/village_bloc.dart';
 import '../bloc/village_event.dart';
 import '../bloc/village_state.dart';
+import '../../../core/router/route_names.dart';
 
 class VillagePage extends StatelessWidget {
   const VillagePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // 1. Récupération de l'ID stocké dans Hive lors du Login
     final villageBox = Hive.box('village');
     final String? villageId = villageBox.get('current_village_id');
 
-    // 2. Si l'ID est introuvable, on affiche un écran d'erreur
     if (villageId == null || villageId.isEmpty) {
-      return const Scaffold(
+      return Scaffold(
+        backgroundColor: const Color(0xFF1A1A1A),
         body: Center(
-          child: Text(
-            "Erreur : Aucun village associé à ce compte.",
-            style: TextStyle(color: Colors.white),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.red, size: 48),
+              const SizedBox(height: 16),
+              const Text(
+                'Aucun village associé à ce compte.',
+                style: TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => context.go('/login'),
+                child: const Text('Se reconnecter', style: TextStyle(color: Colors.amber)),
+              ),
+            ],
           ),
         ),
       );
     }
 
-    // 3. Fourniture du Bloc avec l'ID dynamique
     return BlocProvider(
-      create: (context) => VillageBloc()..add(VillageEvent.loadRequested(villageId)),
-      child: const VillageView(),
+      create: (_) => VillageBloc()..add(VillageEvent.loadRequested(villageId)),
+      child: const _VillageView(),
     );
   }
 }
 
-class VillageView extends StatelessWidget {
-  const VillageView({super.key});
+class _VillageView extends StatelessWidget {
+  const _VillageView();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A1A),
       appBar: AppBar(
-        title: const Text("Mon Royaume"),
+        title: BlocBuilder<VillageBloc, VillageState>(
+          builder: (_, state) => Text(
+            state.maybeWhen(loaded: (_, name, __, ___, ____, _____, ______, _______) => name, orElse: () => 'Mon Royaume'),
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
         backgroundColor: Colors.black54,
         elevation: 0,
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.amber),
+            onPressed: () {
+              final villageId = Hive.box('village').get('current_village_id') as String?;
+              if (villageId != null) {
+                context.read<VillageBloc>().add(VillageEvent.loadRequested(villageId));
+              }
+            },
+          ),
+        ],
       ),
       body: BlocBuilder<VillageBloc, VillageState>(
         builder: (context, state) {
           return state.when(
             initial: () => const Center(child: CircularProgressIndicator(color: Colors.amber)),
             loading: () => const Center(child: CircularProgressIndicator(color: Colors.amber)),
-            error: (message) => Center(
-              child: Text("Erreur: $message", style: const TextStyle(color: Colors.red)),
-            ),
-            loaded: (id, name, wood, stone, iron) => Column(
-              children: [
-                // BARRE DES RESSOURCES
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-                  decoration: const BoxDecoration(
-                    color: Colors.black87,
-                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 5))
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _resourceItem(Icons.forest, "Bois", wood.toString(), Colors.brown),
-                      _resourceItem(Icons.terrain, "Pierre", stone.toString(), Colors.grey),
-                      _resourceItem(Icons.iron, "Fer", iron.toString(), Colors.blueGrey),
-                    ],
-                  ),
-                ),
-                
-                const Spacer(),
-                
-                // VISUEL DU VILLAGE
-                const Icon(Icons.fort, size: 150, color: Colors.amber),
-                const SizedBox(height: 10),
-                Text(
-                  name, 
-                  style: const TextStyle(
-                    fontSize: 26, 
-                    fontWeight: FontWeight.bold, 
-                    color: Colors.white,
-                    letterSpacing: 1.2
-                  )
-                ),
-                const Text("Souverain Yildirim", style: TextStyle(color: Colors.amber, fontSize: 14)),
-                
-                // DEBUG INFO (Optionnel, à retirer pour la prod)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Text("ID: $id", style: TextStyle(color: Colors.white24, fontSize: 10)),
-                ),
-                
-                const Spacer(),
-                
-                // BOUTON DE CONSTRUCTION
-                Padding(
-                  padding: const EdgeInsets.all(25.0),
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber[900],
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 60),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 8,
-                    ),
-                    onPressed: () => _showConstructionMenu(context),
-                    icon: const Icon(Icons.account_balance, size: 28),
-                    label: const Text(
-                      "CONSTRUIRE L'EMPIRE", 
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            error:   (msg) => _ErrorView(message: msg),
+            loaded:  (id, name, wood, stone, iron, woodRate, stoneRate, ironRate) =>
+              _LoadedBody(
+                id: id, name: name,
+                wood: wood, stone: stone, iron: iron,
+                woodRate: woodRate, stoneRate: stoneRate, ironRate: ironRate,
+              ),
           );
         },
       ),
     );
   }
+}
 
-  Widget _resourceItem(IconData icon, String name, String value, Color color) {
+class _LoadedBody extends StatelessWidget {
+  final String id, name;
+  final double wood, stone, iron;
+  final double woodRate, stoneRate, ironRate;
+
+  const _LoadedBody({
+    required this.id, required this.name,
+    required this.wood, required this.stone, required this.iron,
+    required this.woodRate, required this.stoneRate, required this.ironRate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       children: [
-        Icon(icon, color: color, size: 28),
-        const SizedBox(height: 5),
-        Text(
-          value, 
-          style: const TextStyle(
-            color: Colors.white, 
-            fontSize: 18, 
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Monospace'
-          )
+        // ── BARRE DES RESSOURCES ──
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          decoration: const BoxDecoration(
+            color: Colors.black87,
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+            boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 8, offset: Offset(0, 4))],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _ResourceItem(icon: Icons.forest,  label: 'Bois',   value: wood,  rate: woodRate,  color: const Color(0xFF8D6E63)),
+              _ResourceItem(icon: Icons.terrain,  label: 'Pierre', value: stone, rate: stoneRate, color: const Color(0xFF90A4AE)),
+              _ResourceItem(icon: Icons.hardware, label: 'Fer',    value: iron,  rate: ironRate,  color: const Color(0xFF78909C)),
+            ],
+          ),
         ),
+
+        const Spacer(),
+
+        // ── VISUEL VILLAGE ──
+        const Icon(Icons.fort, size: 120, color: Colors.amber),
+        const SizedBox(height: 12),
         Text(
-          name.toUpperCase(), 
-          style: TextStyle(color: color.withOpacity(0.9), fontSize: 10, fontWeight: FontWeight.w600)
+          name,
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.2),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'ID: $id',
+          style: const TextStyle(color: Colors.white24, fontSize: 10),
+        ),
+
+        const Spacer(),
+
+        // ── BOUTON CONSTRUCTION ──
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber[900],
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 58),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 6,
+            ),
+            onPressed: () => context.pushNamed(RouteNames.construction),
+            icon: const Icon(Icons.account_balance, size: 26),
+            label: const Text('CONSTRUIRE', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, letterSpacing: 1)),
+          ),
         ),
       ],
     );
   }
+}
 
-  void _showConstructionMenu(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Menu de construction bientôt disponible..."))
+class _ResourceItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final double value;
+  final double rate;
+  final Color color;
+
+  const _ResourceItem({
+    required this.icon, required this.label,
+    required this.value, required this.rate, required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 26),
+        const SizedBox(height: 4),
+        Text(
+          value.floor().toString(),
+          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
+        ),
+        Text(
+          label.toUpperCase(),
+          style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w600, letterSpacing: 1),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '+${rate.toStringAsFixed(1)}/s',
+          style: const TextStyle(color: Colors.white38, fontSize: 9),
+        ),
+      ],
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  final String message;
+  const _ErrorView({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 48),
+            const SizedBox(height: 16),
+            Text(message, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                final id = Hive.box('village').get('current_village_id') as String?;
+                if (id != null) context.read<VillageBloc>().add(VillageEvent.loadRequested(id));
+              },
+              child: const Text('Réessayer'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
