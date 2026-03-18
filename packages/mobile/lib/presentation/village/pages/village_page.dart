@@ -56,7 +56,7 @@ class _VillageView extends StatelessWidget {
       appBar: AppBar(
         title: BlocBuilder<VillageBloc, VillageState>(
           builder: (_, state) => Text(
-            state.maybeWhen(loaded: (_, name, __, ___, ____, _____, ______, _______) => name, orElse: () => 'Mon Royaume'),
+            state.maybeWhen(loaded: (id, name, wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage) => name, orElse: () => 'Mon Royaume'),
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ),
@@ -81,12 +81,12 @@ class _VillageView extends StatelessWidget {
             initial: () => const Center(child: CircularProgressIndicator(color: Colors.amber)),
             loading: () => const Center(child: CircularProgressIndicator(color: Colors.amber)),
             error:   (msg) => _ErrorView(message: msg),
-            loaded:  (id, name, wood, stone, iron, woodRate, stoneRate, ironRate) =>
-              _LoadedBody(
-                id: id, name: name,
-                wood: wood, stone: stone, iron: iron,
-                woodRate: woodRate, stoneRate: stoneRate, ironRate: ironRate,
-              ),
+            loaded: (id, name, wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage) => _LoadedBody(
+            id: id, name: name,
+            wood: wood, stone: stone, iron: iron,
+            woodRate: woodRate, stoneRate: stoneRate, ironRate: ironRate,
+            maxStorage: maxStorage,
+          ),
           );
         },
       ),
@@ -98,11 +98,13 @@ class _LoadedBody extends StatelessWidget {
   final String id, name;
   final double wood, stone, iron;
   final double woodRate, stoneRate, ironRate;
+  final double maxStorage; 
 
   const _LoadedBody({
     required this.id, required this.name,
     required this.wood, required this.stone, required this.iron,
     required this.woodRate, required this.stoneRate, required this.ironRate,
+    required this.maxStorage, 
   });
 
   @override

@@ -34,7 +34,10 @@ class AuthService {
                         buildings: {
                             create: [
                                 { buildingId: 'headquarters', level: 1 },
-                                { buildingId: 'timber_camp', level: 1 }
+                                { buildingId: 'timber_camp', level: 1 },
+                                { buildingId: 'quarry', level: 1 }, // ← ajouter
+                                { buildingId: 'iron_mine', level: 1 }, // ← ajouter
+                                { buildingId: 'warehouse', level: 1 }, // ← ajouter
                             ]
                         }
                     }

@@ -2,9 +2,8 @@
  * Calcule la capacité maximale de l'entrepôt selon son niveau.
  */
 export const calcMaxStorage = (level: number): number => {
-  if (level <= 1) return 1000;
-  // Progression exponentielle : environ +20% par niveau
-  return Math.round(1000 * Math.pow(1.2, level - 1));
+  if (level === 0) return 5000;   // Pas d'entrepôt = stock de base
+  return Math.round(5000 * Math.pow(1.5, level - 1)); // Niv 1 = 5000, Niv 2 = 7500...
 };
 
 /**

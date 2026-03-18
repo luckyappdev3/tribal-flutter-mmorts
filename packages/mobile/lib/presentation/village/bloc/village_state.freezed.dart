@@ -20,8 +20,16 @@ mixin _$VillageState {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(String id, String name, double wood, double stone,
-            double iron, double woodRate, double stoneRate, double ironRate)
+    required TResult Function(
+            String id,
+            String name,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)
         loaded,
     required TResult Function(String message) error,
   }) =>
@@ -30,8 +38,16 @@ mixin _$VillageState {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(String id, String name, double wood, double stone,
-            double iron, double woodRate, double stoneRate, double ironRate)?
+    TResult? Function(
+            String id,
+            String name,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
     TResult? Function(String message)? error,
   }) =>
@@ -40,8 +56,16 @@ mixin _$VillageState {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(String id, String name, double wood, double stone,
-            double iron, double woodRate, double stoneRate, double ironRate)?
+    TResult Function(
+            String id,
+            String name,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -138,8 +162,16 @@ class _$InitialImpl implements _Initial {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(String id, String name, double wood, double stone,
-            double iron, double woodRate, double stoneRate, double ironRate)
+    required TResult Function(
+            String id,
+            String name,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)
         loaded,
     required TResult Function(String message) error,
   }) {
@@ -151,8 +183,16 @@ class _$InitialImpl implements _Initial {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(String id, String name, double wood, double stone,
-            double iron, double woodRate, double stoneRate, double ironRate)?
+    TResult? Function(
+            String id,
+            String name,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
     TResult? Function(String message)? error,
   }) {
@@ -164,8 +204,16 @@ class _$InitialImpl implements _Initial {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(String id, String name, double wood, double stone,
-            double iron, double woodRate, double stoneRate, double ironRate)?
+    TResult Function(
+            String id,
+            String name,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -261,8 +309,16 @@ class _$LoadingImpl implements _Loading {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(String id, String name, double wood, double stone,
-            double iron, double woodRate, double stoneRate, double ironRate)
+    required TResult Function(
+            String id,
+            String name,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)
         loaded,
     required TResult Function(String message) error,
   }) {
@@ -274,8 +330,16 @@ class _$LoadingImpl implements _Loading {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(String id, String name, double wood, double stone,
-            double iron, double woodRate, double stoneRate, double ironRate)?
+    TResult? Function(
+            String id,
+            String name,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
     TResult? Function(String message)? error,
   }) {
@@ -287,8 +351,16 @@ class _$LoadingImpl implements _Loading {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(String id, String name, double wood, double stone,
-            double iron, double woodRate, double stoneRate, double ironRate)?
+    TResult Function(
+            String id,
+            String name,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -355,7 +427,8 @@ abstract class _$$LoadedImplCopyWith<$Res> {
       double iron,
       double woodRate,
       double stoneRate,
-      double ironRate});
+      double ironRate,
+      double maxStorage});
 }
 
 /// @nodoc
@@ -379,6 +452,7 @@ class __$$LoadedImplCopyWithImpl<$Res>
     Object? woodRate = null,
     Object? stoneRate = null,
     Object? ironRate = null,
+    Object? maxStorage = null,
   }) {
     return _then(_$LoadedImpl(
       id: null == id
@@ -413,6 +487,10 @@ class __$$LoadedImplCopyWithImpl<$Res>
           ? _value.ironRate
           : ironRate // ignore: cast_nullable_to_non_nullable
               as double,
+      maxStorage: null == maxStorage
+          ? _value.maxStorage
+          : maxStorage // ignore: cast_nullable_to_non_nullable
+              as double,
     ));
   }
 }
@@ -428,7 +506,8 @@ class _$LoadedImpl implements _Loaded {
       required this.iron,
       this.woodRate = 0.0,
       this.stoneRate = 0.0,
-      this.ironRate = 0.0});
+      this.ironRate = 0.0,
+      this.maxStorage = 5000.0});
 
   @override
   final String id;
@@ -450,10 +529,13 @@ class _$LoadedImpl implements _Loaded {
   @override
   @JsonKey()
   final double ironRate;
+  @override
+  @JsonKey()
+  final double maxStorage;
 
   @override
   String toString() {
-    return 'VillageState.loaded(id: $id, name: $name, wood: $wood, stone: $stone, iron: $iron, woodRate: $woodRate, stoneRate: $stoneRate, ironRate: $ironRate)';
+    return 'VillageState.loaded(id: $id, name: $name, wood: $wood, stone: $stone, iron: $iron, woodRate: $woodRate, stoneRate: $stoneRate, ironRate: $ironRate, maxStorage: $maxStorage)';
   }
 
   @override
@@ -471,12 +553,14 @@ class _$LoadedImpl implements _Loaded {
             (identical(other.stoneRate, stoneRate) ||
                 other.stoneRate == stoneRate) &&
             (identical(other.ironRate, ironRate) ||
-                other.ironRate == ironRate));
+                other.ironRate == ironRate) &&
+            (identical(other.maxStorage, maxStorage) ||
+                other.maxStorage == maxStorage));
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType, id, name, wood, stone, iron, woodRate, stoneRate, ironRate);
+  int get hashCode => Object.hash(runtimeType, id, name, wood, stone, iron,
+      woodRate, stoneRate, ironRate, maxStorage);
 
   /// Create a copy of VillageState
   /// with the given fields replaced by the non-null parameter values.
@@ -491,12 +575,21 @@ class _$LoadedImpl implements _Loaded {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(String id, String name, double wood, double stone,
-            double iron, double woodRate, double stoneRate, double ironRate)
+    required TResult Function(
+            String id,
+            String name,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)
         loaded,
     required TResult Function(String message) error,
   }) {
-    return loaded(id, name, wood, stone, iron, woodRate, stoneRate, ironRate);
+    return loaded(
+        id, name, wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage);
   }
 
   @override
@@ -504,13 +597,21 @@ class _$LoadedImpl implements _Loaded {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(String id, String name, double wood, double stone,
-            double iron, double woodRate, double stoneRate, double ironRate)?
+    TResult? Function(
+            String id,
+            String name,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
     TResult? Function(String message)? error,
   }) {
     return loaded?.call(
-        id, name, wood, stone, iron, woodRate, stoneRate, ironRate);
+        id, name, wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage);
   }
 
   @override
@@ -518,14 +619,23 @@ class _$LoadedImpl implements _Loaded {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(String id, String name, double wood, double stone,
-            double iron, double woodRate, double stoneRate, double ironRate)?
+    TResult Function(
+            String id,
+            String name,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
     if (loaded != null) {
-      return loaded(id, name, wood, stone, iron, woodRate, stoneRate, ironRate);
+      return loaded(id, name, wood, stone, iron, woodRate, stoneRate, ironRate,
+          maxStorage);
     }
     return orElse();
   }
@@ -577,7 +687,8 @@ abstract class _Loaded implements VillageState {
       required final double iron,
       final double woodRate,
       final double stoneRate,
-      final double ironRate}) = _$LoadedImpl;
+      final double ironRate,
+      final double maxStorage}) = _$LoadedImpl;
 
   String get id;
   String get name;
@@ -587,6 +698,7 @@ abstract class _Loaded implements VillageState {
   double get woodRate;
   double get stoneRate;
   double get ironRate;
+  double get maxStorage;
 
   /// Create a copy of VillageState
   /// with the given fields replaced by the non-null parameter values.
@@ -665,8 +777,16 @@ class _$ErrorImpl implements _Error {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(String id, String name, double wood, double stone,
-            double iron, double woodRate, double stoneRate, double ironRate)
+    required TResult Function(
+            String id,
+            String name,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)
         loaded,
     required TResult Function(String message) error,
   }) {
@@ -678,8 +798,16 @@ class _$ErrorImpl implements _Error {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(String id, String name, double wood, double stone,
-            double iron, double woodRate, double stoneRate, double ironRate)?
+    TResult? Function(
+            String id,
+            String name,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
     TResult? Function(String message)? error,
   }) {
@@ -691,8 +819,16 @@ class _$ErrorImpl implements _Error {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(String id, String name, double wood, double stone,
-            double iron, double woodRate, double stoneRate, double ironRate)?
+    TResult Function(
+            String id,
+            String name,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
     TResult Function(String message)? error,
     required TResult orElse(),

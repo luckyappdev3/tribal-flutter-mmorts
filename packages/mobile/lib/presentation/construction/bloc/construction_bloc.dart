@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/di/injection.dart';
 import '../../../data/remote/api/village_api.dart';
@@ -6,8 +7,9 @@ import 'construction_event.dart';
 import 'construction_state.dart';
 
 class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
-  final VillageApi _villageApi       = getIt<VillageApi>();
+  final VillageApi    _villageApi    = getIt<VillageApi>();
   final SocketService _socketService = getIt<SocketService>();
+  Timer? _interpolationTimer;
 
   ConstructionBloc() : super(const ConstructionState.initial()) {
     on<ConstructionEvent>(_onEvent);
@@ -24,66 +26,158 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
     Emitter<ConstructionState> emit,
   ) async {
     await event.when(
+
+      // ── Chargement initial ──
       loadRequested: (villageId) async {
         emit(const ConstructionState.loading());
         try {
-          final dto = await _villageApi.getBuildings(villageId);
+          final results = await Future.wait([
+            _villageApi.getBuildings(villageId),
+            _villageApi.getVillage(villageId),
+          ]);
+          final buildings = results[0] as dynamic;
+          final village   = results[1] as dynamic;
+
           emit(ConstructionState.loaded(
-            villageId: villageId,
-            buildings: dto.buildings,
-            queue:     dto.queue,
+            villageId:  villageId,
+            buildings:  buildings.buildings,
+            queue:      buildings.queue,
+            wood:       village.wood,
+            stone:      village.stone,
+            iron:       village.iron,
+            woodRate:   village.productionRates.wood,
+            stoneRate:  village.productionRates.stone,
+            ironRate:   village.productionRates.iron,
+            maxStorage: village.maxStorage,
           ));
+
+          _startInterpolation();
         } catch (e) {
           emit(ConstructionState.error('Chargement impossible : $e'));
         }
       },
 
+      // ── Tick local 1s : incrémente les ressources visuellement ──
+      localTick: () {
+        state.maybeWhen(
+          loaded: (villageId, buildings, queue,
+                   wood, stone, iron,
+                   woodRate, stoneRate, ironRate, maxStorage) {
+            emit(ConstructionState.loaded(
+              villageId:  villageId,
+              buildings:  buildings,
+              queue:      queue,
+              wood:       (wood  + woodRate).clamp(0.0, maxStorage).toDouble(),
+              stone:      (stone + stoneRate).clamp(0.0, maxStorage).toDouble(),
+              iron:       (iron  + ironRate).clamp(0.0, maxStorage).toDouble(),
+              woodRate:   woodRate,
+              stoneRate:  stoneRate,
+              ironRate:   ironRate,
+              maxStorage: maxStorage,
+            ));
+          },
+          orElse: () {},
+        );
+      },
+
+      // ── Lancement d'une amélioration ──
       upgradeRequested: (buildingId) async {
-        // ✅ Extraire les données AVANT tout await
-        final villageId = state.maybeWhen(
-          loaded: (villageId, buildings, queue) => villageId,
-          orElse: () => null,
-        );
-        final queue = state.maybeWhen(
-          loaded: (villageId, buildings, queue) => queue,
-          orElse: () => null,
-        );
+        final villageId  = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => v);
+        final queue      = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => q);
+        final wood       = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => wo) ?? 0.0;
+        final stone      = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => s)  ?? 0.0;
+        final iron       = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => i)  ?? 0.0;
+        final woodRate   = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => wr) ?? 0.0;
+        final stoneRate  = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => sr) ?? 0.0;
+        final ironRate   = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => ir) ?? 0.0;
+        final maxStorage = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => ms) ?? 5000.0;
+
         if (villageId == null || queue != null) return;
 
-        emit(const ConstructionState.upgrading());
+        // Afficher spinner mais garder ressources + taux visibles
+        emit(ConstructionState.upgrading(
+          wood: wood, stone: stone, iron: iron,
+          woodRate: woodRate, stoneRate: stoneRate, ironRate: ironRate,
+          maxStorage: maxStorage,
+        ));
+
         try {
           await _villageApi.upgrade(villageId, buildingId);
-          final dto = await _villageApi.getBuildings(villageId);
-          emit(ConstructionState.loaded(
-            villageId: villageId,
-            buildings: dto.buildings,
-            queue:     dto.queue,
-          ));
+          await _reloadAndEmit(villageId, emit);
+          _startInterpolation();
         } catch (e) {
-          final dto = await _villageApi.getBuildings(villageId);
-          emit(ConstructionState.loaded(
-            villageId: villageId,
-            buildings: dto.buildings,
-            queue:     dto.queue,
-          ));
+          // Même en cas d'erreur, recharger l'état réel
+          try {
+            await _reloadAndEmit(villageId, emit);
+            _startInterpolation();
+          } catch (_) {
+            emit(ConstructionState.error('Erreur : $e'));
+          }
         }
       },
 
+      // ── Fin de construction (socket) ──
       buildFinished: (data) async {
-        // ✅ Extraire l'ID AVANT tout await
-        final villageId = state.maybeWhen(
-          loaded: (villageId, buildings, queue) => villageId,
-          orElse: () => null,
-        );
+        final villageId = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => v);
         if (villageId == null) return;
 
-        final dto = await _villageApi.getBuildings(villageId);
-        emit(ConstructionState.loaded(
-          villageId: villageId,
-          buildings: dto.buildings,
-          queue:     null,
-        ));
+        await _reloadAndEmit(villageId, emit);
+        _startInterpolation();
       },
     );
+  }
+
+  // ── Helper : recharge bâtiments + ressources et émet loaded ──
+  Future<void> _reloadAndEmit(String villageId, Emitter<ConstructionState> emit) async {
+    final results = await Future.wait([
+      _villageApi.getBuildings(villageId),
+      _villageApi.getVillage(villageId),
+    ]);
+    final buildings = results[0] as dynamic;
+    final village   = results[1] as dynamic;
+
+    emit(ConstructionState.loaded(
+      villageId:  villageId,
+      buildings:  buildings.buildings,
+      queue:      buildings.queue,
+      wood:       village.wood,
+      stone:      village.stone,
+      iron:       village.iron,
+      woodRate:   village.productionRates.wood,
+      stoneRate:  village.productionRates.stone,
+      ironRate:   village.productionRates.iron,
+      maxStorage: village.maxStorage,
+    ));
+  }
+
+  // ── Helper : extraire une valeur du state loaded sans await ──
+  T? _getField<T>(
+    T Function(String, dynamic, dynamic,
+               double, double, double,
+               double, double, double, double) extractor,
+  ) {
+    return state.maybeWhen(
+      loaded: (villageId, buildings, queue,
+               wood, stone, iron,
+               woodRate, stoneRate, ironRate, maxStorage) =>
+        extractor(villageId, buildings, queue,
+                  wood, stone, iron,
+                  woodRate, stoneRate, ironRate, maxStorage),
+      orElse: () => null,
+    );
+  }
+
+  void _startInterpolation() {
+    _interpolationTimer?.cancel();
+    _interpolationTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => add(const ConstructionEvent.localTick()),
+    );
+  }
+
+  @override
+  Future<void> close() {
+    _interpolationTimer?.cancel();
+    return super.close();
   }
 }

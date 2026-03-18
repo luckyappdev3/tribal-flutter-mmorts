@@ -21,6 +21,7 @@ mixin _$ConstructionEvent {
     required TResult Function(String villageId) loadRequested,
     required TResult Function(String buildingId) upgradeRequested,
     required TResult Function(Map<String, dynamic> data) buildFinished,
+    required TResult Function() localTick,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -28,6 +29,7 @@ mixin _$ConstructionEvent {
     TResult? Function(String villageId)? loadRequested,
     TResult? Function(String buildingId)? upgradeRequested,
     TResult? Function(Map<String, dynamic> data)? buildFinished,
+    TResult? Function()? localTick,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -35,6 +37,7 @@ mixin _$ConstructionEvent {
     TResult Function(String villageId)? loadRequested,
     TResult Function(String buildingId)? upgradeRequested,
     TResult Function(Map<String, dynamic> data)? buildFinished,
+    TResult Function()? localTick,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
@@ -43,6 +46,7 @@ mixin _$ConstructionEvent {
     required TResult Function(_LoadRequested value) loadRequested,
     required TResult Function(_UpgradeRequested value) upgradeRequested,
     required TResult Function(_BuildFinished value) buildFinished,
+    required TResult Function(_LocalTick value) localTick,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -50,6 +54,7 @@ mixin _$ConstructionEvent {
     TResult? Function(_LoadRequested value)? loadRequested,
     TResult? Function(_UpgradeRequested value)? upgradeRequested,
     TResult? Function(_BuildFinished value)? buildFinished,
+    TResult? Function(_LocalTick value)? localTick,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -57,6 +62,7 @@ mixin _$ConstructionEvent {
     TResult Function(_LoadRequested value)? loadRequested,
     TResult Function(_UpgradeRequested value)? upgradeRequested,
     TResult Function(_BuildFinished value)? buildFinished,
+    TResult Function(_LocalTick value)? localTick,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
@@ -155,6 +161,7 @@ class _$LoadRequestedImpl implements _LoadRequested {
     required TResult Function(String villageId) loadRequested,
     required TResult Function(String buildingId) upgradeRequested,
     required TResult Function(Map<String, dynamic> data) buildFinished,
+    required TResult Function() localTick,
   }) {
     return loadRequested(villageId);
   }
@@ -165,6 +172,7 @@ class _$LoadRequestedImpl implements _LoadRequested {
     TResult? Function(String villageId)? loadRequested,
     TResult? Function(String buildingId)? upgradeRequested,
     TResult? Function(Map<String, dynamic> data)? buildFinished,
+    TResult? Function()? localTick,
   }) {
     return loadRequested?.call(villageId);
   }
@@ -175,6 +183,7 @@ class _$LoadRequestedImpl implements _LoadRequested {
     TResult Function(String villageId)? loadRequested,
     TResult Function(String buildingId)? upgradeRequested,
     TResult Function(Map<String, dynamic> data)? buildFinished,
+    TResult Function()? localTick,
     required TResult orElse(),
   }) {
     if (loadRequested != null) {
@@ -189,6 +198,7 @@ class _$LoadRequestedImpl implements _LoadRequested {
     required TResult Function(_LoadRequested value) loadRequested,
     required TResult Function(_UpgradeRequested value) upgradeRequested,
     required TResult Function(_BuildFinished value) buildFinished,
+    required TResult Function(_LocalTick value) localTick,
   }) {
     return loadRequested(this);
   }
@@ -199,6 +209,7 @@ class _$LoadRequestedImpl implements _LoadRequested {
     TResult? Function(_LoadRequested value)? loadRequested,
     TResult? Function(_UpgradeRequested value)? upgradeRequested,
     TResult? Function(_BuildFinished value)? buildFinished,
+    TResult? Function(_LocalTick value)? localTick,
   }) {
     return loadRequested?.call(this);
   }
@@ -209,6 +220,7 @@ class _$LoadRequestedImpl implements _LoadRequested {
     TResult Function(_LoadRequested value)? loadRequested,
     TResult Function(_UpgradeRequested value)? upgradeRequested,
     TResult Function(_BuildFinished value)? buildFinished,
+    TResult Function(_LocalTick value)? localTick,
     required TResult orElse(),
   }) {
     if (loadRequested != null) {
@@ -303,6 +315,7 @@ class _$UpgradeRequestedImpl implements _UpgradeRequested {
     required TResult Function(String villageId) loadRequested,
     required TResult Function(String buildingId) upgradeRequested,
     required TResult Function(Map<String, dynamic> data) buildFinished,
+    required TResult Function() localTick,
   }) {
     return upgradeRequested(buildingId);
   }
@@ -313,6 +326,7 @@ class _$UpgradeRequestedImpl implements _UpgradeRequested {
     TResult? Function(String villageId)? loadRequested,
     TResult? Function(String buildingId)? upgradeRequested,
     TResult? Function(Map<String, dynamic> data)? buildFinished,
+    TResult? Function()? localTick,
   }) {
     return upgradeRequested?.call(buildingId);
   }
@@ -323,6 +337,7 @@ class _$UpgradeRequestedImpl implements _UpgradeRequested {
     TResult Function(String villageId)? loadRequested,
     TResult Function(String buildingId)? upgradeRequested,
     TResult Function(Map<String, dynamic> data)? buildFinished,
+    TResult Function()? localTick,
     required TResult orElse(),
   }) {
     if (upgradeRequested != null) {
@@ -337,6 +352,7 @@ class _$UpgradeRequestedImpl implements _UpgradeRequested {
     required TResult Function(_LoadRequested value) loadRequested,
     required TResult Function(_UpgradeRequested value) upgradeRequested,
     required TResult Function(_BuildFinished value) buildFinished,
+    required TResult Function(_LocalTick value) localTick,
   }) {
     return upgradeRequested(this);
   }
@@ -347,6 +363,7 @@ class _$UpgradeRequestedImpl implements _UpgradeRequested {
     TResult? Function(_LoadRequested value)? loadRequested,
     TResult? Function(_UpgradeRequested value)? upgradeRequested,
     TResult? Function(_BuildFinished value)? buildFinished,
+    TResult? Function(_LocalTick value)? localTick,
   }) {
     return upgradeRequested?.call(this);
   }
@@ -357,6 +374,7 @@ class _$UpgradeRequestedImpl implements _UpgradeRequested {
     TResult Function(_LoadRequested value)? loadRequested,
     TResult Function(_UpgradeRequested value)? upgradeRequested,
     TResult Function(_BuildFinished value)? buildFinished,
+    TResult Function(_LocalTick value)? localTick,
     required TResult orElse(),
   }) {
     if (upgradeRequested != null) {
@@ -456,6 +474,7 @@ class _$BuildFinishedImpl implements _BuildFinished {
     required TResult Function(String villageId) loadRequested,
     required TResult Function(String buildingId) upgradeRequested,
     required TResult Function(Map<String, dynamic> data) buildFinished,
+    required TResult Function() localTick,
   }) {
     return buildFinished(data);
   }
@@ -466,6 +485,7 @@ class _$BuildFinishedImpl implements _BuildFinished {
     TResult? Function(String villageId)? loadRequested,
     TResult? Function(String buildingId)? upgradeRequested,
     TResult? Function(Map<String, dynamic> data)? buildFinished,
+    TResult? Function()? localTick,
   }) {
     return buildFinished?.call(data);
   }
@@ -476,6 +496,7 @@ class _$BuildFinishedImpl implements _BuildFinished {
     TResult Function(String villageId)? loadRequested,
     TResult Function(String buildingId)? upgradeRequested,
     TResult Function(Map<String, dynamic> data)? buildFinished,
+    TResult Function()? localTick,
     required TResult orElse(),
   }) {
     if (buildFinished != null) {
@@ -490,6 +511,7 @@ class _$BuildFinishedImpl implements _BuildFinished {
     required TResult Function(_LoadRequested value) loadRequested,
     required TResult Function(_UpgradeRequested value) upgradeRequested,
     required TResult Function(_BuildFinished value) buildFinished,
+    required TResult Function(_LocalTick value) localTick,
   }) {
     return buildFinished(this);
   }
@@ -500,6 +522,7 @@ class _$BuildFinishedImpl implements _BuildFinished {
     TResult? Function(_LoadRequested value)? loadRequested,
     TResult? Function(_UpgradeRequested value)? upgradeRequested,
     TResult? Function(_BuildFinished value)? buildFinished,
+    TResult? Function(_LocalTick value)? localTick,
   }) {
     return buildFinished?.call(this);
   }
@@ -510,6 +533,7 @@ class _$BuildFinishedImpl implements _BuildFinished {
     TResult Function(_LoadRequested value)? loadRequested,
     TResult Function(_UpgradeRequested value)? upgradeRequested,
     TResult Function(_BuildFinished value)? buildFinished,
+    TResult Function(_LocalTick value)? localTick,
     required TResult orElse(),
   }) {
     if (buildFinished != null) {
@@ -530,4 +554,121 @@ abstract class _BuildFinished implements ConstructionEvent {
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$BuildFinishedImplCopyWith<_$BuildFinishedImpl> get copyWith =>
       throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$LocalTickImplCopyWith<$Res> {
+  factory _$$LocalTickImplCopyWith(
+          _$LocalTickImpl value, $Res Function(_$LocalTickImpl) then) =
+      __$$LocalTickImplCopyWithImpl<$Res>;
+}
+
+/// @nodoc
+class __$$LocalTickImplCopyWithImpl<$Res>
+    extends _$ConstructionEventCopyWithImpl<$Res, _$LocalTickImpl>
+    implements _$$LocalTickImplCopyWith<$Res> {
+  __$$LocalTickImplCopyWithImpl(
+      _$LocalTickImpl _value, $Res Function(_$LocalTickImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of ConstructionEvent
+  /// with the given fields replaced by the non-null parameter values.
+}
+
+/// @nodoc
+
+class _$LocalTickImpl implements _LocalTick {
+  const _$LocalTickImpl();
+
+  @override
+  String toString() {
+    return 'ConstructionEvent.localTick()';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType && other is _$LocalTickImpl);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String villageId) loadRequested,
+    required TResult Function(String buildingId) upgradeRequested,
+    required TResult Function(Map<String, dynamic> data) buildFinished,
+    required TResult Function() localTick,
+  }) {
+    return localTick();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String villageId)? loadRequested,
+    TResult? Function(String buildingId)? upgradeRequested,
+    TResult? Function(Map<String, dynamic> data)? buildFinished,
+    TResult? Function()? localTick,
+  }) {
+    return localTick?.call();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String villageId)? loadRequested,
+    TResult Function(String buildingId)? upgradeRequested,
+    TResult Function(Map<String, dynamic> data)? buildFinished,
+    TResult Function()? localTick,
+    required TResult orElse(),
+  }) {
+    if (localTick != null) {
+      return localTick();
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(_LoadRequested value) loadRequested,
+    required TResult Function(_UpgradeRequested value) upgradeRequested,
+    required TResult Function(_BuildFinished value) buildFinished,
+    required TResult Function(_LocalTick value) localTick,
+  }) {
+    return localTick(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(_LoadRequested value)? loadRequested,
+    TResult? Function(_UpgradeRequested value)? upgradeRequested,
+    TResult? Function(_BuildFinished value)? buildFinished,
+    TResult? Function(_LocalTick value)? localTick,
+  }) {
+    return localTick?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(_LoadRequested value)? loadRequested,
+    TResult Function(_UpgradeRequested value)? upgradeRequested,
+    TResult Function(_BuildFinished value)? buildFinished,
+    TResult Function(_LocalTick value)? localTick,
+    required TResult orElse(),
+  }) {
+    if (localTick != null) {
+      return localTick(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class _LocalTick implements ConstructionEvent {
+  const factory _LocalTick() = _$LocalTickImpl;
 }

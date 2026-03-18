@@ -20,10 +20,27 @@ mixin _$ConstructionState {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(String villageId,
-            List<BuildingInstanceDto> buildings, BuildQueueDto? queue)
+    required TResult Function(
+            String villageId,
+            List<BuildingInstanceDto> buildings,
+            BuildQueueDto? queue,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)
         loaded,
-    required TResult Function() upgrading,
+    required TResult Function(
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)
+        upgrading,
     required TResult Function(String message) error,
   }) =>
       throw _privateConstructorUsedError;
@@ -31,10 +48,21 @@ mixin _$ConstructionState {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(String villageId, List<BuildingInstanceDto> buildings,
-            BuildQueueDto? queue)?
+    TResult? Function(
+            String villageId,
+            List<BuildingInstanceDto> buildings,
+            BuildQueueDto? queue,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
-    TResult? Function()? upgrading,
+    TResult? Function(double wood, double stone, double iron, double woodRate,
+            double stoneRate, double ironRate, double maxStorage)?
+        upgrading,
     TResult? Function(String message)? error,
   }) =>
       throw _privateConstructorUsedError;
@@ -42,10 +70,21 @@ mixin _$ConstructionState {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(String villageId, List<BuildingInstanceDto> buildings,
-            BuildQueueDto? queue)?
+    TResult Function(
+            String villageId,
+            List<BuildingInstanceDto> buildings,
+            BuildQueueDto? queue,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
-    TResult Function()? upgrading,
+    TResult Function(double wood, double stone, double iron, double woodRate,
+            double stoneRate, double ironRate, double maxStorage)?
+        upgrading,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) =>
@@ -144,10 +183,27 @@ class _$InitialImpl implements _Initial {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(String villageId,
-            List<BuildingInstanceDto> buildings, BuildQueueDto? queue)
+    required TResult Function(
+            String villageId,
+            List<BuildingInstanceDto> buildings,
+            BuildQueueDto? queue,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)
         loaded,
-    required TResult Function() upgrading,
+    required TResult Function(
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)
+        upgrading,
     required TResult Function(String message) error,
   }) {
     return initial();
@@ -158,10 +214,21 @@ class _$InitialImpl implements _Initial {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(String villageId, List<BuildingInstanceDto> buildings,
-            BuildQueueDto? queue)?
+    TResult? Function(
+            String villageId,
+            List<BuildingInstanceDto> buildings,
+            BuildQueueDto? queue,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
-    TResult? Function()? upgrading,
+    TResult? Function(double wood, double stone, double iron, double woodRate,
+            double stoneRate, double ironRate, double maxStorage)?
+        upgrading,
     TResult? Function(String message)? error,
   }) {
     return initial?.call();
@@ -172,10 +239,21 @@ class _$InitialImpl implements _Initial {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(String villageId, List<BuildingInstanceDto> buildings,
-            BuildQueueDto? queue)?
+    TResult Function(
+            String villageId,
+            List<BuildingInstanceDto> buildings,
+            BuildQueueDto? queue,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
-    TResult Function()? upgrading,
+    TResult Function(double wood, double stone, double iron, double woodRate,
+            double stoneRate, double ironRate, double maxStorage)?
+        upgrading,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
@@ -273,10 +351,27 @@ class _$LoadingImpl implements _Loading {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(String villageId,
-            List<BuildingInstanceDto> buildings, BuildQueueDto? queue)
+    required TResult Function(
+            String villageId,
+            List<BuildingInstanceDto> buildings,
+            BuildQueueDto? queue,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)
         loaded,
-    required TResult Function() upgrading,
+    required TResult Function(
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)
+        upgrading,
     required TResult Function(String message) error,
   }) {
     return loading();
@@ -287,10 +382,21 @@ class _$LoadingImpl implements _Loading {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(String villageId, List<BuildingInstanceDto> buildings,
-            BuildQueueDto? queue)?
+    TResult? Function(
+            String villageId,
+            List<BuildingInstanceDto> buildings,
+            BuildQueueDto? queue,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
-    TResult? Function()? upgrading,
+    TResult? Function(double wood, double stone, double iron, double woodRate,
+            double stoneRate, double ironRate, double maxStorage)?
+        upgrading,
     TResult? Function(String message)? error,
   }) {
     return loading?.call();
@@ -301,10 +407,21 @@ class _$LoadingImpl implements _Loading {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(String villageId, List<BuildingInstanceDto> buildings,
-            BuildQueueDto? queue)?
+    TResult Function(
+            String villageId,
+            List<BuildingInstanceDto> buildings,
+            BuildQueueDto? queue,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
-    TResult Function()? upgrading,
+    TResult Function(double wood, double stone, double iron, double woodRate,
+            double stoneRate, double ironRate, double maxStorage)?
+        upgrading,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
@@ -368,7 +485,14 @@ abstract class _$$LoadedImplCopyWith<$Res> {
   $Res call(
       {String villageId,
       List<BuildingInstanceDto> buildings,
-      BuildQueueDto? queue});
+      BuildQueueDto? queue,
+      double wood,
+      double stone,
+      double iron,
+      double woodRate,
+      double stoneRate,
+      double ironRate,
+      double maxStorage});
 }
 
 /// @nodoc
@@ -387,6 +511,13 @@ class __$$LoadedImplCopyWithImpl<$Res>
     Object? villageId = null,
     Object? buildings = null,
     Object? queue = freezed,
+    Object? wood = null,
+    Object? stone = null,
+    Object? iron = null,
+    Object? woodRate = null,
+    Object? stoneRate = null,
+    Object? ironRate = null,
+    Object? maxStorage = null,
   }) {
     return _then(_$LoadedImpl(
       villageId: null == villageId
@@ -401,6 +532,34 @@ class __$$LoadedImplCopyWithImpl<$Res>
           ? _value.queue
           : queue // ignore: cast_nullable_to_non_nullable
               as BuildQueueDto?,
+      wood: null == wood
+          ? _value.wood
+          : wood // ignore: cast_nullable_to_non_nullable
+              as double,
+      stone: null == stone
+          ? _value.stone
+          : stone // ignore: cast_nullable_to_non_nullable
+              as double,
+      iron: null == iron
+          ? _value.iron
+          : iron // ignore: cast_nullable_to_non_nullable
+              as double,
+      woodRate: null == woodRate
+          ? _value.woodRate
+          : woodRate // ignore: cast_nullable_to_non_nullable
+              as double,
+      stoneRate: null == stoneRate
+          ? _value.stoneRate
+          : stoneRate // ignore: cast_nullable_to_non_nullable
+              as double,
+      ironRate: null == ironRate
+          ? _value.ironRate
+          : ironRate // ignore: cast_nullable_to_non_nullable
+              as double,
+      maxStorage: null == maxStorage
+          ? _value.maxStorage
+          : maxStorage // ignore: cast_nullable_to_non_nullable
+              as double,
     ));
   }
 }
@@ -411,7 +570,14 @@ class _$LoadedImpl implements _Loaded {
   const _$LoadedImpl(
       {required this.villageId,
       required final List<BuildingInstanceDto> buildings,
-      required this.queue})
+      required this.queue,
+      this.wood = 0.0,
+      this.stone = 0.0,
+      this.iron = 0.0,
+      this.woodRate = 0.0,
+      this.stoneRate = 0.0,
+      this.ironRate = 0.0,
+      this.maxStorage = 5000.0})
       : _buildings = buildings;
 
   @override
@@ -426,10 +592,31 @@ class _$LoadedImpl implements _Loaded {
 
   @override
   final BuildQueueDto? queue;
+  @override
+  @JsonKey()
+  final double wood;
+  @override
+  @JsonKey()
+  final double stone;
+  @override
+  @JsonKey()
+  final double iron;
+  @override
+  @JsonKey()
+  final double woodRate;
+  @override
+  @JsonKey()
+  final double stoneRate;
+  @override
+  @JsonKey()
+  final double ironRate;
+  @override
+  @JsonKey()
+  final double maxStorage;
 
   @override
   String toString() {
-    return 'ConstructionState.loaded(villageId: $villageId, buildings: $buildings, queue: $queue)';
+    return 'ConstructionState.loaded(villageId: $villageId, buildings: $buildings, queue: $queue, wood: $wood, stone: $stone, iron: $iron, woodRate: $woodRate, stoneRate: $stoneRate, ironRate: $ironRate, maxStorage: $maxStorage)';
   }
 
   @override
@@ -441,12 +628,33 @@ class _$LoadedImpl implements _Loaded {
                 other.villageId == villageId) &&
             const DeepCollectionEquality()
                 .equals(other._buildings, _buildings) &&
-            (identical(other.queue, queue) || other.queue == queue));
+            (identical(other.queue, queue) || other.queue == queue) &&
+            (identical(other.wood, wood) || other.wood == wood) &&
+            (identical(other.stone, stone) || other.stone == stone) &&
+            (identical(other.iron, iron) || other.iron == iron) &&
+            (identical(other.woodRate, woodRate) ||
+                other.woodRate == woodRate) &&
+            (identical(other.stoneRate, stoneRate) ||
+                other.stoneRate == stoneRate) &&
+            (identical(other.ironRate, ironRate) ||
+                other.ironRate == ironRate) &&
+            (identical(other.maxStorage, maxStorage) ||
+                other.maxStorage == maxStorage));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, villageId,
-      const DeepCollectionEquality().hash(_buildings), queue);
+  int get hashCode => Object.hash(
+      runtimeType,
+      villageId,
+      const DeepCollectionEquality().hash(_buildings),
+      queue,
+      wood,
+      stone,
+      iron,
+      woodRate,
+      stoneRate,
+      ironRate,
+      maxStorage);
 
   /// Create a copy of ConstructionState
   /// with the given fields replaced by the non-null parameter values.
@@ -461,13 +669,31 @@ class _$LoadedImpl implements _Loaded {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(String villageId,
-            List<BuildingInstanceDto> buildings, BuildQueueDto? queue)
+    required TResult Function(
+            String villageId,
+            List<BuildingInstanceDto> buildings,
+            BuildQueueDto? queue,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)
         loaded,
-    required TResult Function() upgrading,
+    required TResult Function(
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)
+        upgrading,
     required TResult Function(String message) error,
   }) {
-    return loaded(villageId, buildings, queue);
+    return loaded(villageId, buildings, queue, wood, stone, iron, woodRate,
+        stoneRate, ironRate, maxStorage);
   }
 
   @override
@@ -475,13 +701,25 @@ class _$LoadedImpl implements _Loaded {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(String villageId, List<BuildingInstanceDto> buildings,
-            BuildQueueDto? queue)?
+    TResult? Function(
+            String villageId,
+            List<BuildingInstanceDto> buildings,
+            BuildQueueDto? queue,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
-    TResult? Function()? upgrading,
+    TResult? Function(double wood, double stone, double iron, double woodRate,
+            double stoneRate, double ironRate, double maxStorage)?
+        upgrading,
     TResult? Function(String message)? error,
   }) {
-    return loaded?.call(villageId, buildings, queue);
+    return loaded?.call(villageId, buildings, queue, wood, stone, iron,
+        woodRate, stoneRate, ironRate, maxStorage);
   }
 
   @override
@@ -489,15 +727,27 @@ class _$LoadedImpl implements _Loaded {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(String villageId, List<BuildingInstanceDto> buildings,
-            BuildQueueDto? queue)?
+    TResult Function(
+            String villageId,
+            List<BuildingInstanceDto> buildings,
+            BuildQueueDto? queue,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
-    TResult Function()? upgrading,
+    TResult Function(double wood, double stone, double iron, double woodRate,
+            double stoneRate, double ironRate, double maxStorage)?
+        upgrading,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
     if (loaded != null) {
-      return loaded(villageId, buildings, queue);
+      return loaded(villageId, buildings, queue, wood, stone, iron, woodRate,
+          stoneRate, ironRate, maxStorage);
     }
     return orElse();
   }
@@ -547,11 +797,25 @@ abstract class _Loaded implements ConstructionState {
   const factory _Loaded(
       {required final String villageId,
       required final List<BuildingInstanceDto> buildings,
-      required final BuildQueueDto? queue}) = _$LoadedImpl;
+      required final BuildQueueDto? queue,
+      final double wood,
+      final double stone,
+      final double iron,
+      final double woodRate,
+      final double stoneRate,
+      final double ironRate,
+      final double maxStorage}) = _$LoadedImpl;
 
   String get villageId;
   List<BuildingInstanceDto> get buildings;
   BuildQueueDto? get queue;
+  double get wood;
+  double get stone;
+  double get iron;
+  double get woodRate;
+  double get stoneRate;
+  double get ironRate;
+  double get maxStorage;
 
   /// Create a copy of ConstructionState
   /// with the given fields replaced by the non-null parameter values.
@@ -565,6 +829,15 @@ abstract class _$$UpgradingImplCopyWith<$Res> {
   factory _$$UpgradingImplCopyWith(
           _$UpgradingImpl value, $Res Function(_$UpgradingImpl) then) =
       __$$UpgradingImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call(
+      {double wood,
+      double stone,
+      double iron,
+      double woodRate,
+      double stoneRate,
+      double ironRate,
+      double maxStorage});
 }
 
 /// @nodoc
@@ -577,39 +850,149 @@ class __$$UpgradingImplCopyWithImpl<$Res>
 
   /// Create a copy of ConstructionState
   /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? wood = null,
+    Object? stone = null,
+    Object? iron = null,
+    Object? woodRate = null,
+    Object? stoneRate = null,
+    Object? ironRate = null,
+    Object? maxStorage = null,
+  }) {
+    return _then(_$UpgradingImpl(
+      wood: null == wood
+          ? _value.wood
+          : wood // ignore: cast_nullable_to_non_nullable
+              as double,
+      stone: null == stone
+          ? _value.stone
+          : stone // ignore: cast_nullable_to_non_nullable
+              as double,
+      iron: null == iron
+          ? _value.iron
+          : iron // ignore: cast_nullable_to_non_nullable
+              as double,
+      woodRate: null == woodRate
+          ? _value.woodRate
+          : woodRate // ignore: cast_nullable_to_non_nullable
+              as double,
+      stoneRate: null == stoneRate
+          ? _value.stoneRate
+          : stoneRate // ignore: cast_nullable_to_non_nullable
+              as double,
+      ironRate: null == ironRate
+          ? _value.ironRate
+          : ironRate // ignore: cast_nullable_to_non_nullable
+              as double,
+      maxStorage: null == maxStorage
+          ? _value.maxStorage
+          : maxStorage // ignore: cast_nullable_to_non_nullable
+              as double,
+    ));
+  }
 }
 
 /// @nodoc
 
 class _$UpgradingImpl implements _Upgrading {
-  const _$UpgradingImpl();
+  const _$UpgradingImpl(
+      {this.wood = 0.0,
+      this.stone = 0.0,
+      this.iron = 0.0,
+      this.woodRate = 0.0,
+      this.stoneRate = 0.0,
+      this.ironRate = 0.0,
+      this.maxStorage = 5000.0});
+
+  @override
+  @JsonKey()
+  final double wood;
+  @override
+  @JsonKey()
+  final double stone;
+  @override
+  @JsonKey()
+  final double iron;
+  @override
+  @JsonKey()
+  final double woodRate;
+  @override
+  @JsonKey()
+  final double stoneRate;
+  @override
+  @JsonKey()
+  final double ironRate;
+  @override
+  @JsonKey()
+  final double maxStorage;
 
   @override
   String toString() {
-    return 'ConstructionState.upgrading()';
+    return 'ConstructionState.upgrading(wood: $wood, stone: $stone, iron: $iron, woodRate: $woodRate, stoneRate: $stoneRate, ironRate: $ironRate, maxStorage: $maxStorage)';
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
-        (other.runtimeType == runtimeType && other is _$UpgradingImpl);
+        (other.runtimeType == runtimeType &&
+            other is _$UpgradingImpl &&
+            (identical(other.wood, wood) || other.wood == wood) &&
+            (identical(other.stone, stone) || other.stone == stone) &&
+            (identical(other.iron, iron) || other.iron == iron) &&
+            (identical(other.woodRate, woodRate) ||
+                other.woodRate == woodRate) &&
+            (identical(other.stoneRate, stoneRate) ||
+                other.stoneRate == stoneRate) &&
+            (identical(other.ironRate, ironRate) ||
+                other.ironRate == ironRate) &&
+            (identical(other.maxStorage, maxStorage) ||
+                other.maxStorage == maxStorage));
   }
 
   @override
-  int get hashCode => runtimeType.hashCode;
+  int get hashCode => Object.hash(runtimeType, wood, stone, iron, woodRate,
+      stoneRate, ironRate, maxStorage);
+
+  /// Create a copy of ConstructionState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$UpgradingImplCopyWith<_$UpgradingImpl> get copyWith =>
+      __$$UpgradingImplCopyWithImpl<_$UpgradingImpl>(this, _$identity);
 
   @override
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(String villageId,
-            List<BuildingInstanceDto> buildings, BuildQueueDto? queue)
+    required TResult Function(
+            String villageId,
+            List<BuildingInstanceDto> buildings,
+            BuildQueueDto? queue,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)
         loaded,
-    required TResult Function() upgrading,
+    required TResult Function(
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)
+        upgrading,
     required TResult Function(String message) error,
   }) {
-    return upgrading();
+    return upgrading(
+        wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage);
   }
 
   @override
@@ -617,13 +1000,25 @@ class _$UpgradingImpl implements _Upgrading {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(String villageId, List<BuildingInstanceDto> buildings,
-            BuildQueueDto? queue)?
+    TResult? Function(
+            String villageId,
+            List<BuildingInstanceDto> buildings,
+            BuildQueueDto? queue,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
-    TResult? Function()? upgrading,
+    TResult? Function(double wood, double stone, double iron, double woodRate,
+            double stoneRate, double ironRate, double maxStorage)?
+        upgrading,
     TResult? Function(String message)? error,
   }) {
-    return upgrading?.call();
+    return upgrading?.call(
+        wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage);
   }
 
   @override
@@ -631,15 +1026,27 @@ class _$UpgradingImpl implements _Upgrading {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(String villageId, List<BuildingInstanceDto> buildings,
-            BuildQueueDto? queue)?
+    TResult Function(
+            String villageId,
+            List<BuildingInstanceDto> buildings,
+            BuildQueueDto? queue,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
-    TResult Function()? upgrading,
+    TResult Function(double wood, double stone, double iron, double woodRate,
+            double stoneRate, double ironRate, double maxStorage)?
+        upgrading,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
     if (upgrading != null) {
-      return upgrading();
+      return upgrading(
+          wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage);
     }
     return orElse();
   }
@@ -686,7 +1093,28 @@ class _$UpgradingImpl implements _Upgrading {
 }
 
 abstract class _Upgrading implements ConstructionState {
-  const factory _Upgrading() = _$UpgradingImpl;
+  const factory _Upgrading(
+      {final double wood,
+      final double stone,
+      final double iron,
+      final double woodRate,
+      final double stoneRate,
+      final double ironRate,
+      final double maxStorage}) = _$UpgradingImpl;
+
+  double get wood;
+  double get stone;
+  double get iron;
+  double get woodRate;
+  double get stoneRate;
+  double get ironRate;
+  double get maxStorage;
+
+  /// Create a copy of ConstructionState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$UpgradingImplCopyWith<_$UpgradingImpl> get copyWith =>
+      throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -759,10 +1187,27 @@ class _$ErrorImpl implements _Error {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(String villageId,
-            List<BuildingInstanceDto> buildings, BuildQueueDto? queue)
+    required TResult Function(
+            String villageId,
+            List<BuildingInstanceDto> buildings,
+            BuildQueueDto? queue,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)
         loaded,
-    required TResult Function() upgrading,
+    required TResult Function(
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)
+        upgrading,
     required TResult Function(String message) error,
   }) {
     return error(message);
@@ -773,10 +1218,21 @@ class _$ErrorImpl implements _Error {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(String villageId, List<BuildingInstanceDto> buildings,
-            BuildQueueDto? queue)?
+    TResult? Function(
+            String villageId,
+            List<BuildingInstanceDto> buildings,
+            BuildQueueDto? queue,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
-    TResult? Function()? upgrading,
+    TResult? Function(double wood, double stone, double iron, double woodRate,
+            double stoneRate, double ironRate, double maxStorage)?
+        upgrading,
     TResult? Function(String message)? error,
   }) {
     return error?.call(message);
@@ -787,10 +1243,21 @@ class _$ErrorImpl implements _Error {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(String villageId, List<BuildingInstanceDto> buildings,
-            BuildQueueDto? queue)?
+    TResult Function(
+            String villageId,
+            List<BuildingInstanceDto> buildings,
+            BuildQueueDto? queue,
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage)?
         loaded,
-    TResult Function()? upgrading,
+    TResult Function(double wood, double stone, double iron, double woodRate,
+            double stoneRate, double ironRate, double maxStorage)?
+        upgrading,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {

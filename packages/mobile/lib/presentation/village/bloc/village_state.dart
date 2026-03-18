@@ -15,6 +15,7 @@ class VillageState with _$VillageState {
     @Default(0.0) double woodRate,
     @Default(0.0) double stoneRate,
     @Default(0.0) double ironRate,
+    @Default(5000.0) double maxStorage,
   }) = _Loaded;
   const factory VillageState.error(String message) = _Error;
 }

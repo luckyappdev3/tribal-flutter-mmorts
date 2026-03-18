@@ -13,7 +13,6 @@ class BuildingCard extends StatelessWidget {
     this.onUpgrade,
   });
 
-  // Icône par type de bâtiment
   static const Map<String, IconData> _icons = {
     'headquarters': Icons.account_balance,
     'timber_camp':  Icons.forest,
@@ -22,22 +21,29 @@ class BuildingCard extends StatelessWidget {
     'warehouse':    Icons.warehouse,
   };
 
-  // Description courte
   static const Map<String, String> _descriptions = {
     'headquarters': 'Réduit le temps de construction',
-    'timber_camp':  'Produit du bois chaque seconde',
-    'quarry':       'Produit de la pierre chaque seconde',
-    'iron_mine':    'Produit du fer chaque seconde',
-    'warehouse':    'Augmente la capacité de stockage',
+    'timber_camp':  'Produit du bois',
+    'quarry':       'Produit de la pierre',
+    'iron_mine':    'Produit du fer',
+    'warehouse':    'Augmente le stockage max',
   };
 
-  bool get _isBeingBuilt => queue?.buildingId == building.buildingId;
+  // Couleur associée à chaque bâtiment producteur
+  static const Map<String, Color> _prodColors = {
+    'timber_camp': Color(0xFF8D6E63),
+    'quarry':      Color(0xFF90A4AE),
+    'iron_mine':   Color(0xFF78909C),
+  };
+
+  bool get _isBeingBuilt  => queue?.buildingId == building.buildingId;
   bool get _queueOccupied => queue != null;
 
   @override
   Widget build(BuildContext context) {
-    final icon = _icons[building.buildingId] ?? Icons.home;
-    final desc = _descriptions[building.buildingId] ?? '';
+    final icon  = _icons[building.buildingId]       ?? Icons.home;
+    final desc  = _descriptions[building.buildingId] ?? '';
+    final color = _prodColors[building.buildingId]   ?? Colors.amber;
 
     return Container(
       decoration: BoxDecoration(
@@ -51,41 +57,89 @@ class BuildingCard extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── En-tête ──
+
+            // ── En-tête : icône + nom + badge niveau ──
             Row(
               children: [
-                Icon(icon, color: Colors.amber, size: 22),
-                const SizedBox(width: 8),
+                Icon(icon, color: Colors.amber, size: 18),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     building.displayName,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 _LevelBadge(level: building.level),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
 
-            // ── Description ──
+            // ── Description courte ──
             Text(
               desc,
-              style: const TextStyle(color: Colors.white38, fontSize: 11),
-              maxLines: 2,
+              style: const TextStyle(color: Colors.white38, fontSize: 10),
+              maxLines: 1,
             ),
+            const SizedBox(height: 8),
 
-            const Spacer(),
+            // ── Production actuelle → future (bâtiments producteurs seulement) ──
+            if (building.isProducer && building.currentProdPerSec != null) ...[
+              _ProductionRow(
+                current: building.currentProdPerSec!,
+                next:    building.nextProdPerSec,
+                color:   color,
+                isMax:   building.isMaxLevel,
+              ),
+              const SizedBox(height: 8),
+            ],
 
-            // ── Bouton ──
+            // ── Coûts du prochain niveau ──
+            if (!building.isMaxLevel && building.nextLevelCost != null) ...[
+              _CostRow(cost: building.nextLevelCost!),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.schedule, color: Colors.white38, size: 11),
+                  const SizedBox(width: 3),
+                  Text(
+                    building.formattedTime,
+                    style: const TextStyle(color: Colors.white38, fontSize: 10),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '→ Niv. ${building.level + 1}',
+                    style: const TextStyle(color: Colors.white24, fontSize: 10),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+
+            if (building.isMaxLevel) ...[
+              const Center(
+                child: Text(
+                  'Niveau maximum',
+                  style: TextStyle(color: Colors.amber, fontSize: 10),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+
+            // ── Bouton améliorer ──
             _UpgradeButton(
-              isBeingBuilt: _isBeingBuilt,
+              isBeingBuilt:  _isBeingBuilt,
               queueOccupied: _queueOccupied,
-              onUpgrade: onUpgrade,
+              isMaxLevel:    building.isMaxLevel,
+              onUpgrade:     onUpgrade,
             ),
           ],
         ),
@@ -94,6 +148,109 @@ class BuildingCard extends StatelessWidget {
   }
 }
 
+// ── Ligne production actuelle → future ──
+class _ProductionRow extends StatelessWidget {
+  final double current;
+  final double? next;
+  final Color color;
+  final bool isMax;
+
+  const _ProductionRow({
+    required this.current,
+    required this.next,
+    required this.color,
+    required this.isMax,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.trending_up, size: 12, color: Colors.white54),
+          const SizedBox(width: 4),
+          Text(
+            BuildingInstanceDto.formatRate(current),
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'monospace',
+            ),
+          ),
+          if (!isMax && next != null) ...[
+            const SizedBox(width: 6),
+            const Icon(Icons.arrow_forward, size: 10, color: Colors.white38),
+            const SizedBox(width: 6),
+            Text(
+              BuildingInstanceDto.formatRate(next!),
+              style: const TextStyle(
+                color: Colors.greenAccent,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Ligne des coûts ──
+class _CostRow extends StatelessWidget {
+  final NextLevelCostDto cost;
+  const _CostRow({required this.cost});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _CostItem(icon: Icons.forest,   color: const Color(0xFF8D6E63), value: cost.wood),
+        _CostItem(icon: Icons.terrain,  color: const Color(0xFF90A4AE), value: cost.stone),
+        _CostItem(icon: Icons.hardware, color: const Color(0xFF78909C), value: cost.iron),
+      ],
+    );
+  }
+}
+
+class _CostItem extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final int value;
+  const _CostItem({required this.icon, required this.color, required this.value});
+
+  String _format(int v) {
+    if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}k';
+    return v.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 11),
+        const SizedBox(width: 2),
+        Text(
+          _format(value),
+          style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Badge niveau ──
 class _LevelBadge extends StatelessWidget {
   final int level;
   const _LevelBadge({required this.level});
@@ -101,61 +258,69 @@ class _LevelBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: Colors.amber.withOpacity(0.15),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.amber.withOpacity(0.4)),
       ),
       child: Text(
-        'Niv. $level',
-        style: const TextStyle(color: Colors.amber, fontSize: 11, fontWeight: FontWeight.bold),
+        'Niv.$level',
+        style: const TextStyle(
+          color: Colors.amber,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
 }
 
+// ── Bouton améliorer ──
 class _UpgradeButton extends StatelessWidget {
   final bool isBeingBuilt;
   final bool queueOccupied;
+  final bool isMaxLevel;
   final VoidCallback? onUpgrade;
 
   const _UpgradeButton({
     required this.isBeingBuilt,
     required this.queueOccupied,
+    required this.isMaxLevel,
     this.onUpgrade,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (isMaxLevel) return const SizedBox.shrink();
+
     if (isBeingBuilt) {
       return const SizedBox(
         width: double.infinity,
         child: Center(
           child: Text(
             '⏳ En construction...',
-            style: TextStyle(color: Colors.amber, fontSize: 12),
+            style: TextStyle(color: Colors.amber, fontSize: 11),
           ),
         ),
       );
     }
 
-    final disabled = queueOccupied;
     return SizedBox(
       width: double.infinity,
-      height: 34,
+      height: 32,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: disabled ? Colors.grey[850] : Colors.amber[800],
-          foregroundColor: disabled ? Colors.white38 : Colors.white,
+          backgroundColor: queueOccupied ? Colors.grey[850] : Colors.amber[800],
+          foregroundColor: queueOccupied ? Colors.white38 : Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           padding: EdgeInsets.zero,
         ),
-        onPressed: disabled ? null : onUpgrade,
+        onPressed: queueOccupied ? null : onUpgrade,
         child: Text(
-          disabled ? 'File occupée' : 'Améliorer →',
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+          queueOccupied ? 'File occupée' : 'Améliorer →',
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
         ),
       ),
     );
