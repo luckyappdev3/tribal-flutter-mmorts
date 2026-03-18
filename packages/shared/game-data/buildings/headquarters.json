@@ -10,7 +10,7 @@
       "iron": 90,
       "food": 0
     },
-    "baseBuildTime": 120,
+    "baseBuildTime": 10,
     "costMultiplier": 1.5,
     "timeMultiplier": 1.2,
     "specialMultiplier": 0.05
