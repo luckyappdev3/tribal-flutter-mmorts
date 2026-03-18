@@ -1,0 +1,18 @@
+{
+  "id": "barracks",
+  "name": "Caserne",
+  "description": "Permet de recruter des troupes. Plus son niveau est élevé, plus le recrutement est rapide.",
+  "maxLevel": 25,
+  "baseStats": {
+    "baseCost": {
+      "wood": 200,
+      "stone": 170,
+      "iron": 90,
+      "food": 0
+    },
+    "baseBuildTime": 60,
+    "costMultiplier": 1.3,
+    "timeMultiplier": 1.2,
+    "specialMultiplier": 0.05
+  }
+}

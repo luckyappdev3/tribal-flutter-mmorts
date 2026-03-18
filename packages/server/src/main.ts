@@ -6,107 +6,111 @@ import fastifyJwt from '@fastify/jwt';
 import { PrismaClient } from '@prisma/client';
 
 // Moteurs et Services
-import { GameDataRegistry } from './engine/game-data-registry';
-import { BuildingQueue } from './engine/queue/queues/build.queue';
-import { VillageService } from './modules/village/village.service';
+import { GameDataRegistry }    from './engine/game-data-registry';
+import { BuildingQueue }       from './engine/queue/queues/build.queue';
+import { RecruitQueue }        from './engine/queue/queues/recruit.queue';
+import { AttackQueue }         from './engine/queue/queues/attack.queue';
+import { VillageService }      from './modules/village/village.service';
 import { ConstructionService } from './modules/construction/construction.service';
-import { AuthService } from './modules/auth/auth.service';
+import { AuthService }         from './modules/auth/auth.service';
+import { TroopsService }       from './modules/troops/troops.service';
+import { CombatService }       from './modules/combat/combat.service';
 
-// --- AJOUTS POUR L'ÉCONOMIE & TICKER ---
-import { initSocketServer } from './infra/ws/socket.server';
-import { resourceTickWorker } from './workers/resource-tick.worker';
+import { initSocketServer }        from './infra/ws/socket.server';
+import { resourceTickWorker }      from './workers/resource-tick.worker';
 import { startGlobalResourceTick } from './engine/queue/queues/resource-tick.queue';
-// ---------------------------------------
 
-// Contrôleurs (Routes)
+// Contrôleurs
 import { villageRoutes } from './modules/village/village.controller';
-import { authRoutes } from './modules/auth/auth.controller';
+import { authRoutes }    from './modules/auth/auth.controller';
+import { mapRoutes }     from './modules/map/map.controller';
+import { troopsRoutes }  from './modules/troops/troops.controller';
+import { combatRoutes }  from './modules/combat/combat.controller';
 
 // Workers
-import { initBuildWorker } from './workers/build.worker';
+import { initBuildWorker }   from './workers/build.worker';
+import { initRecruitWorker } from './workers/recruit.worker';
+import { initAttackWorker }  from './workers/attack.worker';
 
 dotenv.config();
 
-// 1. TYPAGE : Extension de l'instance Fastify
 declare module 'fastify' {
   interface FastifyInstance {
-    prisma: PrismaClient;
-    villageService: VillageService;
+    prisma:              PrismaClient;
+    villageService:      VillageService;
     constructionService: ConstructionService;
-    authService: AuthService;
-    gameData: GameDataRegistry;
+    authService:         AuthService;
+    gameData:            GameDataRegistry;
+    troopsService:       TroopsService;
+    combatService:       CombatService;
   }
 }
 
 const fastify = Fastify({ logger: true });
-const prisma = new PrismaClient();
+const prisma  = new PrismaClient();
 
 async function bootstrap() {
   try {
-    // A. Connexion BDD
     await prisma.$connect();
     fastify.log.info('✅ Base de données connectée');
 
-    // B. ENREGISTREMENT DES PLUGINS
     await fastify.register(cors, { origin: true });
     await fastify.register(fastifyJwt, {
-      secret: process.env.JWT_SECRET || 'mmo-super-secret-key-2026'
+      secret: process.env.JWT_SECRET || 'mmo-super-secret-key-2026',
     });
 
-    // C. INITIALISATION DES MOTEURS DE JEU
-    const gameDataRegistry = new GameDataRegistry();
-    await gameDataRegistry.loadAll(); 
+    // Moteurs
+    const gameDataRegistry     = new GameDataRegistry();
+    await gameDataRegistry.loadAll();
 
-    const buildQueue = new BuildingQueue();
-    const villageService = new VillageService(prisma);
-    const constructionService = new ConstructionService(
-      prisma,
-      buildQueue,
-      gameDataRegistry,
-      villageService
+    const buildQueue           = new BuildingQueue();
+    const recruitQueue         = new RecruitQueue();
+    const attackQueue          = new AttackQueue();
+    const villageService       = new VillageService(prisma);
+    const constructionService  = new ConstructionService(
+      prisma, buildQueue, gameDataRegistry, villageService
     );
-    const authService = new AuthService(prisma, fastify);
+    const authService    = new AuthService(prisma, fastify);
+    const troopsService  = new TroopsService(prisma, gameDataRegistry, recruitQueue);
+    const combatService  = new CombatService(prisma, gameDataRegistry, attackQueue);
 
-    // D. INJECTION (DECORATE)
-    fastify.decorate('prisma', prisma);
-    fastify.decorate('gameData', gameDataRegistry);
-    fastify.decorate('villageService', villageService);
+    // Injection
+    fastify.decorate('prisma',              prisma);
+    fastify.decorate('gameData',            gameDataRegistry);
+    fastify.decorate('villageService',      villageService);
     fastify.decorate('constructionService', constructionService);
-    fastify.decorate('authService', authService);
+    fastify.decorate('authService',         authService);
+    fastify.decorate('troopsService',       troopsService);
+    fastify.decorate('combatService',       combatService);
 
-    // E. CONFIGURATION SOCKETS & TICKER
-    // On attend que fastify soit prêt pour initialiser les sockets et le ticker
+    // Sockets & Ticker
     fastify.ready(async (err) => {
       if (err) throw err;
-      
-      // 1. Initialise ton infrastructure Socket.io (via infra/ws/socket.server.ts)
       initSocketServer(fastify);
-      
-      // 2. Démarre la boucle de production globale (Ticker)
       await startGlobalResourceTick();
-      fastify.log.info('⏱️ Game Ticker activé (Production de ressources)');
+      fastify.log.info('⏱️ Game Ticker activé');
     });
 
-    // F. ROUTES API
-    await fastify.register(authRoutes, { prefix: '/api/auth' });
+    // Routes — troops et combat partagent le préfixe /api/villages
+    await fastify.register(authRoutes,    { prefix: '/api/auth' });
     await fastify.register(villageRoutes, { prefix: '/api/villages' });
+    await fastify.register(mapRoutes,     { prefix: '/api/map' });
+    await fastify.register(troopsRoutes,  { prefix: '/api/villages' });
+    await fastify.register(combatRoutes,  { prefix: '/api/villages' });
 
-    // G. INITIALISATION DES WORKERS
-    // Worker de construction (Bâtiments)
+    // Workers
     initBuildWorker(fastify);
-    fastify.log.info('👷 Worker de construction prêt');
+    initRecruitWorker(fastify);
+    initAttackWorker(fastify);
+    fastify.log.info('👷 Workers construction + recrutement + combat prêts');
 
-    // Worker de ressources (Economie) - Le simple import suffit à l'instancier
-    // mais on s'assure qu'il est bien chargé ici
     if (resourceTickWorker) {
-      fastify.log.info('🤖 Worker de ressources (Economy) prêt');
+      fastify.log.info('🤖 Worker de ressources prêt');
     }
 
-    // H. LANCEMENT
     const port = Number(process.env.PORT) || 3000;
     await fastify.listen({ port, host: '0.0.0.0' });
-    
-    console.log(`🚀 Serveur prêt et accessible sur le port ${port}`);
+    console.log(`🚀 Serveur prêt sur le port ${port}`);
 
   } catch (err) {
     fastify.log.error(err);

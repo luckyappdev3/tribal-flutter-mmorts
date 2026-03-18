@@ -47,14 +47,13 @@ const build_queue_1 = require("./engine/queue/queues/build.queue");
 const village_service_1 = require("./modules/village/village.service");
 const construction_service_1 = require("./modules/construction/construction.service");
 const auth_service_1 = require("./modules/auth/auth.service");
-// --- AJOUTS POUR L'ÉCONOMIE & TICKER ---
 const socket_server_1 = require("./infra/ws/socket.server");
 const resource_tick_worker_1 = require("./workers/resource-tick.worker");
 const resource_tick_queue_1 = require("./engine/queue/queues/resource-tick.queue");
-// ---------------------------------------
-// Contrôleurs (Routes)
+// Contrôleurs
 const village_controller_1 = require("./modules/village/village.controller");
 const auth_controller_1 = require("./modules/auth/auth.controller");
+const map_controller_1 = require("./modules/map/map.controller"); // ← nouveau
 // Workers
 const build_worker_1 = require("./workers/build.worker");
 dotenv.config();
@@ -62,54 +61,42 @@ const fastify = (0, fastify_1.default)({ logger: true });
 const prisma = new client_1.PrismaClient();
 async function bootstrap() {
     try {
-        // A. Connexion BDD
         await prisma.$connect();
         fastify.log.info('✅ Base de données connectée');
-        // B. ENREGISTREMENT DES PLUGINS
         await fastify.register(cors_1.default, { origin: true });
         await fastify.register(jwt_1.default, {
-            secret: process.env.JWT_SECRET || 'mmo-super-secret-key-2026'
+            secret: process.env.JWT_SECRET || 'mmo-super-secret-key-2026',
         });
-        // C. INITIALISATION DES MOTEURS DE JEU
         const gameDataRegistry = new game_data_registry_1.GameDataRegistry();
         await gameDataRegistry.loadAll();
         const buildQueue = new build_queue_1.BuildingQueue();
         const villageService = new village_service_1.VillageService(prisma);
         const constructionService = new construction_service_1.ConstructionService(prisma, buildQueue, gameDataRegistry, villageService);
         const authService = new auth_service_1.AuthService(prisma, fastify);
-        // D. INJECTION (DECORATE)
         fastify.decorate('prisma', prisma);
         fastify.decorate('gameData', gameDataRegistry);
         fastify.decorate('villageService', villageService);
         fastify.decorate('constructionService', constructionService);
         fastify.decorate('authService', authService);
-        // E. CONFIGURATION SOCKETS & TICKER
-        // On attend que fastify soit prêt pour initialiser les sockets et le ticker
         fastify.ready(async (err) => {
             if (err)
                 throw err;
-            // 1. Initialise ton infrastructure Socket.io (via infra/ws/socket.server.ts)
             (0, socket_server_1.initSocketServer)(fastify);
-            // 2. Démarre la boucle de production globale (Ticker)
             await (0, resource_tick_queue_1.startGlobalResourceTick)();
-            fastify.log.info('⏱️ Game Ticker activé (Production de ressources)');
+            fastify.log.info('⏱️ Game Ticker activé');
         });
-        // F. ROUTES API
+        // Routes
         await fastify.register(auth_controller_1.authRoutes, { prefix: '/api/auth' });
         await fastify.register(village_controller_1.villageRoutes, { prefix: '/api/villages' });
-        // G. INITIALISATION DES WORKERS
-        // Worker de construction (Bâtiments)
+        await fastify.register(map_controller_1.mapRoutes, { prefix: '/api/map' }); // ← nouveau
         (0, build_worker_1.initBuildWorker)(fastify);
         fastify.log.info('👷 Worker de construction prêt');
-        // Worker de ressources (Economie) - Le simple import suffit à l'instancier
-        // mais on s'assure qu'il est bien chargé ici
         if (resource_tick_worker_1.resourceTickWorker) {
-            fastify.log.info('🤖 Worker de ressources (Economy) prêt');
+            fastify.log.info('🤖 Worker de ressources prêt');
         }
-        // H. LANCEMENT
         const port = Number(process.env.PORT) || 3000;
         await fastify.listen({ port, host: '0.0.0.0' });
-        console.log(`🚀 Serveur prêt et accessible sur le port ${port}`);
+        console.log(`🚀 Serveur prêt sur le port ${port}`);
     }
     catch (err) {
         fastify.log.error(err);

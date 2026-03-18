@@ -14,12 +14,14 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-// Export des Schémas (Le "Quoi")
+// Schémas
 __exportStar(require("./schemas/resources.schema"), exports);
 __exportStar(require("./schemas/building.schema"), exports);
 __exportStar(require("./schemas/village.schema"), exports);
-// Export des Formules (Le "Comment")
+__exportStar(require("./schemas/unit.schema"), exports); // ← nouveau
+// Formules
 __exportStar(require("./formulas/production.formulas"), exports);
 __exportStar(require("./formulas/building.formulas"), exports);
 __exportStar(require("./formulas/storage.formulas"), exports);
+__exportStar(require("./formulas/combat.formulas"), exports); // ← nouveau
 //# sourceMappingURL=index.js.map

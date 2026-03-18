@@ -1,0 +1,11 @@
+{
+  "id": "axeman",
+  "name": "Hacheur",
+  "description": "Unité d'attaque pure. Idéal pour les raids. Faible en défense.",
+  "cost": { "wood": 60, "stone": 30, "iron": 40 },
+  "attack": 40,
+  "defense": 10,
+  "speed": 18,
+  "carryCapacity": 10,
+  "recruitTime": 26
+}

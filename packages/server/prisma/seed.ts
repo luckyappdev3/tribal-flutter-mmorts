@@ -16,11 +16,22 @@ async function main() {
   // 2. Création du Joueur
   const player = await prisma.player.create({
     data: {
-      username: 'GuerrierTest',
+      username: 'Joueur A',
       email: 'a',
       password: hashedPassword,
     },
   });
+
+  const playerb = await prisma.player.create({
+    data: {
+      username: 'Joueur B',
+      email: 'b',
+      password: hashedPassword,
+    },
+  });
+
+
+
   console.log(`✅ Joueur créé : ${player.username}`);
 
   // 3. Création du Village (Ajout de 'food' pour correspondre au schéma)
@@ -38,6 +49,20 @@ async function main() {
   });
   console.log(`✅ Village créé à (500,500)`);
 
+  // 3b. Création du Village pour le Joueur B
+  const villageB = await prisma.village.create({
+    data: {
+      name: 'Village de B',
+      x: 510, // On change les coordonnées pour éviter les conflits
+      y: 510,
+      playerId: playerb.id, // On utilise bien playerb ici
+      wood: 500,
+      stone: 500,
+      iron: 400,
+    },
+  });
+  console.log(`✅ Village B créé à (510,510)`);
+
   // 4. Ajout des bâtiments (Instances individuelles)
   // On ajoute le QG ET le camp de bois pour tester la production
   await prisma.buildingInstance.createMany({
@@ -49,6 +74,18 @@ async function main() {
     { buildingId: 'warehouse',    level: 1, villageId: village.id }, // ← ajouter
     ],
   });
+
+  // 4b. Ajout des bâtiments pour le Village B
+  await prisma.buildingInstance.createMany({
+    data: [
+      { buildingId: 'headquarters', level: 1, villageId: villageB.id },
+      { buildingId: 'timber_camp',  level: 1, villageId: villageB.id },
+      { buildingId: 'quarry',       level: 1, villageId: villageB.id },
+      { buildingId: 'iron_mine',    level: 1, villageId: villageB.id },
+      { buildingId: 'warehouse',    level: 1, villageId: villageB.id },
+    ],
+  });
+  console.log(`✅ Bâtiments du Village B ajoutés.`);
   
   console.log(`✅ Bâtiments initiaux (QG et Camp de bois) ajoutés.`);
   console.log('--- 🚀 Seeding terminé avec succès ---');

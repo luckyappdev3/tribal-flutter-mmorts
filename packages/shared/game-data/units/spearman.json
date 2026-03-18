@@ -1,0 +1,11 @@
+{
+  "id": "spearman",
+  "name": "Lancier",
+  "description": "Unité défensive de base. Bon marché et efficace contre la cavalerie.",
+  "cost": { "wood": 50, "stone": 30, "iron": 10 },
+  "attack": 10,
+  "defense": 15,
+  "speed": 1,
+  "carryCapacity": 25,
+  "recruitTime": 16
+}

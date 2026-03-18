@@ -3,42 +3,47 @@ import { FastifyInstance } from 'fastify';
 export async function authRoutes(fastify: FastifyInstance) {
   const { authService } = fastify;
 
-  // S'inscrire
+  // POST /api/auth/register
   fastify.post('/register', async (request, reply) => {
     try {
       const player = await authService.register(request.body);
-      const token = authService.generateToken(player);
+      const token  = authService.generateToken(player);
+      const village = player.villages[0];
 
       return reply.code(201).send({
         token,
-        player: { id: player.id, username: player.username },
-        // On renvoie l'ID du premier village créé automatiquement
-        villageId: player.villages[0]?.id 
+        player:    { id: player.id, username: player.username },
+        villageId: village?.id,
+        villageX:  village?.x ?? 500,
+        villageY:  village?.y ?? 500,
       });
     } catch (error: any) {
       return reply.status(400).send({ message: error.message });
     }
   });
 
-  // Se connecter
+  // POST /api/auth/login
   fastify.post('/login', async (request, reply) => {
     try {
       const { email, password } = request.body as any;
       const player = await authService.login(email, password);
-      const token = authService.generateToken(player);
+      const token  = authService.generateToken(player);
 
-      // Récupérer l'ID du village pour le front-end
+      // Récupérer le village avec ses coordonnées
       const village = await fastify.prisma.village.findFirst({
-        where: { playerId: player.id }
+        where:  { playerId: player.id },
+        select: { id: true, x: true, y: true },
       });
 
       return {
         token,
-        player: { id: player.id, username: player.username },
-        villageId: village?.id
+        player:    { id: player.id, username: player.username },
+        villageId: village?.id,
+        villageX:  village?.x ?? 500, // ← coordonnées pour centrer la carte
+        villageY:  village?.y ?? 500,
       };
     } catch (error: any) {
-      return reply.status(401).send({ message: "Identifiants invalides" });
+      return reply.status(401).send({ message: 'Identifiants invalides' });
     }
   });
 }
