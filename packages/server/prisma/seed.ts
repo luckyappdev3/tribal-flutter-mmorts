@@ -71,7 +71,8 @@ async function main() {
     { buildingId: 'timber_camp',  level: 1, villageId: village.id },
     { buildingId: 'quarry',       level: 1, villageId: village.id }, // ← ajouter
     { buildingId: 'iron_mine',    level: 1, villageId: village.id }, // ← ajouter
-    { buildingId: 'warehouse',    level: 1, villageId: village.id }, // ← ajouter
+    { buildingId: 'warehouse',    level: 1, villageId: village.id },
+     { buildingId: 'barracks',     level: 1, villageId: village.id }, // ← ajouter
     ],
   });
 

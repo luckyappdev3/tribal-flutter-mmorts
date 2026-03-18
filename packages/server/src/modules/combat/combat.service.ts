@@ -77,11 +77,17 @@ export class CombatService {
       },
     });
 
-    // Envoyer le job BullMQ avec l'ID du mouvement
-    await this.attackQueue.addJob(
-      { attackerVillageId, defenderVillageId, units, activeAttackId: activeAttack.id },
-      travelMs,
-    );
+    // Dans sendAttack(), modifier l'appel addJob :
+await this.attackQueue.addJob(
+  {
+    attackerVillageId,
+    defenderVillageId,
+    units,
+    activeAttackId: activeAttack.id,
+    travelMs,        // ← ajouter
+  } as any,
+  travelMs,
+);
 
     return {
       activeAttackId:    activeAttack.id,

@@ -22,7 +22,7 @@ export class AttackQueue {
     return await this.queue.add('resolve-attack', data, {
       delay:            delayMs,
       removeOnComplete: true,
-      attempts:         3,
+      attempts:         1,
       backoff: { type: 'exponential', delay: 1000 },
     });
   }

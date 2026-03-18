@@ -29,34 +29,32 @@ model Village {
   x     Int
   y     Int
 
-  // Ressources
   wood  Float @default(500)
   stone Float @default(500)
   iron  Float @default(400)
   food  Float @default(100)
 
-  // Niveaux de production (lecture rapide sans jointure)
   timberCampLevel Int @default(1)
   quarryLevel     Int @default(1)
   ironMineLevel   Int @default(1)
 
-  // Bouclier de protection après une attaque (null = pas de bouclier actif)
   shieldUntil DateTime?
+  lastTick    DateTime  @default(now())
 
-  lastTick DateTime @default(now())
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  playerId String
 
-  // Relations
-  player    Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  playerId  String
-
-  buildings   BuildingInstance[]
-  buildQueue  BuildingQueue?
-  troops      Troop[]
+  buildings    BuildingInstance[]
+  buildQueue   BuildingQueue?
+  troops       Troop[]
   recruitQueue RecruitQueue?
 
-  // Attaques envoyées et reçues
-  attacksSent     AttackReport[] @relation("AttackerVillage")
-  attacksReceived AttackReport[] @relation("DefenderVillage")
+  attacksSent     AttackReport[]  @relation("AttackerVillage")
+  attacksReceived AttackReport[]  @relation("DefenderVillage")
+
+  // Mouvements actifs
+  activeAttacksSent     ActiveAttack[] @relation("ActiveAttackAttacker")
+  activeAttacksReceived ActiveAttack[] @relation("ActiveAttackDefender")
 
   @@unique([x, y])
 }
@@ -92,11 +90,9 @@ model BuildingQueue {
 // ─────────────────────────────────────────────
 // TROUPES
 // ─────────────────────────────────────────────
-
-// Stock de troupes disponibles dans un village
 model Troop {
   id       String @id @default(uuid())
-  unitType String // ex: 'spearman', 'swordsman', 'axeman', 'cavalry', 'archer'
+  unitType String
   count    Int    @default(0)
 
   village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
@@ -105,15 +101,14 @@ model Troop {
   @@unique([villageId, unitType])
 }
 
-// File de recrutement (une seule file par village, comme la construction)
 model RecruitQueue {
   id       String @id @default(uuid())
   unitType String
-  count    Int    // Nombre total à recruter
-  trained  Int    @default(0) // Nombre déjà recruté (pour affichage progression)
+  count    Int
+  trained  Int    @default(0)
 
   startsAt DateTime @default(now())
-  endsAt   DateTime // Fin du recrutement complet
+  endsAt   DateTime
 
   village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
   villageId String  @unique
@@ -125,31 +120,47 @@ model RecruitQueue {
 model AttackReport {
   id String @id @default(uuid())
 
-  // Villages impliqués
   attackerVillage   Village @relation("AttackerVillage", fields: [attackerVillageId], references: [id], onDelete: Cascade)
   attackerVillageId String
 
   defenderVillage   Village @relation("DefenderVillage", fields: [defenderVillageId], references: [id], onDelete: Cascade)
   defenderVillageId String
 
-  // Unités envoyées { spearman: 10, cavalry: 5, ... }
-  unitsSent Json
-
-  // Unités survivantes après combat
-  unitsSurvived Json
-
-  // Unités défenseur avant/après
+  unitsSent           Json
+  unitsSurvived       Json
   defenderUnitsBefore Json
   defenderUnitsAfter  Json
+  resourcesLooted     Json
 
-  // Ressources pillées { wood: 500, stone: 200, iron: 100 }
-  resourcesLooted Json
-
-  // Points échangés
-  pointsLost Int @default(0) // Points perdus par le défenseur
-  pointsGained Int @default(0) // Points gagnés par l'attaquant
-
-  attackerWon Boolean
+  pointsLost   Int     @default(0)
+  pointsGained Int     @default(0)
+  attackerWon  Boolean
 
   createdAt DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────
+// MOUVEMENTS ACTIFS
+// ─────────────────────────────────────────────
+model ActiveAttack {
+  id String @id @default(uuid())
+
+  attackerVillage   Village @relation("ActiveAttackAttacker", fields: [attackerVillageId], references: [id], onDelete: Cascade)
+  attackerVillageId String
+
+  defenderVillage   Village @relation("ActiveAttackDefender", fields: [defenderVillageId], references: [id], onDelete: Cascade)
+  defenderVillageId String
+
+  // Unités envoyées au départ
+  units Json
+
+  // Survivants qui rentrent (rempli après le combat)
+  survivors Json?
+
+  departsAt  DateTime @default(now())
+  arrivesAt  DateTime // Arrivée chez le défenseur (ou retour à la base)
+
+  // traveling = en route vers le défenseur
+  // returning = retour à la base avec les survivants
+  status String @default("traveling")
 }
