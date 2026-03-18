@@ -5,22 +5,20 @@ import { calculateTravelTime } from '@mmorts/shared';
 
 export class CombatService {
   constructor(
-    private prisma:     PrismaClient,
-    private gameData:   GameDataRegistry,
+    private prisma:      PrismaClient,
+    private gameData:    GameDataRegistry,
     private attackQueue: AttackQueue,
   ) {}
 
-  // ── Lancer une attaque ──
   async sendAttack(
     attackerVillageId: string,
     defenderVillageId: string,
-    units: Record<string, number>, // { spearman: 5, cavalry: 2 }
+    units: Record<string, number>,
   ) {
     if (attackerVillageId === defenderVillageId) {
       throw new Error('Vous ne pouvez pas attaquer votre propre village.');
     }
 
-    // 1. Récupérer les deux villages
     const [attacker, defender] = await Promise.all([
       this.prisma.village.findUnique({
         where:   { id: attackerVillageId },
@@ -35,35 +33,24 @@ export class CombatService {
     if (!attacker) throw new Error('Village attaquant introuvable.');
     if (!defender) throw new Error('Village cible introuvable.');
 
-    // 2. Vérifier que l'attaquant a assez de troupes et déduire
     const troopMap = Object.fromEntries(attacker.troops.map(t => [t.unitType, t.count]));
-    const unitSpeeds: number[] = [];
 
+    // Vérifier et déduire les troupes
     await this.prisma.$transaction(async (tx) => {
       for (const [unitType, count] of Object.entries(units)) {
         if (count <= 0) continue;
-
         const available = troopMap[unitType] ?? 0;
         if (available < count) {
-          throw new Error(`Pas assez de ${unitType} disponibles (${available} dispo, ${count} demandés).`);
+          throw new Error(`Pas assez de ${unitType} (${available} dispo, ${count} demandés).`);
         }
-
-        // Déduire les troupes envoyées
         await tx.troop.update({
           where: { villageId_unitType: { villageId: attackerVillageId, unitType } },
           data:  { count: { decrement: count } },
         });
-
-        // Récupérer la vitesse pour le calcul du trajet
-        try {
-          const def = this.gameData.getUnitDef(unitType);
-          unitSpeeds.push(def.speed);
-        } catch { continue; }
       }
     });
 
-    // 3. Calculer le temps de trajet
-    // Vitesse = unité la plus lente (speed = secondes par case)
+    // Calcul du temps de trajet
     const unitList = Object.entries(units)
       .filter(([, c]) => c > 0)
       .map(([unitType]) => {
@@ -76,18 +63,28 @@ export class CombatService {
       defender.x, defender.y,
       unitList,
     );
-    const travelMs = travelSec * 1000;
+    const travelMs  = travelSec * 1000;
+    const arrivesAt = new Date(Date.now() + travelMs);
 
-    // 4. Envoyer le job BullMQ avec délai = temps de trajet
-    const job = await this.attackQueue.addJob(
-      { attackerVillageId, defenderVillageId, units },
+    // Créer le mouvement actif en BDD
+    const activeAttack = await this.prisma.activeAttack.create({
+      data: {
+        attackerVillageId,
+        defenderVillageId,
+        units,
+        arrivesAt,
+        status: 'traveling',
+      },
+    });
+
+    // Envoyer le job BullMQ avec l'ID du mouvement
+    await this.attackQueue.addJob(
+      { attackerVillageId, defenderVillageId, units, activeAttackId: activeAttack.id },
       travelMs,
     );
 
-    const arrivesAt = new Date(Date.now() + travelMs);
-
     return {
-      jobId:             job.id,
+      activeAttackId:    activeAttack.id,
       attackerVillageId,
       defenderVillageId,
       defenderName:      defender.name,
@@ -97,7 +94,6 @@ export class CombatService {
     };
   }
 
-  // ── Récupérer les rapports de combat d'un village ──
   async getReports(villageId: string) {
     return await this.prisma.attackReport.findMany({
       where: {
@@ -107,7 +103,35 @@ export class CombatService {
         ],
       },
       orderBy: { createdAt: 'desc' },
-      take: 50,
+      take:    50,
     });
+  }
+
+  async getMovements(villageId: string) {
+    const movements = await this.prisma.activeAttack.findMany({
+      where: {
+        OR: [
+          { attackerVillageId: villageId },
+          { defenderVillageId: villageId },
+        ],
+      },
+      include: {
+        attackerVillage: { select: { id: true, name: true, x: true, y: true } },
+        defenderVillage: { select: { id: true, name: true, x: true, y: true } },
+      },
+      orderBy: { arrivesAt: 'asc' },
+    });
+
+    return movements.map(m => ({
+      id:               m.id,
+      status:           m.status,           // 'traveling' | 'returning'
+      direction:        m.attackerVillageId === villageId ? 'outgoing' : 'incoming',
+      units:            m.units,
+      survivors:        m.survivors,
+      departsAt:        m.departsAt,
+      arrivesAt:        m.arrivesAt,
+      attackerVillage:  m.attackerVillage,
+      defenderVillage:  m.defenderVillage,
+    }));
   }
 }

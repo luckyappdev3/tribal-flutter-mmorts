@@ -4,7 +4,8 @@ import IORedis from 'ioredis';
 export interface AttackJobData {
   attackerVillageId: string;
   defenderVillageId: string;
-  units: Record<string, number>; // { spearman: 5, cavalry: 2 }
+  units:             Record<string, number>;
+  activeAttackId:    string;
 }
 
 export class AttackQueue {

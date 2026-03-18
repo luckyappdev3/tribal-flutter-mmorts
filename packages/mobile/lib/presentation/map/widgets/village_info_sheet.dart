@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../bloc/map_state.dart';
 
 class VillageInfoSheet extends StatelessWidget {
@@ -13,11 +14,7 @@ class VillageInfoSheet extends StatelessWidget {
 
   bool get _isOwn => village.playerId == currentPlayerId;
 
-  static void show(
-    BuildContext context,
-    VillageMarker village,
-    String currentPlayerId,
-  ) {
+  static void show(BuildContext context, VillageMarker village, String currentPlayerId) {
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF222222),
@@ -25,7 +22,7 @@ class VillageInfoSheet extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) => VillageInfoSheet(
-        village: village,
+        village:         village,
         currentPlayerId: currentPlayerId,
       ),
     );
@@ -42,41 +39,25 @@ class VillageInfoSheet extends StatelessWidget {
           // ── Poignée ──
           Center(
             child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(2),
-              ),
+              width: 40, height: 4,
+              decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
             ),
           ),
           const SizedBox(height: 20),
 
-          // ── Nom du village ──
+          // ── Nom + badge ──
           Row(
             children: [
-              Icon(
-                Icons.fort,
-                color: _isOwn ? Colors.amber : Colors.red[300],
-                size: 28,
-              ),
+              Icon(Icons.fort, color: _isOwn ? Colors.amber : Colors.red[300], size: 28),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      village.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      'Coordonnées : (${village.x}, ${village.y})',
-                      style: const TextStyle(color: Colors.white38, fontSize: 12),
-                    ),
+                    Text(village.name,
+                        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text('(${village.x}, ${village.y})',
+                        style: const TextStyle(color: Colors.white38, fontSize: 12)),
                   ],
                 ),
               ),
@@ -88,10 +69,7 @@ class VillageInfoSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: Colors.amber.withOpacity(0.4)),
                   ),
-                  child: const Text(
-                    'Mon village',
-                    style: TextStyle(color: Colors.amber, fontSize: 11),
-                  ),
+                  child: const Text('Mon village', style: TextStyle(color: Colors.amber, fontSize: 11)),
                 ),
             ],
           ),
@@ -100,31 +78,22 @@ class VillageInfoSheet extends StatelessWidget {
           // ── Infos joueur ──
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.black26,
-              borderRadius: BorderRadius.circular(10),
-            ),
+            decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(10)),
             child: Row(
               children: [
                 const Icon(Icons.person, color: Colors.white54, size: 18),
                 const SizedBox(width: 8),
-                Text(
-                  village.playerName,
-                  style: const TextStyle(color: Colors.white70, fontSize: 14),
-                ),
+                Text(village.playerName, style: const TextStyle(color: Colors.white70, fontSize: 14)),
                 const Spacer(),
                 const Icon(Icons.star, color: Colors.amber, size: 14),
                 const SizedBox(width: 4),
-                Text(
-                  '${village.totalPoints} pts',
-                  style: const TextStyle(color: Colors.amber, fontSize: 13),
-                ),
+                Text('${village.totalPoints} pts', style: const TextStyle(color: Colors.amber, fontSize: 13)),
               ],
             ),
           ),
           const SizedBox(height: 20),
 
-          // ── Bouton Attaquer (désactivé pour l'instant) ──
+          // ── Bouton attaquer ──
           if (!_isOwn)
             SizedBox(
               width: double.infinity,
@@ -133,25 +102,22 @@ class VillageInfoSheet extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red[800],
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                // Désactivé jusqu'à la Phase 3
                 onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('⚔️ Combat disponible dans la Phase 3'),
-                      backgroundColor: Colors.red,
-                    ),
+                  Navigator.pop(context); // Ferme le bottom sheet
+                  context.pushNamed(
+                    'attack',
+                    extra: {
+                      'defenderVillageId':   village.id,
+                      'defenderName':        village.name,
+                      'defenderPlayerName':  village.playerName,
+                    },
                   );
                 },
                 icon: const Icon(Icons.bolt),
-                label: const Text(
-                  'ATTAQUER',
-                  style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1),
-                ),
+                label: const Text('ATTAQUER',
+                    style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
               ),
             ),
         ],
