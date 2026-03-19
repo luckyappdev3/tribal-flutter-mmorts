@@ -11,12 +11,9 @@ export async function mapRoutes(fastify: FastifyInstance) {
   });
 
   // GET /api/map?x=500&y=500&radius=15
-  // Retourne tous les villages dans un carré centré sur (x, y)
   fastify.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
     const { x = 500, y = 500, radius = 15 } = request.query as {
-      x?: number;
-      y?: number;
-      radius?: number;
+      x?: number; y?: number; radius?: number;
     };
 
     const cx = Number(x);
@@ -30,10 +27,12 @@ export async function mapRoutes(fastify: FastifyInstance) {
           y: { gte: cy - r, lte: cy + r },
         },
         select: {
-          id:   true,
-          name: true,
-          x:    true,
-          y:    true,
+          id:             true,
+          name:           true,
+          x:              true,
+          y:              true,
+          isAbandoned:    true,    // ← nouveau
+          abandonedLevel: true,    // ← nouveau
           player: {
             select: {
               id:          true,

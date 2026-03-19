@@ -7,5 +7,6 @@ class RouteNames {
   static const String troops       = 'troops';
   static const String movements    = 'movements';
   static const String reports      = 'reports';
+  static const String ranking      = 'ranking';
   static const String attack       = 'attack';
 }

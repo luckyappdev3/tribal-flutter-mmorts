@@ -8,7 +8,7 @@ class MapApi {
   Future<List<VillageMarker>> getMap({
     int x = 500,
     int y = 500,
-    int radius = 15,
+    int radius = 20,
   }) async {
     final response = await _client.dio.get(
       '/map',

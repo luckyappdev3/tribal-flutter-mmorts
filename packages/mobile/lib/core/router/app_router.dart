@@ -9,6 +9,7 @@ import '../../presentation/map/pages/map_page.dart';
 import '../../presentation/troops/pages/troops_page.dart';
 import '../../presentation/movements/pages/movements_page.dart';
 import '../../presentation/reports/pages/reports_page.dart';
+import '../../presentation/ranking/pages/ranking_page.dart';
 import '../../presentation/attack/pages/attack_page.dart';
 import '../../presentation/movements/bloc/movements_bloc.dart';
 import 'route_names.dart';
@@ -31,7 +32,7 @@ final appRouter = GoRouter(
       },
     ),
 
-    // Shell 6 onglets
+    // Shell avec 7 onglets
     StatefulShellRoute.indexedStack(
       builder: (context, state, shell) => _ScaffoldWithNavBar(shell: shell),
       branches: [
@@ -41,6 +42,7 @@ final appRouter = GoRouter(
         StatefulShellBranch(routes: [GoRoute(path: '/troops',       name: RouteNames.troops,       builder: (_, __) => const TroopsPage())]),
         StatefulShellBranch(routes: [GoRoute(path: '/movements',    name: RouteNames.movements,    builder: (_, __) => const MovementsPage())]),
         StatefulShellBranch(routes: [GoRoute(path: '/reports',      name: RouteNames.reports,      builder: (_, __) => const ReportsPage())]),
+        StatefulShellBranch(routes: [GoRoute(path: '/ranking',      name: RouteNames.ranking,      builder: (_, __) => const RankingPage())]),
       ],
     ),
   ],
@@ -64,13 +66,12 @@ class _ScaffoldWithNavBar extends StatelessWidget {
 }
 
 class _BottomNav extends StatelessWidget {
-  final int currentIndex;
+  final int             currentIndex;
   final ValueChanged<int> onTap;
   const _BottomNav({required this.currentIndex, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    // Écouter le MovementsBloc pour le badge sur Rapports
     final hasNewReport = context.select<MovementsBloc, bool>(
       (bloc) => bloc.state.maybeWhen(
         loaded: (_, __, ___, hasNew) => hasNew,
@@ -122,13 +123,17 @@ class _BottomNav extends StatelessWidget {
               child: const Icon(Icons.article, color: Colors.amber)),
             label: 'Rapports',
           ),
+          const NavigationDestination(
+            icon: Icon(Icons.leaderboard_outlined, color: Colors.white38),
+            selectedIcon: Icon(Icons.leaderboard,  color: Colors.amber),
+            label: 'Classement',
+          ),
         ],
       ),
     );
   }
 }
 
-// Badge rouge sur l'icône
 class _BadgeIcon extends StatelessWidget {
   final Widget child;
   final bool   show;
@@ -145,10 +150,7 @@ class _BadgeIcon extends StatelessWidget {
           top: -2, right: -2,
           child: Container(
             width: 8, height: 8,
-            decoration: const BoxDecoration(
-              color: Colors.red,
-              shape: BoxShape.circle,
-            ),
+            decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
           ),
         ),
       ],

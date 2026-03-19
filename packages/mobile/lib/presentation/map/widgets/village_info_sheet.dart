@@ -4,7 +4,7 @@ import '../bloc/map_state.dart';
 
 class VillageInfoSheet extends StatelessWidget {
   final VillageMarker village;
-  final String currentPlayerId;
+  final String        currentPlayerId;
 
   const VillageInfoSheet({
     super.key,
@@ -12,18 +12,19 @@ class VillageInfoSheet extends StatelessWidget {
     required this.currentPlayerId,
   });
 
-  bool get _isOwn => village.playerId == currentPlayerId;
+  bool get _isOwn       => village.playerId == currentPlayerId;
+  bool get _isAbandoned => village.isAbandoned;
 
   static void show(BuildContext context, VillageMarker village, String currentPlayerId) {
     showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF222222),
+      context:           context,
+      backgroundColor:   const Color(0xFF222222),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) => VillageInfoSheet(
-        village:         village,
-        currentPlayerId: currentPlayerId,
+        village:          village,
+        currentPlayerId:  currentPlayerId,
       ),
     );
   }
@@ -45,23 +46,47 @@ class VillageInfoSheet extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
-          // ── Nom + badge ──
+          // ── En-tête ──
           Row(
             children: [
-              Icon(Icons.fort, color: _isOwn ? Colors.amber : Colors.red[300], size: 28),
+              Icon(
+                _isAbandoned ? Icons.holiday_village : Icons.fort,
+                color: _isAbandoned
+                    ? Colors.grey[400]
+                    : (_isOwn ? Colors.amber : Colors.red[300]),
+                size: 28,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(village.name,
-                        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                    Text('(${village.x}, ${village.y})',
-                        style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                    Text(
+                      _isAbandoned ? 'Village Abandonné' : village.name,
+                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      '(${village.x}, ${village.y})',
+                      style: const TextStyle(color: Colors.white38, fontSize: 12),
+                    ),
                   ],
                 ),
               ),
-              if (_isOwn)
+              // Badge niveau pour les abandonnés, badge "Moi" pour ses propres villages
+              if (_isAbandoned)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.grey.withOpacity(0.4)),
+                  ),
+                  child: Text(
+                    'Niv. ${village.abandonedLevel}',
+                    style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                )
+              else if (_isOwn)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
@@ -75,49 +100,67 @@ class VillageInfoSheet extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // ── Infos joueur ──
+          // ── Infos ──
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(10)),
-            child: Row(
-              children: [
-                const Icon(Icons.person, color: Colors.white54, size: 18),
-                const SizedBox(width: 8),
-                Text(village.playerName, style: const TextStyle(color: Colors.white70, fontSize: 14)),
-                const Spacer(),
-                const Icon(Icons.star, color: Colors.amber, size: 14),
-                const SizedBox(width: 4),
-                Text('${village.totalPoints} pts', style: const TextStyle(color: Colors.amber, fontSize: 13)),
-              ],
-            ),
+            child: _isAbandoned
+                ? Row(
+                    children: [
+                      const Icon(Icons.info_outline, color: Colors.grey, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Village abandonné niveau ${village.abandonedLevel}. '
+                          'Aucun défenseur — pillez librement !',
+                          style: const TextStyle(color: Colors.white54, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      const Icon(Icons.person, color: Colors.white54, size: 18),
+                      const SizedBox(width: 8),
+                      Text(village.playerName, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                      const Spacer(),
+                      const Icon(Icons.star, color: Colors.amber, size: 14),
+                      const SizedBox(width: 4),
+                      Text('${village.totalPoints} pts', style: const TextStyle(color: Colors.amber, fontSize: 13)),
+                    ],
+                  ),
           ),
           const SizedBox(height: 20),
 
-          // ── Bouton attaquer ──
+          // ── Bouton Attaquer (villages ennemis et abandonnés) ──
           if (!_isOwn)
             SizedBox(
               width: double.infinity,
               height: 48,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red[800],
+                  backgroundColor: _isAbandoned ? Colors.grey[700] : Colors.red[800],
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () {
-                  Navigator.pop(context); // Ferme le bottom sheet
+                  Navigator.pop(context);
                   context.pushNamed(
                     'attack',
                     extra: {
-                      'defenderVillageId':   village.id,
-                      'defenderName':        village.name,
-                      'defenderPlayerName':  village.playerName,
+                      'defenderVillageId':  village.id,
+                      'defenderName':       _isAbandoned
+                          ? 'Village Abandonné Niv.${village.abandonedLevel}'
+                          : village.name,
+                      'defenderPlayerName': _isAbandoned ? 'Abandonné' : village.playerName,
                     },
                   );
                 },
-                icon: const Icon(Icons.bolt),
-                label: const Text('ATTAQUER',
-                    style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
+                icon: Icon(_isAbandoned ? Icons.local_fire_department : Icons.bolt),
+                label: Text(
+                  _isAbandoned ? 'PILLER' : 'ATTAQUER',
+                  style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1),
+                ),
               ),
             ),
         ],

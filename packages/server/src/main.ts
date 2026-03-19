@@ -5,15 +5,16 @@ import fastifyIO from 'fastify-socket.io';
 import fastifyJwt from '@fastify/jwt';
 import { PrismaClient } from '@prisma/client';
 
-import { GameDataRegistry }    from './engine/game-data-registry';
-import { BuildingQueue }       from './engine/queue/queues/build.queue';
-import { RecruitQueue }        from './engine/queue/queues/recruit.queue';
-import { AttackQueue }         from './engine/queue/queues/attack.queue';
-import { VillageService }      from './modules/village/village.service';
-import { ConstructionService } from './modules/construction/construction.service';
-import { AuthService }         from './modules/auth/auth.service';
-import { TroopsService }       from './modules/troops/troops.service';
-import { CombatService }       from './modules/combat/combat.service';
+import { GameDataRegistry }       from './engine/game-data-registry';
+import { BuildingQueue }          from './engine/queue/queues/build.queue';
+import { RecruitQueue }           from './engine/queue/queues/recruit.queue';
+import { AttackQueue }            from './engine/queue/queues/attack.queue';
+import { VillageService }         from './modules/village/village.service';
+import { ConstructionService }    from './modules/construction/construction.service';
+import { AuthService }            from './modules/auth/auth.service';
+import { TroopsService }          from './modules/troops/troops.service';
+import { CombatService }          from './modules/combat/combat.service';
+import { AbandonedVillageService } from './modules/abandoned/abandoned.service';
 
 import { initSocketServer }        from './infra/ws/socket.server';
 import { resourceTickWorker }      from './workers/resource-tick.worker';
@@ -25,6 +26,7 @@ import { mapRoutes }       from './modules/map/map.controller';
 import { troopsRoutes }    from './modules/troops/troops.controller';
 import { combatRoutes }    from './modules/combat/combat.controller';
 import { movementsRoutes } from './modules/combat/movements.controller';
+import { rankingRoutes }   from './modules/ranking/ranking.controller';
 
 import { initBuildWorker }   from './workers/build.worker';
 import { initRecruitWorker } from './workers/recruit.worker';
@@ -42,6 +44,7 @@ declare module 'fastify' {
     troopsService:       TroopsService;
     combatService:       CombatService;
     attackQueue:         AttackQueue;
+    abandonedService:    AbandonedVillageService;
   }
 }
 
@@ -69,6 +72,7 @@ async function bootstrap() {
     const authService         = new AuthService(prisma, fastify);
     const troopsService       = new TroopsService(prisma, gameDataRegistry, recruitQueue);
     const combatService       = new CombatService(prisma, gameDataRegistry, attackQueue);
+    const abandonedService    = new AbandonedVillageService(prisma);
 
     fastify.decorate('prisma',              prisma);
     fastify.decorate('gameData',            gameDataRegistry);
@@ -78,6 +82,10 @@ async function bootstrap() {
     fastify.decorate('troopsService',       troopsService);
     fastify.decorate('combatService',       combatService);
     fastify.decorate('attackQueue',         attackQueue);
+    fastify.decorate('abandonedService',    abandonedService);
+
+    // Spawn des villages abandonnés au démarrage
+    await abandonedService.seedAbandoned();
 
     fastify.ready(async (err) => {
       if (err) throw err;
@@ -92,11 +100,12 @@ async function bootstrap() {
     await fastify.register(troopsRoutes,    { prefix: '/api/villages' });
     await fastify.register(combatRoutes,    { prefix: '/api/villages' });
     await fastify.register(movementsRoutes, { prefix: '/api/villages' });
+    await fastify.register(rankingRoutes,   { prefix: '/api/ranking' });
 
     initBuildWorker(fastify);
     initRecruitWorker(fastify);
     initAttackWorker(fastify);
-    fastify.log.info('👷 Workers construction + recrutement + combat prêts');
+    fastify.log.info('👷 Workers prêts');
 
     if (resourceTickWorker) fastify.log.info('🤖 Worker ressources prêt');
 

@@ -7,9 +7,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// ─────────────────────────────────────────────
-// JOUEUR
-// ─────────────────────────────────────────────
 model Player {
   id          String    @id @default(uuid())
   username    String    @unique
@@ -20,9 +17,6 @@ model Player {
   totalPoints Int       @default(0)
 }
 
-// ─────────────────────────────────────────────
-// VILLAGE
-// ─────────────────────────────────────────────
 model Village {
   id    String @id @default(uuid())
   name  String
@@ -38,11 +32,16 @@ model Village {
   quarryLevel     Int @default(1)
   ironMineLevel   Int @default(1)
 
+  // Villages abandonnés
+  isAbandoned    Boolean @default(false)
+  abandonedLevel Int     @default(1)  // 1-10
+
   shieldUntil DateTime?
   lastTick    DateTime  @default(now())
 
-  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  playerId String
+  // Relation optionnelle — null pour les villages abandonnés
+  player   Player? @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  playerId String?
 
   buildings    BuildingInstance[]
   buildQueue   BuildingQueue?
@@ -52,16 +51,12 @@ model Village {
   attacksSent     AttackReport[]  @relation("AttackerVillage")
   attacksReceived AttackReport[]  @relation("DefenderVillage")
 
-  // Mouvements actifs
   activeAttacksSent     ActiveAttack[] @relation("ActiveAttackAttacker")
   activeAttacksReceived ActiveAttack[] @relation("ActiveAttackDefender")
 
   @@unique([x, y])
 }
 
-// ─────────────────────────────────────────────
-// BÂTIMENTS
-// ─────────────────────────────────────────────
 model BuildingInstance {
   id         String   @id @default(uuid())
   buildingId String
@@ -87,9 +82,6 @@ model BuildingQueue {
   villageId String  @unique
 }
 
-// ─────────────────────────────────────────────
-// TROUPES
-// ─────────────────────────────────────────────
 model Troop {
   id       String @id @default(uuid())
   unitType String
@@ -114,9 +106,6 @@ model RecruitQueue {
   villageId String  @unique
 }
 
-// ─────────────────────────────────────────────
-// COMBAT
-// ─────────────────────────────────────────────
 model AttackReport {
   id String @id @default(uuid())
 
@@ -139,9 +128,6 @@ model AttackReport {
   createdAt DateTime @default(now())
 }
 
-// ─────────────────────────────────────────────
-// MOUVEMENTS ACTIFS
-// ─────────────────────────────────────────────
 model ActiveAttack {
   id String @id @default(uuid())
 
@@ -151,16 +137,11 @@ model ActiveAttack {
   defenderVillage   Village @relation("ActiveAttackDefender", fields: [defenderVillageId], references: [id], onDelete: Cascade)
   defenderVillageId String
 
-  // Unités envoyées au départ
-  units Json
-
-  // Survivants qui rentrent (rempli après le combat)
+  units     Json
   survivors Json?
 
-  departsAt  DateTime @default(now())
-  arrivesAt  DateTime // Arrivée chez le défenseur (ou retour à la base)
+  departsAt DateTime @default(now())
+  arrivesAt DateTime
 
-  // traveling = en route vers le défenseur
-  // returning = retour à la base avec les survivants
   status String @default("traveling")
 }

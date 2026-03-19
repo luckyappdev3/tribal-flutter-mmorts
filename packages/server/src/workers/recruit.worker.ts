@@ -1,3 +1,4 @@
+// packages/server/src/workers/recruit.worker.ts
 import { Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
 import { FastifyInstance } from 'fastify';
@@ -15,31 +16,29 @@ export function initRecruitWorker(fastify: FastifyInstance) {
 
       console.log(`⚔️  Recrutement terminé : ${count}× ${unitType} pour le village ${villageId}`);
 
-      try {
-        await fastify.prisma.$transaction(async (tx) => {
-          // 1. Incrémenter le stock de troupes (upsert)
-          await tx.troop.upsert({
-            where:  { villageId_unitType: { villageId, unitType } },
-            update: { count: { increment: count } },
-            create: { villageId, unitType, count },
-          });
-
-          // 2. Supprimer la file de recrutement
-          await tx.recruitQueue.delete({ where: { villageId } });
+      await fastify.prisma.$transaction(async (tx: any) => {
+        // 1. Incrémenter le stock de troupes
+        await tx.troop.upsert({
+          where:  { villageId_unitType: { villageId, unitType } },
+          update: { count: { increment: count } },
+          create: { villageId, unitType, count },
         });
 
-        console.log(`✅ ${count}× ${unitType} ajoutés au village ${villageId}`);
+        // 2. Supprimer la file — deleteMany évite l'erreur si déjà supprimée
+        await tx.recruitQueue.deleteMany({ where: { villageId } });
+      });
 
-        // 3. Notifier le joueur en temps réel
+      console.log(`✅ ${count}× ${unitType} ajoutés au village ${villageId}`);
+
+      // Socket — non bloquant
+      try {
         fastify.io.to(`village:${villageId}`).emit('troops:ready', {
           unitType,
           count,
           message: `${count} ${unitType}(s) sont prêts au combat !`,
         });
-
-      } catch (error) {
-        console.error(`❌ Erreur recrutement pour village ${villageId}:`, error);
-        throw error;
+      } catch (e) {
+        console.warn('⚠️ Socket emit recrutement échoué (non bloquant)');
       }
     },
     { connection },

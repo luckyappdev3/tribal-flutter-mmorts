@@ -9,6 +9,14 @@ import {
   UnitGroup,
 } from '@mmorts/shared';
 
+function safeEmit(fastify: FastifyInstance, room: string, event: string, data: any) {
+  try {
+    fastify.io.to(room).emit(event, data);
+  } catch (e) {
+    console.warn(`⚠️ Socket emit échoué sur ${room}/${event}:`, e);
+  }
+}
+
 export function initAttackWorker(fastify: FastifyInstance) {
   const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
     maxRetriesPerRequest: null,
@@ -19,12 +27,9 @@ export function initAttackWorker(fastify: FastifyInstance) {
     async (job: Job<AttackJobData>) => {
       const { attackerVillageId, defenderVillageId, activeAttackId } = job.data;
 
-      // ──────────────────────────────────────────
-      // CAS 1 : RETOUR DES TROUPES
-      // ──────────────────────────────────────────
+      // ── CAS 1 : RETOUR DES TROUPES ──
       if (job.data.returning === true) {
         console.log(`🏠 Retour des troupes → village ${attackerVillageId}`);
-
         const survivors = job.data.units as Record<string, number>;
 
         for (const [unitType, count] of Object.entries(survivors)) {
@@ -38,75 +43,53 @@ export function initAttackWorker(fastify: FastifyInstance) {
 
         try {
           await fastify.prisma.activeAttack.delete({ where: { id: activeAttackId } });
-        } catch {
-          // Déjà supprimé
-        }
+        } catch { /* déjà supprimé */ }
 
         console.log(`✅ Troupes rentrées : ${JSON.stringify(survivors)}`);
-
-        try {
-          fastify.io.to(`village:${attackerVillageId}`).emit('troops:returned', {
-            survivors,
-            message: 'Vos troupes sont rentrées à la base !',
-          });
-        } catch (socketErr) {
-          console.warn('⚠️ Socket emit échoué (non bloquant):', socketErr);
-        }
-
+        safeEmit(fastify, `village:${attackerVillageId}`, 'troops:returned', {
+          survivors,
+          message: 'Vos troupes sont rentrées à la base !',
+        });
         return;
       }
 
-      // ──────────────────────────────────────────
-      // CAS 2 : RÉSOLUTION DU COMBAT
-      // ──────────────────────────────────────────
+      // ── CAS 2 : RÉSOLUTION DU COMBAT ──
       const { units } = job.data;
       console.log(`⚔️  Combat : ${attackerVillageId} → ${defenderVillageId}`);
 
       const [attackerVillage, defenderVillage] = await Promise.all([
-        fastify.prisma.village.findUnique({
-          where:   { id: attackerVillageId },
-          include: { troops: true },
-        }),
-        fastify.prisma.village.findUnique({
-          where:   { id: defenderVillageId },
-          include: { troops: true },
-        }),
+        fastify.prisma.village.findUnique({ where: { id: attackerVillageId }, include: { troops: true } }),
+        fastify.prisma.village.findUnique({ where: { id: defenderVillageId }, include: { troops: true } }),
       ]);
 
       if (!attackerVillage || !defenderVillage) {
-        console.error('❌ Village introuvable pour le combat');
+        console.error('❌ Village introuvable');
         return;
       }
+
+      const isAbandonedTarget = (defenderVillage as any).isAbandoned === true;
 
       const attackerGroups: UnitGroup[] = [];
       for (const [unitType, count] of Object.entries(units)) {
         if (count <= 0) continue;
         try {
           const def = fastify.gameData.getUnitDef(unitType);
-          attackerGroups.push({
-            unitType, count,
-            attack:        def.attack,
-            defense:       def.defense,
-            carryCapacity: def.carryCapacity,
-          });
+          attackerGroups.push({ unitType, count, attack: def.attack, defense: def.defense, carryCapacity: def.carryCapacity });
         } catch { continue; }
       }
 
-      const defGroups: UnitGroup[] = ((defenderVillage as any).troops ?? [])
-        .filter((t: any) => t.count > 0)
-        .map((t: any) => {
-          try {
-            const def = fastify.gameData.getUnitDef(t.unitType);
-            return {
-              unitType:      t.unitType,
-              count:         t.count,
-              attack:        def.attack,
-              defense:       def.defense,
-              carryCapacity: def.carryCapacity,
-            };
-          } catch { return null; }
-        })
-        .filter(Boolean) as UnitGroup[];
+      // Village abandonné = pas de défenseurs
+      const defGroups: UnitGroup[] = isAbandonedTarget
+        ? []
+        : ((defenderVillage as any).troops ?? [])
+            .filter((t: any) => t.count > 0)
+            .map((t: any) => {
+              try {
+                const def = fastify.gameData.getUnitDef(t.unitType);
+                return { unitType: t.unitType, count: t.count, attack: def.attack, defense: def.defense, carryCapacity: def.carryCapacity };
+              } catch { return null; }
+            })
+            .filter(Boolean) as UnitGroup[];
 
       const result = resolveBattle(attackerGroups, defGroups);
       const loot   = result.attackerWon
@@ -115,12 +98,15 @@ export function initAttackWorker(fastify: FastifyInstance) {
             result.lootCapacity,
           )
         : { wood: 0, stone: 0, iron: 0 };
-      const pointsExchanged = calculatePointsExchanged(result.defenderLosses, defGroups);
+
+      // Pas de points échangés avec un village abandonné
+      const pointsExchanged = isAbandonedTarget
+        ? 0
+        : calculatePointsExchanged(result.defenderLosses, defGroups);
 
       const survivors: Record<string, number> = {};
       for (const [unitType, count] of Object.entries(units)) {
-        const lost     = result.attackerLosses[unitType] ?? 0;
-        const survived = Math.max(0, count - lost);
+        const survived = Math.max(0, count - (result.attackerLosses[unitType] ?? 0));
         if (survived > 0) survivors[unitType] = survived;
       }
 
@@ -128,35 +114,41 @@ export function initAttackWorker(fastify: FastifyInstance) {
         ((defenderVillage as any).troops ?? []).map((t: any) => [t.unitType, t.count])
       );
 
+      // Transaction BDD
       await fastify.prisma.$transaction(async (tx: any) => {
-        for (const [unitType, lost] of Object.entries(result.defenderLosses)) {
-          if (lost <= 0) continue;
-          await tx.troop.updateMany({
-            where: { villageId: defenderVillageId, unitType },
-            data:  { count: { decrement: lost } },
-          });
+        // Pertes défenseur (seulement si village joueur)
+        if (!isAbandonedTarget) {
+          for (const [unitType, lost] of Object.entries(result.defenderLosses)) {
+            if (lost <= 0) continue;
+            await tx.troop.updateMany({ where: { villageId: defenderVillageId, unitType }, data: { count: { decrement: lost } } });
+          }
         }
 
+        // Ressources pillées
         if (result.attackerWon && (loot.wood + loot.stone + loot.iron) > 0) {
           await tx.village.update({
             where: { id: defenderVillageId },
-            data:  { wood: { decrement: loot.wood }, stone: { decrement: loot.stone }, iron: { decrement: loot.iron } },
+            data: { wood: { decrement: loot.wood }, stone: { decrement: loot.stone }, iron: { decrement: loot.iron } },
           });
           await tx.village.update({
             where: { id: attackerVillageId },
-            data:  { wood: { increment: loot.wood }, stone: { increment: loot.stone }, iron: { increment: loot.iron } },
+            data: { wood: { increment: loot.wood }, stone: { increment: loot.stone }, iron: { increment: loot.iron } },
           });
         }
 
-        await tx.player.updateMany({
-          where: { villages: { some: { id: defenderVillageId } } },
-          data:  { totalPoints: { decrement: pointsExchanged } },
-        });
-        await tx.player.updateMany({
-          where: { villages: { some: { id: attackerVillageId } } },
-          data:  { totalPoints: { increment: pointsExchanged } },
-        });
+        // Points (seulement si village joueur)
+        if (!isAbandonedTarget && pointsExchanged > 0) {
+          await tx.player.updateMany({
+            where: { villages: { some: { id: defenderVillageId } } },
+            data:  { totalPoints: { decrement: pointsExchanged } },
+          });
+          await tx.player.updateMany({
+            where: { villages: { some: { id: attackerVillageId } } },
+            data:  { totalPoints: { increment: pointsExchanged } },
+          });
+        }
 
+        // Rapport de combat
         await tx.attackReport.create({
           data: {
             attackerVillageId,
@@ -165,67 +157,67 @@ export function initAttackWorker(fastify: FastifyInstance) {
             unitsSurvived:       survivors,
             defenderUnitsBefore,
             defenderUnitsAfter:  Object.fromEntries(
-              defGroups.map(u => [
-                u.unitType,
-                Math.max(0, u.count - (result.defenderLosses[u.unitType] ?? 0)),
-              ])
+              defGroups.map(u => [u.unitType, Math.max(0, u.count - (result.defenderLosses[u.unitType] ?? 0))])
             ),
             resourcesLooted:  loot,
             pointsLost:       pointsExchanged,
-            pointsGained:     pointsExchanged,
+            pointsGained:     isAbandonedTarget ? 1 : pointsExchanged, // 1 point symbolique pour les raids
             attackerWon:      result.attackerWon,
           },
         });
 
+        // Mouvement actif
+        const travelMs = job.data.travelMs ?? 15000;
         if (Object.keys(survivors).length > 0) {
-          const travelMs = job.data.travelMs ?? 15000;
           const returnArrivesAt = new Date(Date.now() + travelMs);
           await tx.activeAttack.update({
             where: { id: activeAttackId },
-            data: {
-              status:    'returning',
-              survivors,
-              arrivesAt: returnArrivesAt,
-            },
+            data:  { status: 'returning', survivors, arrivesAt: returnArrivesAt },
           });
         } else {
           await tx.activeAttack.delete({ where: { id: activeAttackId } });
         }
       });
 
-      console.log(`✅ Combat résolu — ${result.attackerWon ? 'Victoire' : 'Défaite'}`);
-
-      // Émissions Sockets (après transaction)
-      try {
-        fastify.io.to(`village:${attackerVillageId}`).emit('attack:result', {
-          attackerWon:     result.attackerWon,
-          attackerLosses:  result.attackerLosses,
-          survivors,
-          resourcesLooted: loot,
-          pointsGained:    pointsExchanged,
-        });
-
-        fastify.io.to(`village:${defenderVillageId}`).emit('attack:incoming', {
-          attackerWon:      result.attackerWon,
-          defenderLosses:   result.defenderLosses,
-          resourcesLooted:  loot,
-          pointsLost:       pointsExchanged,
-          attackerVillageId,
-        });
-      } catch (socketErr) {
-        console.warn('⚠️ Socket emit échoué (non bloquant):', socketErr);
+      // Régénération minimale du village abandonné après pillage
+      if (isAbandonedTarget && result.attackerWon) {
+        await (fastify as any).abandonedService.resetAfterRaid(defenderVillageId);
       }
 
-      // Créer le job de retour si survivants
+      console.log(`✅ Combat résolu — ${result.attackerWon ? 'Victoire' : 'Défaite'} ${isAbandonedTarget ? '(village abandonné)' : ''} | Butin: wood${loot.wood} stone${loot.stone} iron${loot.iron}`);
+
+      // Sockets
+      safeEmit(fastify, `village:${attackerVillageId}`, 'attack:result', {
+        attackerWon:      result.attackerWon,
+        attackerLosses:   result.attackerLosses,
+        survivors,
+        resourcesLooted:  loot,
+        pointsGained:     isAbandonedTarget ? 1 : pointsExchanged,
+        isAbandonedTarget,
+      });
+
+      // Notifier le défenseur seulement si c'est un vrai joueur
+      if (!isAbandonedTarget) {
+        safeEmit(fastify, `village:${defenderVillageId}`, 'attack:incoming', {
+          attackerWon:     result.attackerWon,
+          defenderLosses:  result.defenderLosses,
+          resourcesLooted: loot,
+          pointsLost:      pointsExchanged,
+          attackerVillageId,
+        });
+      }
+
+      // Job de retour
       if (Object.keys(survivors).length > 0) {
         const travelMs = job.data.travelMs ?? 15000;
         await (fastify as any).attackQueue.addJob({
           attackerVillageId,
           defenderVillageId,
-          units:         survivors,
+          units:     survivors,
           activeAttackId,
-          returning:     true,
+          returning: true,
           travelMs,
+          survivors,
         }, travelMs);
       }
     },

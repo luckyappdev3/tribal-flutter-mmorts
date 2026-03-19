@@ -13,18 +13,11 @@ export class ConstructionService {
   ) {}
 
   async startUpgrade(villageId: string, buildingId: string) {
-    // 1. Sync des ressources (lazy eval)
     await this.villageService.updateResources(villageId);
 
-    // 2. Une seule construction à la fois
-    const existingJob = await this.prisma.buildingQueue.findUnique({
-      where: { villageId },
-    });
-    if (existingJob) {
-      throw new Error('Un bâtiment est déjà en cours de construction.');
-    }
+    const existingJob = await this.prisma.buildingQueue.findUnique({ where: { villageId } });
+    if (existingJob) throw new Error('Un bâtiment est déjà en cours de construction.');
 
-    // 3. Niveau actuel → niveau cible
     const buildingInstance = await this.prisma.buildingInstance.findUnique({
       where: { villageId_buildingId: { villageId, buildingId } },
     });
@@ -32,41 +25,42 @@ export class ConstructionService {
     const currentLevel = buildingInstance?.level ?? 0;
     const targetLevel  = currentLevel + 1;
     const buildingDef  = this.gameData.getBuildingDef(buildingId);
+    const costs        = calculateCostForLevel(buildingDef, targetLevel);
 
-    // 4. Coûts et durée
-    const costs      = calculateCostForLevel(buildingDef, targetLevel);
-    const durationMs = calculateTimeForLevel(buildingDef, targetLevel) * 1000;
+    // ── Bonus de vitesse du QG (−5% par niveau) ──
+    const hqInstance = await this.prisma.buildingInstance.findUnique({
+      where: { villageId_buildingId: { villageId, buildingId: 'headquarters' } },
+    });
+    const hqLevel    = hqInstance?.level ?? 0;
+    const hqSpeedBonus = 1 - hqLevel * 0.05; // Niv 1 = -5%, Niv 10 = -50%
+    const baseDurationSec = calculateTimeForLevel(buildingDef, targetLevel);
+    const durationMs = Math.floor(baseDurationSec * Math.max(0.1, hqSpeedBonus) * 1000);
 
-    // 5. Transaction atomique : vérification, déduction, création en queue
     return await this.prisma.$transaction(async (tx) => {
       const village = await tx.village.findUnique({ where: { id: villageId } });
 
       if (
         !village ||
         village.wood  < costs.wood  ||
-        village.stone < costs.stone || // 
+        village.stone < costs.stone ||
         village.iron  < costs.iron
       ) {
-        throw new Error('Ressources insuffisantes pour lancer l\'amélioration.');
+        throw new Error("Ressources insuffisantes pour lancer l'amélioration.");
       }
 
       await tx.village.update({
         where: { id: villageId },
-        data: {
-          wood:  { decrement: costs.wood  || 0 },
-          stone: { decrement: costs.stone || 0 }, // Si c'est undefined, ça devient 0
-          iron:  { decrement: costs.iron  || 0 },
-        },
+        data: { wood: { decrement: costs.wood }, stone: { decrement: costs.stone }, iron: { decrement: costs.iron } },
       });
 
-      const endsAt = new Date(Date.now() + durationMs);
+      const endsAt     = new Date(Date.now() + durationMs);
       const queueEntry = await tx.buildingQueue.create({
         data: { villageId, buildingId, targetLevel, endsAt },
       });
 
       await this.buildQueue.addJob({ villageId, buildingId, targetLevel }, durationMs);
 
-      return queueEntry;
+      return { ...queueEntry, durationMs, hqLevel, hqSpeedBonus };
     });
   }
 }

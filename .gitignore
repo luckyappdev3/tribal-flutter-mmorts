@@ -1,0 +1,20 @@
+# Flutter build artifacts
+packages/mobile/.dart_tool/
+packages/mobile/build/
+packages/mobile/.flutter-plugins
+packages/mobile/.flutter-plugins-dependencies
+packages/mobile/.packages
+
+# Server build
+packages/server/dist/
+
+# Node
+node_modules/
+packages/server/node_modules/
+
+# Env
+.env
+packages/server/.env
+
+# OS
+.DS_Store
