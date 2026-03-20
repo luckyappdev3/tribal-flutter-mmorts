@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/services/tab_refresh_service.dart';
 import '../../presentation/auth/pages/login_page.dart';
 import '../../presentation/auth/pages/register_page.dart';
 import '../../presentation/village/pages/village_page.dart';
@@ -32,7 +33,6 @@ final appRouter = GoRouter(
       },
     ),
 
-    // Shell avec 7 onglets
     StatefulShellRoute.indexedStack(
       builder: (context, state, shell) => _ScaffoldWithNavBar(shell: shell),
       branches: [
@@ -59,7 +59,11 @@ class _ScaffoldWithNavBar extends StatelessWidget {
       body: shell,
       bottomNavigationBar: _BottomNav(
         currentIndex: shell.currentIndex,
-        onTap: (i) => shell.goBranch(i, initialLocation: i == shell.currentIndex),
+        onTap: (i) {
+          // Notifier le service → tous les BLoCs abonnés se rafraîchissent
+          TabRefreshService.instance.notifyTabSelected(i);
+          shell.goBranch(i, initialLocation: i == shell.currentIndex);
+        },
       ),
     );
   }

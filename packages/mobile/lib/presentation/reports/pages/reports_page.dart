@@ -1,125 +1,221 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import '../../../core/di/injection.dart';
-import '../../../data/remote/api/troops_api.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../bloc/reports_bloc.dart';
+import '../bloc/reports_event.dart';
+import '../bloc/reports_state.dart';
 import '../../troops/dto/troops_dto.dart';
+import 'report_detail_page.dart';
 
-class ReportsPage extends StatefulWidget {
+class ReportsPage extends StatelessWidget {
   const ReportsPage({super.key});
 
   @override
-  State<ReportsPage> createState() => _ReportsPageState();
+  Widget build(BuildContext context) {
+    return const _ReportsView();
+  }
 }
 
-class _ReportsPageState extends State<ReportsPage> {
-  final TroopsApi _troopsApi = getIt<TroopsApi>();
-
-  List<AttackReportDto> _reports = [];
-  bool _loading = true;
-  String? _error;
-  String _villageId = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final villageId = Hive.box('village').get('current_village_id') as String?;
-    if (villageId == null) return;
-    _villageId = villageId;
-    try {
-      final reports = await _troopsApi.getReports(villageId);
-      setState(() { _reports = reports; _loading = false; });
-    } catch (e) {
-      setState(() { _loading = false; _error = '$e'; });
-    }
-  }
+class _ReportsView extends StatelessWidget {
+  const _ReportsView();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1A1A),
+      backgroundColor: const Color(0xFF111111),
       appBar: AppBar(
-        title: const Text('Rapports de Combat', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.black54,
+        title: BlocBuilder<ReportsBloc, ReportsState>(
+          builder: (context, state) {
+            final unread = state.maybeWhen(
+              loaded: (_, __, u) => u,
+              orElse: () => 0,
+            );
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Rapports', style: TextStyle(fontWeight: FontWeight.bold)),
+                if (unread > 0) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '$unread',
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
+        backgroundColor: Colors.black87,
         elevation: 0,
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.amber),
-            onPressed: () { setState(() => _loading = true); _load(); },
+          BlocBuilder<ReportsBloc, ReportsState>(
+            builder: (context, state) {
+              final hasUnread = state.maybeWhen(
+                loaded: (_, __, u) => u > 0,
+                orElse: () => false,
+              );
+              if (!hasUnread) return const SizedBox.shrink();
+              return TextButton(
+                onPressed: () => context.read<ReportsBloc>().add(const ReportsEvent.markAllRead()),
+                child: const Text('Tout lire', style: TextStyle(color: Colors.amber, fontSize: 12)),
+              );
+            },
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Colors.amber))
-          : _error != null
-              ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
-              : _reports.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.article_outlined, size: 64, color: Colors.white24),
-                          const SizedBox(height: 16),
-                          const Text('Aucun rapport', style: TextStyle(color: Colors.white54, fontSize: 16)),
-                          const SizedBox(height: 8),
-                          const Text('Lancez une attaque depuis la carte',
-                              style: TextStyle(color: Colors.white24, fontSize: 13)),
-                        ],
+      body: BlocBuilder<ReportsBloc, ReportsState>(
+        builder: (context, state) {
+          return state.when(
+            initial: () => const Center(child: CircularProgressIndicator(color: Colors.amber)),
+            loading: () => const Center(child: CircularProgressIndicator(color: Colors.amber)),
+            error:   (msg) => Center(child: Text(msg, style: const TextStyle(color: Colors.red))),
+            loaded:  (villageId, reports, _) {
+              if (reports.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(Icons.article_outlined, size: 64, color: Colors.white12),
+                      SizedBox(height: 16),
+                      Text('Aucun rapport de combat',
+                          style: TextStyle(color: Colors.white38, fontSize: 16)),
+                      SizedBox(height: 8),
+                      Text('Lancez une attaque depuis la carte',
+                          style: TextStyle(color: Colors.white24, fontSize: 13)),
+                    ],
+                  ),
+                );
+              }
+
+              return ListView.separated(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: reports.length,
+                separatorBuilder: (_, __) =>
+                    const Divider(height: 1, color: Colors.white12, indent: 16, endIndent: 16),
+                itemBuilder: (context, index) => _ReportListItem(
+                  report:    reports[index],
+                  villageId: villageId,
+                  onTap: () {
+                    context.read<ReportsBloc>().add(ReportsEvent.markRead(reports[index].id));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ReportDetailPage(
+                          report:      reports[index],
+                          myVillageId: villageId,
+                        ),
                       ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(14),
-                      itemCount: _reports.length,
-                      itemBuilder: (context, index) => _ReportCard(
-                        report:    _reports[index],
-                        villageId: _villageId,
-                      ),
-                    ),
+                    );
+                  },
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
 
-class _ReportCard extends StatelessWidget {
+class _ReportListItem extends StatelessWidget {
   final AttackReportDto report;
   final String          villageId;
+  final VoidCallback    onTap;
 
-  const _ReportCard({required this.report, required this.villageId});
+  const _ReportListItem({
+    required this.report,
+    required this.villageId,
+    required this.onTap,
+  });
 
   bool get _isAttacker => report.isAttacker(villageId);
-  bool get _won => _isAttacker ? report.attackerWon : !report.attackerWon;
+  bool get _won        => _isAttacker ? report.attackerWon : !report.attackerWon;
+  Color get _resultColor => _won ? Colors.green : Colors.red;
+
+  String get _typeLabel =>
+      _isAttacker ? 'Attaque envoyée' : 'Attaque reçue';
+
+  String get _resultLabel {
+    if (_isAttacker && _won)  return 'Victoire';
+    if (_isAttacker && !_won) return 'Défaite';
+    if (!_isAttacker && _won) return 'Défense réussie';
+    return 'Village pillé';
+  }
+
+  String get _opponentName {
+    if (_isAttacker) {
+      return report.defenderVillage?.displayName ??
+             report.defenderVillageId.substring(0, 8);
+    }
+    return report.attackerVillage?.name ??
+           report.attackerVillageId.substring(0, 8);
+  }
+
+  String get _opponentPlayer {
+    if (_isAttacker) {
+      return report.defenderVillage?.isAbandoned == true
+          ? 'Village abandonné'
+          : (report.defenderVillage?.playerName ?? '—');
+    }
+    return report.attackerVillage?.playerName ?? '—';
+  }
+
+  String _formatDate(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1)  return 'À l\'instant';
+    if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes}min';
+    if (diff.inHours   < 24) return 'Il y a ${diff.inHours}h';
+    return '${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')} '
+           '${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final color = _won ? Colors.green : Colors.red;
+    final loot     = report.resourcesLooted;
+    final wood     = loot['wood']  ?? 0;
+    final stone    = loot['stone'] ?? 0;
+    final iron     = loot['iron']  ?? 0;
+    final hasLoot  = _isAttacker && _won && report.totalLooted > 0;
 
-    return GestureDetector(
-      onTap: () => _showDetail(context),
+    return InkWell(
+      onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: const Color(0xFF222222),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        color: report.isRead ? Colors.transparent : const Color(0xFF1A1A00),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // ── Barre lu/non-lu ──
+            Container(
+              width: 3,
+              height: hasLoot ? 70 : 52,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: report.isRead ? Colors.transparent : _resultColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+
             // ── Icône résultat ──
             Container(
-              width: 42,
-              height: 42,
+              width: 38, height: 38,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
+                color: _resultColor.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
-                _won ? Icons.emoji_events : Icons.shield_outlined,
-                color: color,
-                size: 22,
+                _isAttacker
+                    ? (_won ? Icons.emoji_events : Icons.close)
+                    : (_won ? Icons.shield      : Icons.warning_amber),
+                color: _resultColor,
+                size: 18,
               ),
             ),
             const SizedBox(width: 12),
@@ -129,40 +225,67 @@ class _ReportCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _isAttacker ? 'Attaque envoyée' : 'Attaque reçue',
-                    style: const TextStyle(color: Colors.white54, fontSize: 11),
+                  // Type + résultat
+                  Row(
+                    children: [
+                      Text(_typeLabel,
+                          style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: _resultColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(_resultLabel,
+                            style: TextStyle(
+                              color:      _resultColor,
+                              fontSize:   10,
+                              fontWeight: FontWeight.bold,
+                            )),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 3),
+                  // Nom village
                   Text(
-                    _won ? 'Victoire' : 'Défaite',
-                    style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  const SizedBox(height: 2),
-                  if (_isAttacker && report.attackerWon)
-                    Text(
-                      '🪵${report.resourcesLooted['wood'] ?? 0} '
-                      '🪨${report.resourcesLooted['stone'] ?? 0} '
-                      '⚙️${report.resourcesLooted['iron'] ?? 0} pillés',
-                      style: const TextStyle(color: Colors.amber, fontSize: 11),
+                    _opponentName,
+                    style: TextStyle(
+                      color:      report.isRead ? Colors.white70 : Colors.white,
+                      fontWeight: report.isRead ? FontWeight.normal : FontWeight.bold,
+                      fontSize:   13,
                     ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  // Joueur
+                  Text(_opponentPlayer,
+                      style: const TextStyle(color: Colors.white38, fontSize: 11)),
+
+                  // ── Ressources pillées (3 colonnes) ──
+                  if (hasLoot) ...[
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        _LootChip(icon: '🪵', value: wood,  color: const Color(0xFF8D6E63)),
+                        const SizedBox(width: 8),
+                        _LootChip(icon: '🪨', value: stone, color: const Color(0xFF90A4AE)),
+                        const SizedBox(width: 8),
+                        _LootChip(icon: '⚙️', value: iron,  color: const Color(0xFF78909C)),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
 
-            // ── Date ──
+            // ── Date + chevron ──
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  '+${report.pointsGained} pts',
-                  style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
-                ),
+                Text(_formatDate(report.createdAt),
+                    style: const TextStyle(color: Colors.white24, fontSize: 10)),
                 const SizedBox(height: 4),
-                Text(
-                  _formatDate(report.createdAt),
-                  style: const TextStyle(color: Colors.white38, fontSize: 10),
-                ),
-                const Icon(Icons.chevron_right, color: Colors.white24, size: 16),
+                const Icon(Icons.chevron_right, color: Colors.white12, size: 16),
               ],
             ),
           ],
@@ -170,123 +293,26 @@ class _ReportCard extends StatelessWidget {
       ),
     );
   }
-
-  String _formatDate(DateTime dt) {
-    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  }
-
-  void _showDetail(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF222222),
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => _ReportDetail(report: report, isAttacker: _isAttacker),
-    );
-  }
 }
 
-class _ReportDetail extends StatelessWidget {
-  final AttackReportDto report;
-  final bool isAttacker;
-
-  const _ReportDetail({required this.report, required this.isAttacker});
+// ── Chip ressource pillée ──
+class _LootChip extends StatelessWidget {
+  final String icon;
+  final int    value;
+  final Color  color;
+  const _LootChip({required this.icon, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    final won = isAttacker ? report.attackerWon : !report.attackerWon;
-    final color = won ? Colors.green : Colors.red;
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.6,
-      maxChildSize: 0.9,
-      minChildSize: 0.4,
-      expand: false,
-      builder: (_, controller) => ListView(
-        controller: controller,
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-        children: [
-          Center(
-            child: Container(width: 40, height: 4,
-              decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
-          ),
-          const SizedBox(height: 16),
-          Center(
-            child: Text(
-              won ? '🏆 Victoire !' : '💀 Défaite',
-              style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          _Section(title: 'Unités envoyées', data: report.unitsSent),
-          const SizedBox(height: 12),
-          _Section(title: 'Unités survivantes', data: report.unitsSurvived),
-          const SizedBox(height: 12),
-
-          if (report.attackerWon && isAttacker) ...[
-            _Section(title: 'Ressources pillées', data: {
-              '🪵 Bois':  report.resourcesLooted['wood']  ?? 0,
-              '🪨 Pierre': report.resourcesLooted['stone'] ?? 0,
-              '⚙️ Fer':   report.resourcesLooted['iron']  ?? 0,
-            }, useKeys: true),
-            const SizedBox(height: 12),
-          ],
-
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: color.withOpacity(0.3)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Points ${isAttacker ? "gagnés" : "perdus"}',
-                    style: const TextStyle(color: Colors.white70)),
-                Text('${isAttacker ? "+" : "-"}${report.pointsGained}',
-                    style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Section extends StatelessWidget {
-  final String title;
-  final Map<String, int> data;
-  final bool useKeys;
-
-  const _Section({required this.title, required this.data, this.useKeys = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final entries = data.entries.where((e) => e.value > 0).toList();
-    if (entries.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(title, style: const TextStyle(color: Colors.white54, fontSize: 12)),
-        const SizedBox(height: 6),
-        ...entries.map((e) => Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(useKeys ? e.key : e.key,
-                  style: const TextStyle(color: Colors.white70, fontSize: 13)),
-              Text('${e.value}',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            ],
-          ),
-        )),
+        Text(icon, style: const TextStyle(fontSize: 11)),
+        const SizedBox(width: 2),
+        Text(
+          '$value',
+          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
+        ),
       ],
     );
   }

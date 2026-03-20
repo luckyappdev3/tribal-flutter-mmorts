@@ -2,6 +2,7 @@ import { Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
 import { FastifyInstance } from 'fastify';
 import { AttackJobData } from '../engine/queue/queues/attack.queue';
+import { io } from '../infra/ws/socket.server';
 import {
   resolveBattle,
   calculateLoot,
@@ -9,9 +10,9 @@ import {
   UnitGroup,
 } from '@mmorts/shared';
 
-function safeEmit(fastify: FastifyInstance, room: string, event: string, data: any) {
+function safeEmit(room: string, event: string, data: any) {
   try {
-    fastify.io.to(room).emit(event, data);
+    if (io) io.to(room).emit(event, data);
   } catch (e) {
     console.warn(`⚠️ Socket emit échoué sur ${room}/${event}:`, e);
   }
@@ -46,7 +47,7 @@ export function initAttackWorker(fastify: FastifyInstance) {
         } catch { /* déjà supprimé */ }
 
         console.log(`✅ Troupes rentrées : ${JSON.stringify(survivors)}`);
-        safeEmit(fastify, `village:${attackerVillageId}`, 'troops:returned', {
+        safeEmit(`village:${attackerVillageId}`, 'troops:returned', {
           survivors,
           message: 'Vos troupes sont rentrées à la base !',
         });
@@ -78,7 +79,6 @@ export function initAttackWorker(fastify: FastifyInstance) {
         } catch { continue; }
       }
 
-      // Village abandonné = pas de défenseurs
       const defGroups: UnitGroup[] = isAbandonedTarget
         ? []
         : ((defenderVillage as any).troops ?? [])
@@ -99,7 +99,6 @@ export function initAttackWorker(fastify: FastifyInstance) {
           )
         : { wood: 0, stone: 0, iron: 0 };
 
-      // Pas de points échangés avec un village abandonné
       const pointsExchanged = isAbandonedTarget
         ? 0
         : calculatePointsExchanged(result.defenderLosses, defGroups);
@@ -114,9 +113,7 @@ export function initAttackWorker(fastify: FastifyInstance) {
         ((defenderVillage as any).troops ?? []).map((t: any) => [t.unitType, t.count])
       );
 
-      // Transaction BDD
       await fastify.prisma.$transaction(async (tx: any) => {
-        // Pertes défenseur (seulement si village joueur)
         if (!isAbandonedTarget) {
           for (const [unitType, lost] of Object.entries(result.defenderLosses)) {
             if (lost <= 0) continue;
@@ -124,7 +121,6 @@ export function initAttackWorker(fastify: FastifyInstance) {
           }
         }
 
-        // Ressources pillées
         if (result.attackerWon && (loot.wood + loot.stone + loot.iron) > 0) {
           await tx.village.update({
             where: { id: defenderVillageId },
@@ -136,7 +132,6 @@ export function initAttackWorker(fastify: FastifyInstance) {
           });
         }
 
-        // Points (seulement si village joueur)
         if (!isAbandonedTarget && pointsExchanged > 0) {
           await tx.player.updateMany({
             where: { villages: { some: { id: defenderVillageId } } },
@@ -148,7 +143,6 @@ export function initAttackWorker(fastify: FastifyInstance) {
           });
         }
 
-        // Rapport de combat
         await tx.attackReport.create({
           data: {
             attackerVillageId,
@@ -161,12 +155,11 @@ export function initAttackWorker(fastify: FastifyInstance) {
             ),
             resourcesLooted:  loot,
             pointsLost:       pointsExchanged,
-            pointsGained:     isAbandonedTarget ? 1 : pointsExchanged, // 1 point symbolique pour les raids
+            pointsGained:     isAbandonedTarget ? 1 : pointsExchanged,
             attackerWon:      result.attackerWon,
           },
         });
 
-        // Mouvement actif
         const travelMs = job.data.travelMs ?? 15000;
         if (Object.keys(survivors).length > 0) {
           const returnArrivesAt = new Date(Date.now() + travelMs);
@@ -179,15 +172,13 @@ export function initAttackWorker(fastify: FastifyInstance) {
         }
       });
 
-      // Régénération minimale du village abandonné après pillage
       if (isAbandonedTarget && result.attackerWon) {
         await (fastify as any).abandonedService.resetAfterRaid(defenderVillageId);
       }
 
       console.log(`✅ Combat résolu — ${result.attackerWon ? 'Victoire' : 'Défaite'} ${isAbandonedTarget ? '(village abandonné)' : ''} | Butin: wood${loot.wood} stone${loot.stone} iron${loot.iron}`);
 
-      // Sockets
-      safeEmit(fastify, `village:${attackerVillageId}`, 'attack:result', {
+      safeEmit(`village:${attackerVillageId}`, 'attack:result', {
         attackerWon:      result.attackerWon,
         attackerLosses:   result.attackerLosses,
         survivors,
@@ -196,9 +187,8 @@ export function initAttackWorker(fastify: FastifyInstance) {
         isAbandonedTarget,
       });
 
-      // Notifier le défenseur seulement si c'est un vrai joueur
       if (!isAbandonedTarget) {
-        safeEmit(fastify, `village:${defenderVillageId}`, 'attack:incoming', {
+        safeEmit(`village:${defenderVillageId}`, 'attack:incoming', {
           attackerWon:     result.attackerWon,
           defenderLosses:  result.defenderLosses,
           resourcesLooted: loot,
@@ -207,7 +197,6 @@ export function initAttackWorker(fastify: FastifyInstance) {
         });
       }
 
-      // Job de retour
       if (Object.keys(survivors).length > 0) {
         const travelMs = job.data.travelMs ?? 15000;
         await (fastify as any).attackQueue.addJob({

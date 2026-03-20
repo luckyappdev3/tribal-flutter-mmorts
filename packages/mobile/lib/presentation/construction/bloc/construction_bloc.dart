@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/di/injection.dart';
+import '../../../core/services/tab_refresh_service.dart';
 import '../../../data/remote/api/village_api.dart';
 import '../../../data/remote/websocket/socket_service.dart';
 import 'construction_event.dart';
@@ -10,24 +11,26 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
   final VillageApi    _villageApi    = getIt<VillageApi>();
   final SocketService _socketService = getIt<SocketService>();
   Timer? _interpolationTimer;
+  StreamSubscription? _tabSub;
 
   ConstructionBloc() : super(const ConstructionState.initial()) {
     on<ConstructionEvent>(_onEvent);
 
     _socketService.instance.on('build:finished', (data) {
-      add(ConstructionEvent.buildFinished(
-        data is Map<String, dynamic> ? data : {},
-      ));
+      add(ConstructionEvent.buildFinished(data is Map<String, dynamic> ? data : {}));
+    });
+
+    // Auto-refresh quand l'onglet Construire devient actif
+    _tabSub = TabRefreshService.instance.stream.listen((index) {
+      if (index == TabIndex.construction) {
+        final villageId = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => v);
+        if (villageId != null) add(ConstructionEvent.loadRequested(villageId));
+      }
     });
   }
 
-  Future<void> _onEvent(
-    ConstructionEvent event,
-    Emitter<ConstructionState> emit,
-  ) async {
+  Future<void> _onEvent(ConstructionEvent event, Emitter<ConstructionState> emit) async {
     await event.when(
-
-      // ── Chargement initial ──
       loadRequested: (villageId) async {
         emit(const ConstructionState.loading());
         try {
@@ -50,29 +53,22 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
             ironRate:   village.productionRates.iron,
             maxStorage: village.maxStorage,
           ));
-
           _startInterpolation();
         } catch (e) {
           emit(ConstructionState.error('Chargement impossible : $e'));
         }
       },
 
-      // ── Tick local 1s : incrémente les ressources visuellement ──
       localTick: () {
         state.maybeWhen(
-          loaded: (villageId, buildings, queue,
-                   wood, stone, iron,
+          loaded: (villageId, buildings, queue, wood, stone, iron,
                    woodRate, stoneRate, ironRate, maxStorage) {
             emit(ConstructionState.loaded(
-              villageId:  villageId,
-              buildings:  buildings,
-              queue:      queue,
+              villageId:  villageId, buildings: buildings, queue: queue,
               wood:       (wood  + woodRate).clamp(0.0, maxStorage).toDouble(),
               stone:      (stone + stoneRate).clamp(0.0, maxStorage).toDouble(),
               iron:       (iron  + ironRate).clamp(0.0, maxStorage).toDouble(),
-              woodRate:   woodRate,
-              stoneRate:  stoneRate,
-              ironRate:   ironRate,
+              woodRate:   woodRate, stoneRate: stoneRate, ironRate: ironRate,
               maxStorage: maxStorage,
             ));
           },
@@ -80,7 +76,6 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
         );
       },
 
-      // ── Lancement d'une amélioration ──
       upgradeRequested: (buildingId) async {
         final villageId  = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => v);
         final queue      = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => q);
@@ -94,7 +89,6 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
 
         if (villageId == null || queue != null) return;
 
-        // Afficher spinner mais garder ressources + taux visibles
         emit(ConstructionState.upgrading(
           wood: wood, stone: stone, iron: iron,
           woodRate: woodRate, stoneRate: stoneRate, ironRate: ironRate,
@@ -106,7 +100,6 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
           await _reloadAndEmit(villageId, emit);
           _startInterpolation();
         } catch (e) {
-          // Même en cas d'erreur, recharger l'état réel
           try {
             await _reloadAndEmit(villageId, emit);
             _startInterpolation();
@@ -116,18 +109,15 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
         }
       },
 
-      // ── Fin de construction (socket) ──
       buildFinished: (data) async {
         final villageId = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => v);
         if (villageId == null) return;
-
         await _reloadAndEmit(villageId, emit);
         _startInterpolation();
       },
     );
   }
 
-  // ── Helper : recharge bâtiments + ressources et émet loaded ──
   Future<void> _reloadAndEmit(String villageId, Emitter<ConstructionState> emit) async {
     final results = await Future.wait([
       _villageApi.getBuildings(villageId),
@@ -150,15 +140,13 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
     ));
   }
 
-  // ── Helper : extraire une valeur du state loaded sans await ──
   T? _getField<T>(
     T Function(String, dynamic, dynamic,
                double, double, double,
                double, double, double, double) extractor,
   ) {
     return state.maybeWhen(
-      loaded: (villageId, buildings, queue,
-               wood, stone, iron,
+      loaded: (villageId, buildings, queue, wood, stone, iron,
                woodRate, stoneRate, ironRate, maxStorage) =>
         extractor(villageId, buildings, queue,
                   wood, stone, iron,
@@ -178,6 +166,7 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
   @override
   Future<void> close() {
     _interpolationTimer?.cancel();
+    _tabSub?.cancel();
     return super.close();
   }
 }

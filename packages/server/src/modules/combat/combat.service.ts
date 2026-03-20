@@ -35,7 +35,6 @@ export class CombatService {
 
     const troopMap = Object.fromEntries(attacker.troops.map(t => [t.unitType, t.count]));
 
-    // Vérifier et déduire les troupes
     await this.prisma.$transaction(async (tx) => {
       for (const [unitType, count] of Object.entries(units)) {
         if (count <= 0) continue;
@@ -50,7 +49,6 @@ export class CombatService {
       }
     });
 
-    // Calcul du temps de trajet
     const unitList = Object.entries(units)
       .filter(([, c]) => c > 0)
       .map(([unitType]) => {
@@ -66,7 +64,6 @@ export class CombatService {
     const travelMs  = travelSec * 1000;
     const arrivesAt = new Date(Date.now() + travelMs);
 
-    // Créer le mouvement actif en BDD
     const activeAttack = await this.prisma.activeAttack.create({
       data: {
         attackerVillageId,
@@ -77,17 +74,10 @@ export class CombatService {
       },
     });
 
-    // Dans sendAttack(), modifier l'appel addJob :
-await this.attackQueue.addJob(
-  {
-    attackerVillageId,
-    defenderVillageId,
-    units,
-    activeAttackId: activeAttack.id,
-    travelMs,        // ← ajouter
-  } as any,
-  travelMs,
-);
+    await this.attackQueue.addJob(
+      { attackerVillageId, defenderVillageId, units, activeAttackId: activeAttack.id, travelMs } as any,
+      travelMs,
+    );
 
     return {
       activeAttackId:    activeAttack.id,
@@ -101,7 +91,7 @@ await this.attackQueue.addJob(
   }
 
   async getReports(villageId: string) {
-    return await this.prisma.attackReport.findMany({
+    const reports = await this.prisma.attackReport.findMany({
       where: {
         OR: [
           { attackerVillageId: villageId },
@@ -109,8 +99,33 @@ await this.attackQueue.addJob(
         ],
       },
       orderBy: { createdAt: 'desc' },
-      take:    50,
+      take:    100,
+      include: {
+        attackerVillage: {
+          select: {
+            id:      true,
+            name:    true,
+            x:       true,
+            y:       true,
+            player:  { select: { id: true, username: true } },
+            isAbandoned: true,
+          },
+        },
+        defenderVillage: {
+          select: {
+            id:      true,
+            name:    true,
+            x:       true,
+            y:       true,
+            player:  { select: { id: true, username: true } },
+            isAbandoned:    true,
+            abandonedLevel: true,
+          },
+        },
+      },
     });
+
+    return reports;
   }
 
   async getMovements(villageId: string) {
@@ -130,7 +145,7 @@ await this.attackQueue.addJob(
 
     return movements.map(m => ({
       id:               m.id,
-      status:           m.status,           // 'traveling' | 'returning'
+      status:           m.status,
       direction:        m.attackerVillageId === villageId ? 'outgoing' : 'incoming',
       units:            m.units,
       survivors:        m.survivors,

@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../core/di/injection.dart';
+import '../../../core/services/tab_refresh_service.dart';
 import '../../../data/remote/api/api_client.dart';
 
 class RankingEntry {
@@ -35,28 +37,37 @@ class RankingPage extends StatefulWidget {
 }
 
 class _RankingPageState extends State<RankingPage> {
-  List<RankingEntry> _entries   = [];
-  bool               _loading   = true;
-  String?            _error;
-  String             _myId      = '';
+  List<RankingEntry>  _entries = [];
+  bool                _loading = true;
+  String?             _error;
+  String              _myId    = '';
+  StreamSubscription? _tabSub;
 
   @override
   void initState() {
     super.initState();
     _myId = Hive.box('auth').get('player_id', defaultValue: '') as String;
     _load();
+
+    // Auto-refresh quand l'onglet Classement devient actif
+    _tabSub = TabRefreshService.instance.stream.listen((index) {
+      if (index == TabIndex.ranking) _load();
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final client   = getIt<ApiClient>();
-      final response = await client.dio.get('/ranking');
+      final response = await getIt<ApiClient>().dio.get('/ranking');
       final data     = response.data as List<dynamic>;
       setState(() {
-        _entries = data
-            .map((e) => RankingEntry.fromJson(e as Map<String, dynamic>))
-            .toList();
+        _entries = data.map((e) => RankingEntry.fromJson(e as Map<String, dynamic>)).toList();
         _loading = false;
       });
     } catch (e) {
@@ -73,12 +84,6 @@ class _RankingPageState extends State<RankingPage> {
         backgroundColor: Colors.black54,
         elevation: 0,
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.amber),
-            onPressed: _load,
-          ),
-        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: Colors.amber))
@@ -91,8 +96,7 @@ class _RankingPageState extends State<RankingPage> {
                       itemCount: _entries.length,
                       itemBuilder: (context, index) {
                         final entry = _entries[index];
-                        final isMe  = entry.playerId == _myId;
-                        return _RankingTile(entry: entry, isMe: isMe);
+                        return _RankingTile(entry: entry, isMe: entry.playerId == _myId);
                       },
                     ),
     );
@@ -102,13 +106,12 @@ class _RankingPageState extends State<RankingPage> {
 class _RankingTile extends StatelessWidget {
   final RankingEntry entry;
   final bool         isMe;
-
   const _RankingTile({required this.entry, required this.isMe});
 
   Color get _rankColor {
-    if (entry.rank == 1) return const Color(0xFFFFD700); // Or
-    if (entry.rank == 2) return const Color(0xFFC0C0C0); // Argent
-    if (entry.rank == 3) return const Color(0xFFCD7F32); // Bronze
+    if (entry.rank == 1) return const Color(0xFFFFD700);
+    if (entry.rank == 2) return const Color(0xFFC0C0C0);
+    if (entry.rank == 3) return const Color(0xFFCD7F32);
     return Colors.white54;
   }
 
@@ -127,44 +130,28 @@ class _RankingTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // ── Rang ──
           SizedBox(
             width: 36,
-            child: Text(
-              '#${entry.rank}',
-              style: TextStyle(
-                color:      _rankColor,
-                fontWeight: FontWeight.bold,
-                fontSize:   entry.rank <= 3 ? 16 : 13,
-              ),
-            ),
+            child: Text('#${entry.rank}',
+              style: TextStyle(color: _rankColor, fontWeight: FontWeight.bold,
+                  fontSize: entry.rank <= 3 ? 16 : 13)),
           ),
-
-          // ── Médaille top 3 ──
           if (entry.rank <= 3) ...[
-            Text(
-              entry.rank == 1 ? '🥇' : entry.rank == 2 ? '🥈' : '🥉',
-              style: const TextStyle(fontSize: 18),
-            ),
+            Text(entry.rank == 1 ? '🥇' : entry.rank == 2 ? '🥈' : '🥉',
+                style: const TextStyle(fontSize: 18)),
             const SizedBox(width: 8),
           ] else
             const SizedBox(width: 26),
-
-          // ── Nom + village ──
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Text(
-                      entry.username,
-                      style: TextStyle(
-                        color:      isMe ? Colors.amber : Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize:   14,
-                      ),
-                    ),
+                    Text(entry.username,
+                        style: TextStyle(
+                          color: isMe ? Colors.amber : Colors.white,
+                          fontWeight: FontWeight.bold, fontSize: 14)),
                     if (isMe) ...[
                       const SizedBox(width: 6),
                       Container(
@@ -178,27 +165,16 @@ class _RankingTile extends StatelessWidget {
                     ],
                   ],
                 ),
-                Text(
-                  entry.villageName,
-                  style: const TextStyle(color: Colors.white38, fontSize: 11),
-                ),
+                Text(entry.villageName, style: const TextStyle(color: Colors.white38, fontSize: 11)),
               ],
             ),
           ),
-
-          // ── Points ──
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                '${entry.totalPoints}',
-                style: TextStyle(
-                  color:      _rankColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize:   15,
-                  fontFamily: 'monospace',
-                ),
-              ),
+              Text('${entry.totalPoints}',
+                  style: TextStyle(color: _rankColor, fontWeight: FontWeight.bold,
+                      fontSize: 15, fontFamily: 'monospace')),
               const Text('pts', style: TextStyle(color: Colors.white38, fontSize: 10)),
             ],
           ),
