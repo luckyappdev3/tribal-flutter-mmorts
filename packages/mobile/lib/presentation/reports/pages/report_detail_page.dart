@@ -14,7 +14,17 @@ class ReportDetailPage extends StatelessWidget {
   bool get _isAttacker => report.isAttacker(myVillageId);
   bool get _won        => _isAttacker ? report.attackerWon : !report.attackerWon;
 
-  // Capacité de transport par unité (doit correspondre aux JSON game-data)
+  // L'attaquant a-t-il perdu toutes ses troupes ?
+  bool get _attackerLostAll {
+    final totalSent     = report.unitsSent.values.fold(0, (s, v) => s + v);
+    final totalSurvived = report.unitsSurvived.values.fold(0, (s, v) => s + v);
+    return totalSurvived == 0 && totalSent > 0;
+  }
+
+  // Le défenseur doit-il cacher ses infos à l'attaquant ?
+  // Oui si l'attaquant est le lecteur ET qu'il a perdu toutes ses troupes
+  bool get _hideDefenderInfo => _isAttacker && _attackerLostAll;
+
   static const Map<String, int> _carryCapacity = {
     'spearman':  25,
     'swordsman': 15,
@@ -22,7 +32,6 @@ class ReportDetailPage extends StatelessWidget {
     'cavalry':   100,
     'archer':    10,
   };
-
   static const Map<String, String> _unitNames = {
     'spearman':  'Lancier',
     'swordsman': 'Épéiste',
@@ -41,7 +50,6 @@ class ReportDetailPage extends StatelessWidget {
   String _unitLabel(String type) =>
       '${_unitIcons[type] ?? '⚔️'} ${_unitNames[type] ?? type}';
 
-  /// Capacité totale des survivants
   int get _maxCarry {
     int total = 0;
     for (final entry in report.unitsSurvived.entries) {
@@ -74,19 +82,16 @@ class ReportDetailPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            // ── RÉSULTAT PRINCIPAL ──
             _ResultBanner(won: _won, isAttacker: _isAttacker),
             const SizedBox(height: 16),
 
-            // ── EN-TÊTE ──
             _HeaderCard(report: report, isAttacker: _isAttacker),
             const SizedBox(height: 12),
 
-            // ── PARTICIPANTS ──
             _ParticipantsCard(report: report),
             const SizedBox(height: 12),
 
-            // ── UNITÉS ATTAQUANT ──
+            // Troupes attaquantes
             _UnitTable(
               title:     _isAttacker ? 'Mes troupes' : 'Troupes attaquantes',
               color:     _isAttacker ? Colors.amber : Colors.red[300]!,
@@ -96,8 +101,10 @@ class ReportDetailPage extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // ── UNITÉS DÉFENSEUR ──
-            if (report.defenderUnitsBefore.isNotEmpty)
+            // Troupes défensives — masquées si attaquant a tout perdu
+            if (_hideDefenderInfo)
+              _HiddenDefenderCard()
+            else if (report.defenderUnitsBefore.isNotEmpty)
               _UnitTable(
                 title:     _isAttacker ? 'Défenseurs' : 'Mes défenseurs',
                 color:     _isAttacker ? Colors.blue[300]! : Colors.amber,
@@ -109,16 +116,10 @@ class ReportDetailPage extends StatelessWidget {
               _EmptyDefenseCard(),
             const SizedBox(height: 12),
 
-            // ── PILLAGE ──
             if (report.attackerWon && report.totalLooted > 0)
-              _LootCard(
-                report:   report,
-                isAttacker: _isAttacker,
-                maxCarry:   _maxCarry,
-              ),
+              _LootCard(report: report, isAttacker: _isAttacker, maxCarry: _maxCarry),
             const SizedBox(height: 12),
 
-            // ── POINTS ──
             _PointsCard(report: report, isAttacker: _isAttacker, won: _won),
             const SizedBox(height: 32),
           ],
@@ -138,7 +139,7 @@ class _ResultBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = won ? Colors.green : Colors.red;
     final label = won
-        ? (isAttacker ? '⚔️ Victoire — Attaque réussie' : '🛡️ Victoire — Défense réussie')
+        ? (isAttacker ? '⚔️ Victoire — Attaque réussie'   : '🛡️ Victoire — Défense réussie')
         : (isAttacker ? '💀 Défaite — Attaque repoussée' : '💀 Défaite — Village pillé');
 
     return Container(
@@ -188,10 +189,8 @@ class _HeaderCard extends StatelessWidget {
               size: 16,
             ),
             const SizedBox(width: 6),
-            Text(
-              isAttacker ? 'Attaque sur' : 'Attaque de',
-              style: const TextStyle(color: Colors.white54, fontSize: 12),
-            ),
+            Text(isAttacker ? 'Attaque sur' : 'Attaque de',
+                style: const TextStyle(color: Colors.white54, fontSize: 12)),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
@@ -329,6 +328,25 @@ class _UnitTable extends StatelessWidget {
   }
 }
 
+// ── Défenseurs masqués (attaquant a tout perdu) ──
+class _HiddenDefenderCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      child: Row(children: [
+        const Icon(Icons.lock_outline, color: Colors.white38, size: 16),
+        const SizedBox(width: 8),
+        const Expanded(
+          child: Text(
+            'Informations défensives inconnues — aucun éclaireur n\'est revenu.',
+            style: TextStyle(color: Colors.white38, fontSize: 12),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
 // ── Aucun défenseur ──
 class _EmptyDefenseCard extends StatelessWidget {
   @override
@@ -358,13 +376,13 @@ class _LootCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final loot      = report.resourcesLooted;
-    final wood      = loot['wood']  ?? 0;
-    final stone     = loot['stone'] ?? 0;
-    final iron      = loot['iron']  ?? 0;
-    final total     = report.totalLooted;
-    final pct       = maxCarry > 0 ? (total / maxCarry).clamp(0.0, 1.0) : 0.0;
-    final barColor  = pct >= 0.9 ? Colors.red : (pct >= 0.6 ? Colors.orange : Colors.amber);
+    final loot     = report.resourcesLooted;
+    final wood     = loot['wood']  ?? 0;
+    final stone    = loot['stone'] ?? 0;
+    final iron     = loot['iron']  ?? 0;
+    final total    = report.totalLooted;
+    final pct      = maxCarry > 0 ? (total / maxCarry).clamp(0.0, 1.0) : 0.0;
+    final barColor = pct >= 0.9 ? Colors.red : (pct >= 0.6 ? Colors.orange : Colors.amber);
 
     return _Card(
       child: Column(
@@ -374,13 +392,10 @@ class _LootCard extends StatelessWidget {
             isAttacker ? '💰 Ressources pillées' : '💸 Ressources volées',
             style: TextStyle(
               color: isAttacker ? Colors.amber : Colors.red[300],
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
+              fontWeight: FontWeight.bold, fontSize: 13,
             ),
           ),
           const SizedBox(height: 12),
-
-          // 3 ressources
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -390,27 +405,23 @@ class _LootCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-
-          // Capacité utilisée / max
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Capacité de transport',
                   style: TextStyle(color: Colors.white54, fontSize: 11)),
-              Text(
-                '$total / $maxCarry',
-                style: TextStyle(color: barColor, fontSize: 11, fontWeight: FontWeight.bold),
-              ),
+              Text('$total / $maxCarry',
+                  style: TextStyle(color: barColor, fontSize: 11, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 6),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              value:            pct,
-              minHeight:        6,
-              backgroundColor:  Colors.white12,
-              valueColor:       AlwaysStoppedAnimation<Color>(barColor),
+              value:           pct,
+              minHeight:       6,
+              backgroundColor: Colors.white12,
+              valueColor:      AlwaysStoppedAnimation<Color>(barColor),
             ),
           ),
         ],

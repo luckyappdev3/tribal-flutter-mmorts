@@ -84,6 +84,7 @@ async function main() {
       { buildingId: 'quarry',       level: 1, villageId: villageB.id },
       { buildingId: 'iron_mine',    level: 1, villageId: villageB.id },
       { buildingId: 'warehouse',    level: 1, villageId: villageB.id },
+     { buildingId: 'barracks',     level: 1, villageId: villageB.id },
     ],
   });
   console.log(`✅ Bâtiments du Village B ajoutés.`);

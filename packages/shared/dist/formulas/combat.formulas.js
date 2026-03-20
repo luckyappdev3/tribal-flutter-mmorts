@@ -9,14 +9,15 @@ exports.calculatePointsExchanged = calculatePointsExchanged;
  *
  * Formule Tribal Wars :
  * - Ratio = atkPower / (atkPower + defPower)
- * - Si ratio > 0.5 : attaquant gagne
- * - Pertes attaquant = (1 - ratio^(1/3)) × count  (les gagnants perdent moins)
- * - Pertes défenseur = ratio^(1/3) × count         (les perdants perdent plus)
+ * - Pertes basées sur le ratio avec Math.ceil
+ * - Victoire déterminée par les survivants réels (pas seulement le ratio)
+ *   → Si tous les défenseurs meurent et qu'il reste des attaquants : victoire attaquant
+ *   → Si tous les attaquants meurent et qu'il reste des défenseurs : victoire défenseur
  */
 function resolveBattle(attackers, defenders) {
     const atkPower = attackers.reduce((s, u) => s + u.count * u.attack, 0);
     const defPower = defenders.reduce((s, u) => s + u.count * u.defense, 0);
-    // Cas particulier : village vide, attaquant gagne sans pertes
+    // Village vide → victoire sans pertes
     if (defPower === 0) {
         const loot = attackers.reduce((s, u) => s + u.count * u.carryCapacity, 0);
         return {
@@ -28,29 +29,77 @@ function resolveBattle(attackers, defenders) {
     }
     const totalPower = atkPower + defPower;
     const atkRatio = atkPower / totalPower;
-    const attackerWon = atkRatio > 0.5;
-    // Taux de pertes par camp
-    const atkLossRate = attackerWon
-        ? 1 - Math.pow(atkRatio, 1 / 3) // Gagnant perd moins
-        : 1 - Math.pow(1 - atkRatio, 1 / 3); // Perdant perd plus
-    const defLossRate = attackerWon
-        ? Math.pow(atkRatio, 1 / 3)
-        : Math.pow(1 - atkRatio, 1 / 3);
-    // Calcul des pertes unité par unité
-    const attackerLosses = {};
+    // Taux de pertes basés sur le ratio
+    const atkLossRateIfWin = 1 - Math.pow(atkRatio, 1 / 3);
+    const atkLossRateIfLose = 1 - Math.pow(1 - atkRatio, 1 / 3);
+    const defLossRateIfWin = Math.pow(atkRatio, 1 / 3);
+    const defLossRateIfLose = Math.pow(1 - atkRatio, 1 / 3);
+    // Calculer les pertes des attaquants selon les deux scénarios
+    const calcLosses = (units, lossRate) => {
+        const losses = {};
+        let survivors = 0;
+        for (const u of units) {
+            const lost = Math.min(Math.ceil(u.count * lossRate), u.count);
+            const survived = u.count - lost;
+            losses[u.unitType] = lost;
+            survivors += survived;
+        }
+        return { losses, survivors };
+    };
+    // Simuler victoire attaquant
+    const atkWinScenario = calcLosses(attackers, atkLossRateIfWin);
+    const defLoseScenario = calcLosses(defenders, defLossRateIfWin);
+    // Simuler victoire défenseur
+    const atkLoseScenario = calcLosses(attackers, atkLossRateIfLose);
+    const defWinScenario = calcLosses(defenders, defLossRateIfLose);
+    // Déterminer le vrai résultat basé sur les survivants réels
+    // → L'attaquant gagne si au moins 1 survivant ET tous défenseurs morts
+    // → Le défenseur gagne si au moins 1 défenseur survit OU tous attaquants morts
+    let attackerWon;
+    let attackerLosses;
+    let defenderLosses;
     let survivingCarry = 0;
-    for (const u of attackers) {
-        const lost = Math.ceil(u.count * atkLossRate);
-        const survived = Math.max(0, u.count - lost);
-        attackerLosses[u.unitType] = Math.min(lost, u.count);
-        survivingCarry += survived * u.carryCapacity;
+    if (atkRatio >= 0.5) {
+        // Scénario initial : attaquant devrait gagner
+        attackerLosses = atkWinScenario.losses;
+        defenderLosses = defLoseScenario.losses;
+        const atkSurvivors = atkWinScenario.survivors;
+        const defSurvivors = defLoseScenario.survivors;
+        // Vrai résultat : si le défenseur a des survivants, il résiste
+        if (defSurvivors > 0 && atkSurvivors === 0) {
+            attackerWon = false;
+        }
+        else if (atkSurvivors > 0 && defSurvivors === 0) {
+            attackerWon = true;
+        }
+        else {
+            attackerWon = atkSurvivors > 0; // Attaquant gagne s'il a des survivants
+        }
     }
-    const defenderLosses = {};
-    for (const u of defenders) {
-        const lost = attackerWon
-            ? u.count // Défenseur anéanti si perd
-            : Math.ceil(u.count * defLossRate);
-        defenderLosses[u.unitType] = Math.min(lost, u.count);
+    else {
+        // Scénario initial : défenseur devrait gagner
+        attackerLosses = atkLoseScenario.losses;
+        defenderLosses = defWinScenario.losses;
+        const atkSurvivors = atkLoseScenario.survivors;
+        const defSurvivors = defWinScenario.survivors;
+        // Vrai résultat : si tous défenseurs sont morts malgré le ratio, attaquant gagne
+        if (defSurvivors === 0 && atkSurvivors > 0) {
+            attackerWon = true;
+        }
+        else if (atkSurvivors === 0) {
+            attackerWon = false;
+        }
+        else {
+            attackerWon = false; // Défenseur gagne si ratio en sa faveur et survivants
+        }
+    }
+    // Capacité de transport des survivants attaquants
+    if (attackerWon) {
+        for (const u of attackers) {
+            const lost = attackerLosses[u.unitType] ?? 0;
+            const survived = u.count - lost;
+            survivingCarry += survived * u.carryCapacity;
+        }
     }
     return {
         attackerWon,
@@ -61,14 +110,14 @@ function resolveBattle(attackers, defenders) {
 }
 /**
  * Calcule les ressources pillées selon la capacité de transport.
- * Répartition équitable entre les 3 ressources.
+ * Répartition proportionnelle avec redistribution des arrondis
+ * pour utiliser exactement la capacité disponible.
  */
 function calculateLoot(available, capacity) {
     const total = available.wood + available.stone + available.iron;
     if (total <= 0 || capacity <= 0) {
         return { wood: 0, stone: 0, iron: 0 };
     }
-    // Si on peut tout prendre
     if (capacity >= total) {
         return {
             wood: Math.floor(available.wood),
@@ -76,35 +125,42 @@ function calculateLoot(available, capacity) {
             iron: Math.floor(available.iron),
         };
     }
-    // Répartition proportionnelle
     const ratio = capacity / total;
-    return {
-        wood: Math.floor(available.wood * ratio),
-        stone: Math.floor(available.stone * ratio),
-        iron: Math.floor(available.iron * ratio),
-    };
+    let wood = Math.floor(available.wood * ratio);
+    let stone = Math.floor(available.stone * ratio);
+    let iron = Math.floor(available.iron * ratio);
+    // Redistribuer les unités perdues aux arrondis
+    let remainder = capacity - (wood + stone + iron);
+    const slots = [
+        { key: 'wood', avail: Math.floor(available.wood) - wood },
+        { key: 'stone', avail: Math.floor(available.stone) - stone },
+        { key: 'iron', avail: Math.floor(available.iron) - iron },
+    ].sort((a, b) => b.avail - a.avail);
+    for (const slot of slots) {
+        if (remainder <= 0)
+            break;
+        const add = Math.min(remainder, slot.avail);
+        if (slot.key === 'wood')
+            wood += add;
+        if (slot.key === 'stone')
+            stone += add;
+        if (slot.key === 'iron')
+            iron += add;
+        remainder -= add;
+    }
+    return { wood, stone, iron };
 }
 // ─────────────────────────────────────────────
 // CALCUL DU TEMPS DE TRAJET
 // ─────────────────────────────────────────────
-/**
- * Calcule le temps de trajet en secondes.
- * Vitesse = unité la plus lente de l'armée.
- * Distance = Pythagore entre les deux villages.
- * 1 case = speed secondes pour l'unité la plus lente.
- */
 function calculateTravelTime(x1, y1, x2, y2, units) {
     const distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-    const slowest = Math.max(...units.map(u => u.speed)); // speed = secondes/case
+    const slowest = Math.max(...units.map(u => u.speed));
     return Math.ceil(distance * slowest);
 }
 // ─────────────────────────────────────────────
 // CALCUL DES POINTS PERDUS/GAGNÉS
 // ─────────────────────────────────────────────
-/**
- * Points perdus par le défenseur proportionnellement aux pertes subies.
- * Base : 1 point par unité perdue pondérée par sa puissance.
- */
 function calculatePointsExchanged(defenderLosses, defenders) {
     let points = 0;
     for (const u of defenders) {
