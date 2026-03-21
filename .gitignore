@@ -21,3 +21,13 @@ build/
 # iOS spécifique
 **/ios/Flutter/Generated.xcconfig
 **/ios/Flutter/flutter_export_environment.sh
+
+
+node_modules/
+dist/
+build/
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+**/.DS_Store
