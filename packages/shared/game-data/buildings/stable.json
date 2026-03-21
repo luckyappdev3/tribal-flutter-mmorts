@@ -1,0 +1,13 @@
+{
+  "id": "stable",
+  "name": "Écuries",
+  "description": "Prérequis pour recruter la cavalerie. Sans écuries au niveau 1, les unités montées ne peuvent pas être entraînées.",
+  "maxLevel": 20,
+  "baseStats": {
+    "baseCost": { "wood": 270, "stone": 240, "iron": 260, "food": 0 },
+    "baseBuildTime": 60,
+    "costMultiplier": 1.27,
+    "timeMultiplier": 1.2,
+    "specialMultiplier": 0
+  }
+}

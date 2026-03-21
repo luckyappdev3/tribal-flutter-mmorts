@@ -45,6 +45,7 @@ declare module 'fastify' {
     combatService:       CombatService;
     attackQueue:         AttackQueue;
     abandonedService:    AbandonedVillageService;
+    buildQueue: BuildingQueue;
   }
 }
 
@@ -83,6 +84,7 @@ async function bootstrap() {
     fastify.decorate('combatService',       combatService);
     fastify.decorate('attackQueue',         attackQueue);
     fastify.decorate('abandonedService',    abandonedService);
+    fastify.decorate('buildQueue', buildQueue);
 
     // Spawn des villages abandonnés au démarrage
     await abandonedService.seedAbandoned();

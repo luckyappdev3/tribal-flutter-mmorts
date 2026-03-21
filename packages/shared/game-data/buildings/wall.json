@@ -1,0 +1,13 @@
+{
+  "id": "wall",
+  "name": "Mur d'enceinte",
+  "description": "Augmente la puissance défensive de votre village de 5% par niveau. Au niveau 20, vos défenseurs sont deux fois plus puissants.",
+  "maxLevel": 20,
+  "baseStats": {
+    "baseCost": { "wood": 50, "stone": 100, "iron": 20, "food": 0 },
+    "baseBuildTime": 30,
+    "costMultiplier": 1.5,
+    "timeMultiplier": 1.4,
+    "specialMultiplier": 0.05
+  }
+}

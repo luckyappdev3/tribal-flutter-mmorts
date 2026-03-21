@@ -6,52 +6,74 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.initBuildWorker = initBuildWorker;
 const bullmq_1 = require("bullmq");
 const ioredis_1 = __importDefault(require("ioredis"));
-/**
- * On exporte une fonction d'initialisation qui reçoit l'instance Fastify
- */
+// ─────────────────────────────────────────────────────────────
+//  Build Worker — Phase 1 patch
+//  Passe de BuildingQueue (unique) à BuildingQueueItem (multi-slots).
+//  Quand un job se termine :
+//    1. Met à jour le niveau du bâtiment
+//    2. Supprime l'item position=0
+//    3. Si un item position=1 existe, planifie son job BullMQ
+// ─────────────────────────────────────────────────────────────
 function initBuildWorker(fastify) {
     const connection = new ioredis_1.default(process.env.REDIS_URL || 'redis://localhost:6379', {
         maxRetriesPerRequest: null,
     });
     const worker = new bullmq_1.Worker('builds', async (job) => {
         const { villageId, buildingId, targetLevel } = job.data;
-        console.log(`🏗️  Fin de construction pour ${buildingId} (Niv ${targetLevel}) dans le village ${villageId}`);
+        console.log(`🏗️  Fin de construction : ${buildingId} Niv.${targetLevel} → village ${villageId}`);
         try {
-            // Utilisation du prisma de fastify
-            await fastify.prisma.$transaction(async (tx) => {
-                // 1. Mettre à jour ou créer l'instance du bâtiment
-                await tx.buildingInstance.upsert({
-                    where: {
-                        villageId_buildingId: { villageId, buildingId }
-                    },
-                    update: { level: targetLevel },
-                    create: {
-                        villageId,
-                        buildingId,
-                        level: targetLevel
-                    },
-                });
-                // 2. Supprimer l'entrée de la file d'attente en BDD
-                await tx.buildingQueue.delete({
-                    where: { villageId }
-                });
+            // ── Trouver l'item en cours (position 0) ────────────────
+            const currentItem = await fastify.prisma.buildingQueueItem.findFirst({
+                where: { villageId, buildingId, targetLevel, position: 0 },
+                orderBy: { startsAt: 'asc' },
             });
-            console.log(`✅ Amélioration terminée avec succès !`);
-            // --- NOTIFICATION TEMPS RÉEL ---
-            // On envoie un message à la "room" du village
+            await fastify.prisma.$transaction(async (tx) => {
+                // 1. Mettre à jour le niveau du bâtiment
+                await tx.buildingInstance.upsert({
+                    where: { villageId_buildingId: { villageId, buildingId } },
+                    update: { level: targetLevel },
+                    create: { villageId, buildingId, level: targetLevel },
+                });
+                // 2. Supprimer l'item terminé
+                if (currentItem) {
+                    await tx.buildingQueueItem.delete({ where: { id: currentItem.id } });
+                }
+                // 3. Réindexer les items restants (décaler position −1)
+                await tx.$executeRaw `
+            UPDATE "BuildingQueueItem"
+            SET position = position - 1
+            WHERE "villageId" = ${villageId}
+              AND position > 0
+          `;
+            });
+            // ── Planifier le prochain item dans BullMQ ──────────────
+            const nextItem = await fastify.prisma.buildingQueueItem.findFirst({
+                where: { villageId, position: 0 },
+                orderBy: { startsAt: 'asc' },
+            });
+            if (nextItem) {
+                const delay = Math.max(0, nextItem.endsAt.getTime() - Date.now());
+                // Accéder à buildQueue via fastify — à déclarer dans main.ts si absent
+                const buildQueue = fastify.buildQueue;
+                if (buildQueue) {
+                    await buildQueue.addJob({ villageId, buildingId: nextItem.buildingId, targetLevel: nextItem.targetLevel }, delay);
+                    console.log(`📋 Prochain bâtiment planifié : ${nextItem.buildingId} Niv.${nextItem.targetLevel} dans ${Math.round(delay / 1000)}s`);
+                }
+            }
+            console.log(`✅ ${buildingId} Niv.${targetLevel} terminé !`);
             fastify.io.to(`village:${villageId}`).emit('build:finished', {
                 buildingId,
                 level: targetLevel,
-                message: `Votre ${buildingId} est maintenant niveau ${targetLevel} !`
+                message: `${buildingId} est maintenant niveau ${targetLevel} !`,
             });
         }
         catch (error) {
-            console.error(`❌ Erreur lors de la finalisation du bâtiment :`, error);
+            console.error(`❌ Erreur finalisation bâtiment :`, error);
             throw error;
         }
     }, { connection });
     worker.on('failed', (job, err) => {
-        console.error(`🚨 Job ${job?.id} a échoué : ${err.message}`);
+        console.error(`🚨 Job build ${job?.id} échoué : ${err.message}`);
     });
     return worker;
 }

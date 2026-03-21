@@ -121,6 +121,9 @@ class ReportDetailPage extends StatelessWidget {
             const SizedBox(height: 12),
 
             _PointsCard(report: report, isAttacker: _isAttacker, won: _won),
+            const SizedBox(height: 12),
+
+            _CombatConditionsCard(report: report),
             const SizedBox(height: 32),
           ],
         ),
@@ -468,6 +471,102 @@ class _PointsCard extends StatelessWidget {
           const Text('Points de combat', style: TextStyle(color: Colors.white70, fontSize: 13)),
           Text('$sign$points pts',
               style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Conditions de combat (morale + mur) ──
+class _CombatConditionsCard extends StatelessWidget {
+  final AttackReportDto report;
+  const _CombatConditionsCard({required this.report});
+
+  @override
+  Widget build(BuildContext context) {
+    final morale    = report.morale;
+    final wallBonus = report.wallBonus;
+    final moraleOk  = morale >= 0.99;
+    final wallOk    = wallBonus <= 1.01;
+
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '⚙️ Conditions de combat',
+            style: TextStyle(
+              color: Colors.white70,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Morale
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(children: [
+                Icon(
+                  moraleOk ? Icons.sentiment_satisfied : Icons.sentiment_dissatisfied,
+                  color: moraleOk ? Colors.green : Colors.orange,
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                const Text('Morale attaquant',
+                    style: TextStyle(color: Colors.white54, fontSize: 12)),
+              ]),
+              Text(
+                '${(morale * 100).toStringAsFixed(0)}%',
+                style: TextStyle(
+                  color: moraleOk ? Colors.white : Colors.orange,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+          if (!moraleOk)
+            Padding(
+              padding: const EdgeInsets.only(left: 22, top: 2),
+              child: Text(
+                'Malus attaque (attaquant trop fort vs défenseur)',
+                style: TextStyle(color: Colors.orange.withOpacity(0.7), fontSize: 10),
+              ),
+            ),
+          const SizedBox(height: 10),
+          // Mur
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(children: [
+                Icon(
+                  Icons.security,
+                  color: wallOk ? Colors.white38 : Colors.blue[300],
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                const Text('Bonus mur défenseur',
+                    style: TextStyle(color: Colors.white54, fontSize: 12)),
+              ]),
+              Text(
+                wallOk ? 'Aucun mur' : '×${wallBonus.toStringAsFixed(2)}',
+                style: TextStyle(
+                  color: wallOk ? Colors.white38 : Colors.blue[300],
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+          if (!wallOk)
+            Padding(
+              padding: const EdgeInsets.only(left: 22, top: 2),
+              child: Text(
+                'Le mur a renforcé la défense de ×${wallBonus.toStringAsFixed(2)}',
+                style: TextStyle(color: Colors.blue.withOpacity(0.7), fontSize: 10),
+              ),
+            ),
         ],
       ),
     );

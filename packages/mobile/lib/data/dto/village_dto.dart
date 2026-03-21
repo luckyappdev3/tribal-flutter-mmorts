@@ -101,22 +101,43 @@ class BuildingInstanceDto {
   final int level;
   final NextLevelCostDto? nextLevelCost;
   final int? nextLevelTimeSec;
-  // Production par seconde — null pour les bâtiments non producteurs (QG, entrepôt)
   final double? currentProdPerSec;
   final double? nextProdPerSec;
 
+  // ── Noms affichés pour tous les bâtiments du registre ──────
   static const Map<String, String> displayNames = {
     'headquarters': 'Quartier Général',
     'timber_camp':  'Camp de Bois',
     'quarry':       'Carrière',
     'iron_mine':    'Mine de Fer',
     'warehouse':    'Entrepôt',
+    'barracks':     'Caserne',
+    // ── Nouveaux bâtiments Phase 1 ──────────────────────────
+    'farm':         'Ferme',
+    'wall':         'Mur d\'enceinte',
+    'stable':       'Écuries',
+    'rally_point':  'Place d\'armes',
+  };
+
+  // ── Icônes par bâtiment ─────────────────────────────────────
+  static const Map<String, String> buildingIcons = {
+    'headquarters': '🏛️',
+    'timber_camp':  '🪵',
+    'quarry':       '⛏️',
+    'iron_mine':    '⚙️',
+    'warehouse':    '🏪',
+    'barracks':     '⚔️',
+    'farm':         '🌾',
+    'wall':         '🏰',
+    'stable':       '🐴',
+    'rally_point':  '🚩',
   };
 
   String get displayName => displayNames[buildingId] ?? buildingId;
+  String get icon        => buildingIcons[buildingId] ?? '🏗️';
 
-  bool get isProducer => currentProdPerSec != null;
-  bool get isMaxLevel => nextLevelCost == null;
+  bool get isProducer  => currentProdPerSec != null;
+  bool get isMaxLevel  => nextLevelCost == null;
 
   /// Formate la durée en secondes → "10s", "1m 30s", "2h 10m"
   String get formattedTime {
@@ -133,7 +154,7 @@ class BuildingInstanceDto {
     return m > 0 ? '${h}h ${m}m' : '${h}h';
   }
 
-  /// Formate un taux /s en string lisible : "10.0/s" ou "1.5k/s"
+  /// Formate un taux /s en string lisible
   static String formatRate(double rate) {
     if (rate >= 1000) return '${(rate / 1000).toStringAsFixed(1)}k/s';
     if (rate >= 10)   return '${rate.toStringAsFixed(0)}/s';
@@ -151,33 +172,68 @@ class BuildingInstanceDto {
 
   factory BuildingInstanceDto.fromJson(Map<String, dynamic> json) {
     return BuildingInstanceDto(
-      buildingId:       json['buildingId'] as String,
-      level:            json['level']      as int,
-      nextLevelCost:    json['nextLevelCost'] != null
+      buildingId:        json['buildingId'] as String,
+      level:             json['level']      as int,
+      nextLevelCost:     json['nextLevelCost'] != null
           ? NextLevelCostDto.fromJson(json['nextLevelCost'] as Map<String, dynamic>)
           : null,
-      nextLevelTimeSec: json['nextLevelTimeSec'] as int?,
+      nextLevelTimeSec:  json['nextLevelTimeSec'] as int?,
       currentProdPerSec: (json['currentProdPerSec'] as num?)?.toDouble(),
       nextProdPerSec:    (json['nextProdPerSec']    as num?)?.toDouble(),
     );
   }
 }
 
+class BuildQueueItemDto {
+  final String   buildingId;
+  final int      targetLevel;
+  final int      position;
+  final DateTime endsAt;
+
+  BuildQueueItemDto({
+    required this.buildingId,
+    required this.targetLevel,
+    required this.position,
+    required this.endsAt,
+  });
+
+  factory BuildQueueItemDto.fromJson(Map<String, dynamic> json) {
+    return BuildQueueItemDto(
+      buildingId:  json['buildingId']  as String,
+      targetLevel: json['targetLevel'] as int,
+      position:    json['position']    as int,
+      endsAt:      DateTime.parse(json['endsAt'] as String).toLocal(),
+    );
+  }
+}
+
 class VillageBuildingsDto {
   final List<BuildingInstanceDto> buildings;
-  final BuildQueueDto? queue;
+  final BuildQueueDto?            queue;       // 1er item (compat)
+  final int                       queueCount;
+  final List<BuildQueueItemDto>   queueItems;  // ← NOUVEAU : toute la file
 
-  VillageBuildingsDto({required this.buildings, this.queue});
+  VillageBuildingsDto({
+    required this.buildings,
+    this.queue,
+    this.queueCount = 0,
+    this.queueItems = const [],
+  });
 
   factory VillageBuildingsDto.fromJson(Map<String, dynamic> json) {
     final rawBuildings = json['buildings'] as List<dynamic>? ?? [];
+    final rawItems     = json['queueItems'] as List<dynamic>? ?? [];
     return VillageBuildingsDto(
-      buildings: rawBuildings
+      buildings:  rawBuildings
           .map((b) => BuildingInstanceDto.fromJson(b as Map<String, dynamic>))
           .toList(),
       queue: json['queue'] != null
           ? BuildQueueDto.fromJson(json['queue'] as Map<String, dynamic>)
           : null,
+      queueCount: (json['queueCount'] as num?)?.toInt() ?? 0,
+      queueItems: rawItems
+          .map((i) => BuildQueueItemDto.fromJson(i as Map<String, dynamic>))
+          .toList(),
     );
   }
 }

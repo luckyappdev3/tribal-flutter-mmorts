@@ -2,6 +2,13 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ConstructionService = void 0;
 const formulas_1 = require("@mmorts/shared/formulas");
+// ─────────────────────────────────────────────────────────────
+//  ConstructionService — Phase 1 patch
+//  Multi-slots via BuildingQueueItem.
+//  Les imports et la signature du constructeur sont identiques
+//  à l'original pour ne pas casser main.ts.
+// ─────────────────────────────────────────────────────────────
+const MAX_BUILD_SLOTS = 2; // Nombre max de bâtiments en file simultanément
 class ConstructionService {
     prisma;
     buildQueue;
@@ -14,49 +21,113 @@ class ConstructionService {
         this.villageService = villageService;
     }
     async startUpgrade(villageId, buildingId) {
-        // 1. Sync des ressources (lazy eval)
+        // Mettre à jour les ressources avant de vérifier les coûts
         await this.villageService.updateResources(villageId);
-        // 2. Une seule construction à la fois
-        const existingJob = await this.prisma.buildingQueue.findUnique({
+        // ── Vérifier les slots disponibles (via BuildingQueueItem) ──
+        const activeItems = await this.prisma.buildingQueueItem.findMany({
             where: { villageId },
+            orderBy: { position: 'asc' },
         });
-        if (existingJob) {
-            throw new Error('Un bâtiment est déjà en cours de construction.');
+        if (activeItems.length >= MAX_BUILD_SLOTS) {
+            throw new Error(`File de construction pleine (${MAX_BUILD_SLOTS} slots maximum).`);
         }
-        // 3. Niveau actuel → niveau cible
+        // ── Vérifier si ce bâtiment est déjà en file ───────────────
+        const alreadyQueued = activeItems.some(i => i.buildingId === buildingId);
+        if (alreadyQueued) {
+            throw new Error(`Ce bâtiment est déjà en file de construction.`);
+        }
+        // ── Niveau actuel + définition du bâtiment ──────────────────
         const buildingInstance = await this.prisma.buildingInstance.findUnique({
             where: { villageId_buildingId: { villageId, buildingId } },
         });
         const currentLevel = buildingInstance?.level ?? 0;
         const targetLevel = currentLevel + 1;
         const buildingDef = this.gameData.getBuildingDef(buildingId);
-        // 4. Coûts et durée
         const costs = (0, formulas_1.calculateCostForLevel)(buildingDef, targetLevel);
-        const durationMs = (0, formulas_1.calculateTimeForLevel)(buildingDef, targetLevel) * 1000;
-        // 5. Transaction atomique : vérification, déduction, création en queue
+        // ── Bonus de vitesse QG + gameSpeed du monde ────────────────
+        const hqInstance = await this.prisma.buildingInstance.findUnique({
+            where: { villageId_buildingId: { villageId, buildingId: 'headquarters' } },
+        });
+        const hqLevel = hqInstance?.level ?? 0;
+        const hqSpeedBonus = 1 - hqLevel * 0.05; // Niv 10 = −50%
+        const gameSpeed = await this._getGameSpeed(villageId);
+        const baseDurationSec = (0, formulas_1.calculateTimeForLevel)(buildingDef, targetLevel);
+        const durationMs = Math.floor(baseDurationSec * Math.max(0.1, hqSpeedBonus) * 1000 / gameSpeed);
+        // ── startsAt : après le dernier item de la file ─────────────
+        const lastItem = activeItems[activeItems.length - 1];
+        const startsAt = lastItem ? new Date(lastItem.endsAt.getTime()) : new Date();
+        const endsAt = new Date(startsAt.getTime() + durationMs);
+        const position = activeItems.length; // 0 = en cours, 1 = en attente
         return await this.prisma.$transaction(async (tx) => {
             const village = await tx.village.findUnique({ where: { id: villageId } });
             if (!village ||
                 village.wood < costs.wood ||
-                village.stone < costs.stone || // 
+                village.stone < costs.stone ||
                 village.iron < costs.iron) {
-                throw new Error('Ressources insuffisantes pour lancer l\'amélioration.');
+                throw new Error("Ressources insuffisantes pour lancer l'amélioration.");
             }
             await tx.village.update({
                 where: { id: villageId },
                 data: {
-                    wood: { decrement: costs.wood || 0 },
-                    stone: { decrement: costs.stone || 0 }, // Si c'est undefined, ça devient 0
-                    iron: { decrement: costs.iron || 0 },
+                    wood: { decrement: costs.wood },
+                    stone: { decrement: costs.stone },
+                    iron: { decrement: costs.iron },
                 },
             });
-            const endsAt = new Date(Date.now() + durationMs);
-            const queueEntry = await tx.buildingQueue.create({
-                data: { villageId, buildingId, targetLevel, endsAt },
+            const queueItem = await tx.buildingQueueItem.create({
+                data: { villageId, buildingId, targetLevel, position, startsAt, endsAt },
             });
-            await this.buildQueue.addJob({ villageId, buildingId, targetLevel }, durationMs);
-            return queueEntry;
+            // Le job BullMQ est planifié à partir de maintenant + durationMs
+            // (même si l'item est en attente : le worker vérifiera la position)
+            if (position === 0) {
+                await this.buildQueue.addJob({ villageId, buildingId, targetLevel }, durationMs);
+            }
+            return { ...queueItem, durationMs, hqLevel, hqSpeedBonus };
         });
+    }
+    /** Annuler un item en attente (position > 0 uniquement) */
+    async cancelQueueItem(villageId, itemId) {
+        const item = await this.prisma.buildingQueueItem.findUnique({ where: { id: itemId } });
+        if (!item || item.villageId !== villageId)
+            throw new Error('Item introuvable.');
+        if (item.position === 0)
+            throw new Error('Impossible d\'annuler un bâtiment en cours.');
+        const def = this.gameData.getBuildingDef(item.buildingId);
+        const costs = (0, formulas_1.calculateCostForLevel)(def, item.targetLevel);
+        await this.prisma.$transaction([
+            this.prisma.buildingQueueItem.delete({ where: { id: itemId } }),
+            // Remboursement 50%
+            this.prisma.village.update({
+                where: { id: villageId },
+                data: {
+                    wood: { increment: Math.floor(costs.wood * 0.5) },
+                    stone: { increment: Math.floor(costs.stone * 0.5) },
+                    iron: { increment: Math.floor(costs.iron * 0.5) },
+                },
+            }),
+            // Réindexer les positions suivantes
+            this.prisma.$executeRaw `
+        UPDATE "BuildingQueueItem"
+        SET position = position - 1
+        WHERE "villageId" = ${villageId}
+          AND position > ${item.position}
+      `,
+        ]);
+        return { cancelled: true, itemId };
+    }
+    /** Récupérer la file de construction d'un village */
+    async getQueue(villageId) {
+        return this.prisma.buildingQueueItem.findMany({
+            where: { villageId },
+            orderBy: { position: 'asc' },
+        });
+    }
+    async _getGameSpeed(villageId) {
+        const village = await this.prisma.village.findUnique({
+            where: { id: villageId },
+            include: { world: { select: { gameSpeed: true } } },
+        });
+        return village?.world?.gameSpeed ?? 1.0;
     }
 }
 exports.ConstructionService = ConstructionService;

@@ -7,6 +7,8 @@ import '../../../data/remote/websocket/socket_service.dart';
 import 'construction_event.dart';
 import 'construction_state.dart';
 
+const int _maxQueueSlots = 2;
+
 class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
   final VillageApi    _villageApi    = getIt<VillageApi>();
   final SocketService _socketService = getIt<SocketService>();
@@ -20,10 +22,9 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
       add(ConstructionEvent.buildFinished(data is Map<String, dynamic> ? data : {}));
     });
 
-    // Auto-refresh quand l'onglet Construire devient actif
     _tabSub = TabRefreshService.instance.stream.listen((index) {
       if (index == TabIndex.construction) {
-        final villageId = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => v);
+        final villageId = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => v);
         if (villageId != null) add(ConstructionEvent.loadRequested(villageId));
       }
     });
@@ -45,6 +46,8 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
             villageId:  villageId,
             buildings:  buildings.buildings,
             queue:      buildings.queue,
+            queueCount: buildings.queueCount,
+            queueItems: buildings.queueItems,
             wood:       village.wood,
             stone:      village.stone,
             iron:       village.iron,
@@ -61,14 +64,20 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
 
       localTick: () {
         state.maybeWhen(
-          loaded: (villageId, buildings, queue, wood, stone, iron,
-                   woodRate, stoneRate, ironRate, maxStorage) {
+          loaded: (villageId, buildings, queue, queueCount, queueItems,
+                   wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage) {
             emit(ConstructionState.loaded(
-              villageId:  villageId, buildings: buildings, queue: queue,
+              villageId:  villageId,
+              buildings:  buildings,
+              queue:      queue,
+              queueCount: queueCount,
+              queueItems: queueItems,
               wood:       (wood  + woodRate).clamp(0.0, maxStorage).toDouble(),
               stone:      (stone + stoneRate).clamp(0.0, maxStorage).toDouble(),
               iron:       (iron  + ironRate).clamp(0.0, maxStorage).toDouble(),
-              woodRate:   woodRate, stoneRate: stoneRate, ironRate: ironRate,
+              woodRate:   woodRate,
+              stoneRate:  stoneRate,
+              ironRate:   ironRate,
               maxStorage: maxStorage,
             ));
           },
@@ -77,17 +86,18 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
       },
 
       upgradeRequested: (buildingId) async {
-        final villageId  = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => v);
-        final queue      = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => q);
-        final wood       = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => wo) ?? 0.0;
-        final stone      = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => s)  ?? 0.0;
-        final iron       = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => i)  ?? 0.0;
-        final woodRate   = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => wr) ?? 0.0;
-        final stoneRate  = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => sr) ?? 0.0;
-        final ironRate   = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => ir) ?? 0.0;
-        final maxStorage = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => ms) ?? 5000.0;
+        final villageId  = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => v);
+        final queueCount = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => qc) ?? 0;
+        final wood       = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => wo) ?? 0.0;
+        final stone      = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => s)  ?? 0.0;
+        final iron       = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => i)  ?? 0.0;
+        final woodRate   = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => wr) ?? 0.0;
+        final stoneRate  = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => sr) ?? 0.0;
+        final ironRate   = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => ir) ?? 0.0;
+        final maxStorage = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => ms) ?? 5000.0;
 
-        if (villageId == null || queue != null) return;
+        if (villageId == null) return;
+        if (queueCount >= _maxQueueSlots) return;
 
         emit(ConstructionState.upgrading(
           wood: wood, stone: stone, iron: iron,
@@ -110,7 +120,7 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
       },
 
       buildFinished: (data) async {
-        final villageId = _getField((v, b, q, wo, s, i, wr, sr, ir, ms) => v);
+        final villageId = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => v);
         if (villageId == null) return;
         await _reloadAndEmit(villageId, emit);
         _startInterpolation();
@@ -130,6 +140,8 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
       villageId:  villageId,
       buildings:  buildings.buildings,
       queue:      buildings.queue,
+      queueCount: buildings.queueCount,
+      queueItems: buildings.queueItems,
       wood:       village.wood,
       stone:      village.stone,
       iron:       village.iron,
@@ -141,16 +153,26 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
   }
 
   T? _getField<T>(
-    T Function(String, dynamic, dynamic,
-               double, double, double,
-               double, double, double, double) extractor,
+    T Function(
+      String,  // villageId
+      dynamic, // buildings
+      dynamic, // queue
+      int,     // queueCount
+      dynamic, // queueItems
+      double,  // wood
+      double,  // stone
+      double,  // iron
+      double,  // woodRate
+      double,  // stoneRate
+      double,  // ironRate
+      double,  // maxStorage
+    ) extractor,
   ) {
     return state.maybeWhen(
-      loaded: (villageId, buildings, queue, wood, stone, iron,
-               woodRate, stoneRate, ironRate, maxStorage) =>
-        extractor(villageId, buildings, queue,
-                  wood, stone, iron,
-                  woodRate, stoneRate, ironRate, maxStorage),
+      loaded: (villageId, buildings, queue, queueCount, queueItems,
+               wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage) =>
+        extractor(villageId, buildings, queue, queueCount, queueItems,
+                  wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage),
       orElse: () => null,
     );
   }

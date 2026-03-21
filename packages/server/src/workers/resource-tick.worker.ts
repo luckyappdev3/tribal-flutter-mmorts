@@ -17,7 +17,7 @@ export const resourceTickWorker = new Worker(
     if (job.name === 'global-resource-tick') {
       const villages = await prisma.village.findMany({ select: { id: true } });
       
-      console.log(`[Worker] ⚙️ Processing tick for ${villages.length} villages`);
+      //console.log(`[Worker] ⚙️ Processing tick for ${villages.length} villages`);
 
       for (const v of villages) {
         try {

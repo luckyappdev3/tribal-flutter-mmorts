@@ -1,3 +1,12 @@
+// ─────────────────────────────────────────────────────────────
+// schema.prisma — Phase 1 patch
+// Basé sur le schéma existant (avec GameWorld/PlayerWorld)
+// Ajouts : wallLevel, farmLevel, stableLevel, rallyPointLevel,
+//          loyaltyPoints sur Village ; attackPoints/defensePoints
+//          sur Player ; morale/wallBonus sur AttackReport ;
+//          BuildingQueueItem (multi-slots).
+// ─────────────────────────────────────────────────────────────
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -7,16 +16,49 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model Player {
+// ── Monde de jeu (existant, inchangé) ───────────────────────
+model GameWorld {
   id          String    @id @default(uuid())
-  username    String    @unique
-  email       String    @unique
-  password    String
+  name        String    @unique
+  description String    @default("")
+  gameSpeed   Float     @default(1.0)
+  mapSize     Int       @default(100)
+  maxPlayers  Int       @default(500)
+  isOpen      Boolean   @default(true)
+  startsAt    DateTime  @default(now())
+  endsAt      DateTime?
+
   villages    Village[]
-  createdAt   DateTime  @default(now())
-  totalPoints Int       @default(0)
+  players     PlayerWorld[]
+
+  createdAt   DateTime @default(now())
 }
 
+model PlayerWorld {
+  player   Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  playerId String
+  world    GameWorld @relation(fields: [worldId],  references: [id], onDelete: Cascade)
+  worldId  String
+  joinedAt DateTime  @default(now())
+
+  @@id([playerId, worldId])
+}
+
+// ── Joueur ───────────────────────────────────────────────────
+model Player {
+  id             String    @id @default(uuid())
+  username       String    @unique
+  email          String    @unique
+  password       String
+  villages       Village[]
+  worlds         PlayerWorld[]
+  createdAt      DateTime  @default(now())
+  totalPoints    Int       @default(0)
+  attackPoints   Int       @default(0)  // ← NOUVEAU : kills offensifs
+  defensePoints  Int       @default(0)  // ← NOUVEAU : kills défensifs
+}
+
+// ── Village ──────────────────────────────────────────────────
 model Village {
   id    String @id @default(uuid())
   name  String
@@ -32,21 +74,32 @@ model Village {
   quarryLevel     Int @default(1)
   ironMineLevel   Int @default(1)
 
-  // Villages abandonnés
+  // ── NOUVEAUX BÂTIMENTS ──────────────────────────────────
+  wallLevel       Int @default(0)   // Mur : +5% défense/niveau (max 20)
+  farmLevel       Int @default(1)   // Ferme : cap population
+  stableLevel     Int @default(0)   // Écuries : prérequis cavalerie
+  rallyPointLevel Int @default(0)   // Place d'armes : prérequis attaque
+
+  // ── Conquête (phase 3) ──────────────────────────────────
+  loyaltyPoints   Int @default(100) // 0 = village conquis par le Noble
+
   isAbandoned    Boolean @default(false)
-  abandonedLevel Int     @default(1)  // 1-10
+  abandonedLevel Int     @default(1)
 
   shieldUntil DateTime?
   lastTick    DateTime  @default(now())
 
-  // Relation optionnelle — null pour les villages abandonnés
-  player   Player? @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  player   Player?    @relation(fields: [playerId], references: [id], onDelete: Cascade)
   playerId String?
 
-  buildings    BuildingInstance[]
-  buildQueue   BuildingQueue?
-  troops       Troop[]
-  recruitQueue RecruitQueue?
+  world    GameWorld? @relation(fields: [worldId], references: [id])
+  worldId  String?
+
+  buildings     BuildingInstance[]
+  buildQueue    BuildingQueue?        // ← legacy, conservé pendant la migration
+  buildItems    BuildingQueueItem[]   // ← NOUVEAU : multi-slots
+  troops        Troop[]
+  recruitQueue  RecruitQueue?
 
   attacksSent     AttackReport[]  @relation("AttackerVillage")
   attacksReceived AttackReport[]  @relation("DefenderVillage")
@@ -57,6 +110,7 @@ model Village {
   @@unique([x, y])
 }
 
+// ── Instances de bâtiments (existant, inchangé) ─────────────
 model BuildingInstance {
   id         String   @id @default(uuid())
   buildingId String
@@ -70,6 +124,8 @@ model BuildingInstance {
   @@unique([villageId, buildingId])
 }
 
+// ── File construction legacy (1 slot) ───────────────────────
+// Conservée pendant la migration. À supprimer après validation.
 model BuildingQueue {
   id          String   @id @default(uuid())
   buildingId  String
@@ -82,6 +138,23 @@ model BuildingQueue {
   villageId String  @unique
 }
 
+// ── File construction multi-slots (NOUVEAU) ──────────────────
+model BuildingQueueItem {
+  id          String   @id @default(uuid())
+  buildingId  String
+  targetLevel Int
+  position    Int      @default(0) // 0 = en cours, 1+ = en attente
+
+  startsAt DateTime @default(now())
+  endsAt   DateTime
+
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  villageId String
+
+  @@index([villageId, position])
+}
+
+// ── Troupes (existant, inchangé) ────────────────────────────
 model Troop {
   id       String @id @default(uuid())
   unitType String
@@ -93,6 +166,7 @@ model Troop {
   @@unique([villageId, unitType])
 }
 
+// ── File de recrutement (existant, inchangé) ─────────────────
 model RecruitQueue {
   id       String @id @default(uuid())
   unitType String
@@ -106,6 +180,7 @@ model RecruitQueue {
   villageId String  @unique
 }
 
+// ── Rapports de combat ───────────────────────────────────────
 model AttackReport {
   id String @id @default(uuid())
 
@@ -121,6 +196,8 @@ model AttackReport {
   defenderUnitsAfter  Json
   resourcesLooted     Json
 
+  morale       Float   @default(1.0) // ← NOUVEAU
+  wallBonus    Float   @default(1.0) // ← NOUVEAU
   pointsLost   Int     @default(0)
   pointsGained Int     @default(0)
   attackerWon  Boolean
@@ -128,6 +205,7 @@ model AttackReport {
   createdAt DateTime @default(now())
 }
 
+// ── Attaques actives (existant, inchangé) ───────────────────
 model ActiveAttack {
   id String @id @default(uuid())
 

@@ -3,13 +3,17 @@ import '../../../data/dto/village_dto.dart';
 
 class BuildingCard extends StatelessWidget {
   final BuildingInstanceDto building;
-  final BuildQueueDto? queue;
-  final VoidCallback? onUpgrade;
+  final BuildQueueDto?      queue;
+  final int                 queueCount;    // ← NOUVEAU : nb d'items en file
+  final int                 maxQueueSlots; // ← NOUVEAU : max slots (2)
+  final VoidCallback?       onUpgrade;
 
   const BuildingCard({
     super.key,
     required this.building,
     required this.queue,
+    required this.queueCount,
+    this.maxQueueSlots = 2,
     this.onUpgrade,
   });
 
@@ -19,6 +23,11 @@ class BuildingCard extends StatelessWidget {
     'quarry':       Icons.terrain,
     'iron_mine':    Icons.hardware,
     'warehouse':    Icons.warehouse,
+    'barracks':     Icons.shield,
+    'farm':         Icons.agriculture,
+    'wall':         Icons.security,
+    'stable':       Icons.directions_run,
+    'rally_point':  Icons.flag,
   };
 
   static const Map<String, String> _descriptions = {
@@ -27,21 +36,28 @@ class BuildingCard extends StatelessWidget {
     'quarry':       'Produit de la pierre',
     'iron_mine':    'Produit du fer',
     'warehouse':    'Augmente le stockage max',
+    'barracks':     'Recrute des troupes',
+    'farm':         'Augmente la population max',
+    'wall':         '+5% défense par niveau',
+    'stable':       'Permet la cavalerie',
+    'rally_point':  'Permet les attaques',
   };
 
-  // Couleur associée à chaque bâtiment producteur
   static const Map<String, Color> _prodColors = {
     'timber_camp': Color(0xFF8D6E63),
     'quarry':      Color(0xFF90A4AE),
     'iron_mine':   Color(0xFF78909C),
   };
 
-  bool get _isBeingBuilt  => queue?.buildingId == building.buildingId;
-  bool get _queueOccupied => queue != null;
+  // Ce bâtiment est-il actuellement en construction (position 0) ?
+  bool get _isBeingBuilt => queue?.buildingId == building.buildingId;
+
+  // La file est-elle pleine (tous les slots occupés) ?
+  bool get _queueFull => queueCount >= maxQueueSlots;
 
   @override
   Widget build(BuildContext context) {
-    final icon  = _icons[building.buildingId]       ?? Icons.home;
+    final icon  = _icons[building.buildingId]        ?? Icons.home;
     final desc  = _descriptions[building.buildingId] ?? '';
     final color = _prodColors[building.buildingId]   ?? Colors.amber;
 
@@ -91,7 +107,7 @@ class BuildingCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
 
-            // ── Production actuelle → future (bâtiments producteurs seulement) ──
+            // ── Production actuelle → future ──
             if (building.isProducer && building.currentProdPerSec != null) ...[
               _ProductionRow(
                 current: building.currentProdPerSec!,
@@ -136,10 +152,10 @@ class BuildingCard extends StatelessWidget {
 
             // ── Bouton améliorer ──
             _UpgradeButton(
-              isBeingBuilt:  _isBeingBuilt,
-              queueOccupied: _queueOccupied,
-              isMaxLevel:    building.isMaxLevel,
-              onUpgrade:     onUpgrade,
+              isBeingBuilt: _isBeingBuilt,
+              queueFull:    _queueFull,      // ← CORRIGÉ
+              isMaxLevel:   building.isMaxLevel,
+              onUpgrade:    onUpgrade,
             ),
           ],
         ),
@@ -148,7 +164,6 @@ class BuildingCard extends StatelessWidget {
   }
 }
 
-// ── Ligne production actuelle → future ──
 class _ProductionRow extends StatelessWidget {
   final double current;
   final double? next;
@@ -205,7 +220,6 @@ class _ProductionRow extends StatelessWidget {
   }
 }
 
-// ── Ligne des coûts ──
 class _CostRow extends StatelessWidget {
   final NextLevelCostDto cost;
   const _CostRow({required this.cost});
@@ -243,14 +257,14 @@ class _CostItem extends StatelessWidget {
         const SizedBox(width: 2),
         Text(
           _format(value),
-          style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
+          style: TextStyle(
+              color: color, fontSize: 10, fontWeight: FontWeight.w600),
         ),
       ],
     );
   }
 }
 
-// ── Badge niveau ──
 class _LevelBadge extends StatelessWidget {
   final int level;
   const _LevelBadge({required this.level});
@@ -276,16 +290,15 @@ class _LevelBadge extends StatelessWidget {
   }
 }
 
-// ── Bouton améliorer ──
 class _UpgradeButton extends StatelessWidget {
   final bool isBeingBuilt;
-  final bool queueOccupied;
+  final bool queueFull;    // ← CORRIGÉ : était queueOccupied
   final bool isMaxLevel;
   final VoidCallback? onUpgrade;
 
   const _UpgradeButton({
     required this.isBeingBuilt,
-    required this.queueOccupied,
+    required this.queueFull,
     required this.isMaxLevel,
     this.onUpgrade,
   });
@@ -306,20 +319,26 @@ class _UpgradeButton extends StatelessWidget {
       );
     }
 
+    // ← CORRIGÉ : "En file" si slot 2 occupé mais pas ce bâtiment
+    final label  = queueFull ? 'File pleine (2/2)' : 'Améliorer →';
+    final bgColor = queueFull ? Colors.grey[850]! : Colors.amber[800]!;
+    final fgColor = queueFull ? Colors.white38 : Colors.white;
+
     return SizedBox(
       width: double.infinity,
       height: 32,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: queueOccupied ? Colors.grey[850] : Colors.amber[800],
-          foregroundColor: queueOccupied ? Colors.white38 : Colors.white,
+          backgroundColor: bgColor,
+          foregroundColor: fgColor,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8)),
           padding: EdgeInsets.zero,
         ),
-        onPressed: queueOccupied ? null : onUpgrade,
+        onPressed: queueFull ? null : onUpgrade,
         child: Text(
-          queueOccupied ? 'File occupée' : 'Améliorer →',
+          label,
           style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
         ),
       ),

@@ -4,28 +4,38 @@ export type CombatResult = {
     attackerLosses: Record<string, number>;
     defenderLosses: Record<string, number>;
     lootCapacity: number;
+    morale: number;
+    wallBonus: number;
 };
+/**
+ * Morale de l'attaquant selon l'écart de points.
+ * Formule TW : min(1.0, 3 × pointsDéf / pointsAtk)
+ * Plancher à 0.3 (jamais en-dessous de 30%).
+ */
+export declare function calculateMorale(attackerPoints: number, defenderPoints: number): number;
+/**
+ * Bonus défensif du Mur.
+ * Formule : 1 + level × 0.05  (mur lvl 20 = ×2.0 défense)
+ */
+export declare function calculateWallBonus(wallLevel: number): number;
 /**
  * Résout un combat entre attaquants et défenseurs.
  *
- * Formule Tribal Wars :
- * - Ratio = atkPower / (atkPower + defPower)
- * - Pertes basées sur le ratio avec Math.ceil
- * - Victoire déterminée par les survivants réels (pas seulement le ratio)
- *   → Si tous les défenseurs meurent et qu'il reste des attaquants : victoire attaquant
- *   → Si tous les attaquants meurent et qu'il reste des défenseurs : victoire défenseur
+ * Options facultatives :
+ *  - wallLevel       : niveau du mur du défenseur (0 = pas de mur)
+ *  - attackerPoints  : points du joueur attaquant (pour la morale)
+ *  - defenderPoints  : points du joueur défenseur (pour la morale)
  */
-export declare function resolveBattle(attackers: UnitGroup[], defenders: UnitGroup[]): CombatResult;
+export declare function resolveBattle(attackers: UnitGroup[], defenders: UnitGroup[], options?: {
+    wallLevel?: number;
+    attackerPoints?: number;
+    defenderPoints?: number;
+}): CombatResult;
 export type VillageResources = {
     wood: number;
     stone: number;
     iron: number;
 };
-/**
- * Calcule les ressources pillées selon la capacité de transport.
- * Répartition proportionnelle avec redistribution des arrondis
- * pour utiliser exactement la capacité disponible.
- */
 export declare function calculateLoot(available: VillageResources, capacity: number): VillageResources;
 export declare function calculateTravelTime(x1: number, y1: number, x2: number, y2: number, units: {
     unitType: string;

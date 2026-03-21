@@ -167,6 +167,8 @@ class AttackReportDto {
   final int      pointsGained;
   final int      pointsLost;
   final bool     attackerWon;
+  final double   morale;      // ← NOUVEAU : 0.3 → 1.0
+  final double   wallBonus;   // ← NOUVEAU : 1.0 → 2.0
   final DateTime createdAt;
   final ReportVillageDto? attackerVillage;
   final ReportVillageDto? defenderVillage;
@@ -205,6 +207,8 @@ class AttackReportDto {
         pointsGained:        pointsGained,
         pointsLost:          pointsLost,
         attackerWon:         attackerWon,
+        morale:              morale,
+        wallBonus:           wallBonus,
         createdAt:           createdAt,
         attackerVillage:     attackerVillage,
         defenderVillage:     defenderVillage,
@@ -223,6 +227,8 @@ class AttackReportDto {
     required this.pointsGained,
     required this.pointsLost,
     required this.attackerWon,
+    this.morale   = 1.0,
+    this.wallBonus = 1.0,
     required this.createdAt,
     this.attackerVillage,
     this.defenderVillage,
@@ -246,6 +252,8 @@ class AttackReportDto {
       pointsGained:        (json['pointsGained'] as num).toInt(),
       pointsLost:          (json['pointsLost']   as num).toInt(),
       attackerWon:         json['attackerWon']   as bool,
+      morale:              (json['morale']    as num?)?.toDouble() ?? 1.0,
+      wallBonus:           (json['wallBonus'] as num?)?.toDouble() ?? 1.0,
       createdAt:           DateTime.parse(json['createdAt'] as String).toLocal(),
       attackerVillage:     json['attackerVillage'] != null
           ? ReportVillageDto.fromJson(json['attackerVillage'] as Map<String, dynamic>)

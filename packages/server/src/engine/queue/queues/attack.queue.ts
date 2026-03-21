@@ -6,6 +6,9 @@ export interface AttackJobData {
   defenderVillageId: string;
   units:             Record<string, number>;
   activeAttackId:    string;
+  travelMs?:         number;   // ← durée aller en ms (pour planifier le retour)
+  returning?:        boolean;  // ← true quand les troupes rentrent à la base
+  survivors?:        Record<string, number>; // ← unités survivantes au retour
 }
 
 export class AttackQueue {

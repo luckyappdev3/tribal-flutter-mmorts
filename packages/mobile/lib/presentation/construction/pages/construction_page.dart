@@ -75,13 +75,15 @@ class _ConstructionView extends StatelessWidget {
                   ),
                 ]),
 
-            loaded: (villageId, buildings, queue,
+            loaded: (villageId, buildings, queue, queueCount, queueItems,
                      wood, stone, iron,
                      woodRate, stoneRate, ironRate, maxStorage) =>
                 _LoadedBody(
-                  villageId: villageId,
-                  buildings: buildings,
-                  queue: queue,
+                  villageId:  villageId,
+                  buildings:  buildings,
+                  queue:      queue,
+                  queueCount: queueCount,
+                  queueItems: queueItems,
                   wood: wood, stone: stone, iron: iron,
                   woodRate: woodRate, stoneRate: stoneRate, ironRate: ironRate,
                   maxStorage: maxStorage,
@@ -221,6 +223,8 @@ class _LoadedBody extends StatelessWidget {
   final String villageId;
   final dynamic buildings;
   final dynamic queue;
+  final int queueCount;
+  final List<dynamic> queueItems;
   final double wood, stone, iron;
   final double woodRate, stoneRate, ironRate;
   final double maxStorage;
@@ -229,6 +233,8 @@ class _LoadedBody extends StatelessWidget {
     required this.villageId,
     required this.buildings,
     required this.queue,
+    required this.queueCount,
+    required this.queueItems,
     required this.wood,
     required this.stone,
     required this.iron,
@@ -249,11 +255,14 @@ class _LoadedBody extends StatelessWidget {
           maxStorage: maxStorage,
         ),
 
-        // ── Timer de construction en cours ──
-        if (queue != null) BuildTimerWidget(queue: queue),
+        // ── File de construction complète (tous les slots) ──
+        ...queueItems.map((item) => BuildTimerWidget(
+          queue: item,
+          isActive: item.position == 0,
+        )),
 
-        // ── Info file unique ──
-        if (queue == null)
+        // ── Info si file vide ──
+        if (queueCount == 0)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
             child: Row(
@@ -282,9 +291,10 @@ class _LoadedBody extends StatelessWidget {
             itemBuilder: (context, index) {
               final building = buildings[index];
               return BuildingCard(
-                building: building,
-                queue: queue,
-                onUpgrade: () => context
+                building:   building,
+                queue:      queue,
+                queueCount: queueCount,
+                onUpgrade:  () => context
                     .read<ConstructionBloc>()
                     .add(ConstructionEvent.upgradeRequested(building.buildingId)),
               );

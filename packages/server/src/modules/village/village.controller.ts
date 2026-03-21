@@ -43,9 +43,18 @@ export async function villageRoutes(fastify: FastifyInstance) {
         iron:  ProductionFormulas.getHourlyRate(getLevel('iron_mine'))   / 3600,
       };
 
-      const buildQueue = await fastify.prisma.buildingQueue.findUnique({
-        where: { villageId: id },
+      const buildQueueItem = await fastify.prisma.buildingQueueItem.findFirst({
+        where:   { villageId: id, position: 0 },
+        orderBy: { startsAt: 'asc' },
       });
+
+      const buildQueue = buildQueueItem
+        ? {
+            buildingId:  buildQueueItem.buildingId,
+            targetLevel: buildQueueItem.targetLevel,
+            endsAt:      buildQueueItem.endsAt.toISOString(),
+          }
+        : null;
 
       const warehouseLevel = getLevel('warehouse');
 
@@ -61,7 +70,10 @@ export async function villageRoutes(fastify: FastifyInstance) {
   });
 
   // GET /api/villages/:id/buildings
-  // Retourne chaque bâtiment enrichi : coût, temps, et production actuelle → future
+  // ─────────────────────────────────────────────────────────────
+  // Retourne TOUS les bâtiments du registre de jeu.
+  // Pour ceux sans instance en BDD → niveau 0 (non construit).
+  // ─────────────────────────────────────────────────────────────
   fastify.get('/:id/buildings', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const player = request.user as { id: string };
@@ -76,42 +88,56 @@ export async function villageRoutes(fastify: FastifyInstance) {
         return reply.status(403).send({ message: 'Accès refusé' });
       }
 
-      const [buildings, queue] = await Promise.all([
+      const [instances, queueItems] = await Promise.all([
         fastify.prisma.buildingInstance.findMany({ where: { villageId: id } }),
-        fastify.prisma.buildingQueue.findUnique({ where: { villageId: id } }),
+        fastify.prisma.buildingQueueItem.findMany({
+          where:   { villageId: id },
+          orderBy: { position: 'asc' },
+        }),
       ]);
 
-      const enrichedBuildings = buildings.map(b => {
-        const nextLevel = b.level + 1;
+      // Adapter au format attendu par le client Flutter (BuildQueueDto)
+      // On expose le premier item (position 0 = en cours) comme "queue"
+      const activeItem = queueItems.find(i => i.position === 0) ?? null;
+      const queue = activeItem
+        ? {
+            buildingId:  activeItem.buildingId,
+            targetLevel: activeItem.targetLevel,
+            endsAt:      activeItem.endsAt.toISOString(),
+          }
+        : null;
+
+      // Map des instances existantes pour accès rapide
+      const instanceMap = new Map(instances.map(b => [b.buildingId, b.level]));
+
+      // Parcourir TOUS les bâtiments du registre (y compris farm, wall, etc.)
+      const allBuildings = fastify.gameData.getAllBuildings();
+
+      const enrichedBuildings = allBuildings.map(def => {
+        const currentLevel = instanceMap.get(def.id) ?? 0;
+        const nextLevel    = currentLevel + 1;
+
         let nextLevelCost: { wood: number; stone: number; iron: number } | null = null;
         let nextLevelTimeSec: number | null = null;
-
-        // Production actuelle et future (uniquement pour les bâtiments producteurs)
         let currentProdPerSec: number | null = null;
         let nextProdPerSec: number | null = null;
 
-        try {
-          const def = fastify.gameData.getBuildingDef(b.buildingId);
+        if (nextLevel <= def.maxLevel) {
+          const cost       = calculateCostForLevel(def, nextLevel);
+          nextLevelCost    = { wood: cost.wood, stone: cost.stone, iron: cost.iron };
+          nextLevelTimeSec = calculateTimeForLevel(def, nextLevel);
+        }
 
-          if (nextLevel <= def.maxLevel) {
-            const cost       = calculateCostForLevel(def, nextLevel);
-            nextLevelCost    = { wood: cost.wood, stone: cost.stone, iron: cost.iron };
-            nextLevelTimeSec = calculateTimeForLevel(def, nextLevel);
-          }
-
-          if (PRODUCTION_BUILDINGS.includes(b.buildingId)) {
-            currentProdPerSec = ProductionFormulas.getHourlyRate(b.level) / 3600;
-            nextProdPerSec    = nextLevel <= def.maxLevel
-              ? ProductionFormulas.getHourlyRate(nextLevel) / 3600
-              : null;
-          }
-        } catch (_) {
-          // Bâtiment non trouvé dans le registre → null
+        if (PRODUCTION_BUILDINGS.includes(def.id)) {
+          currentProdPerSec = ProductionFormulas.getHourlyRate(currentLevel) / 3600;
+          nextProdPerSec    = nextLevel <= def.maxLevel
+            ? ProductionFormulas.getHourlyRate(nextLevel) / 3600
+            : null;
         }
 
         return {
-          buildingId:       b.buildingId,
-          level:            b.level,
+          buildingId:       def.id,
+          level:            currentLevel,
           nextLevelCost,
           nextLevelTimeSec,
           currentProdPerSec,
@@ -119,7 +145,17 @@ export async function villageRoutes(fastify: FastifyInstance) {
         };
       });
 
-      return { buildings: enrichedBuildings, queue };
+      return {
+        buildings:  enrichedBuildings,
+        queue,                          // 1er item (compat existante)
+        queueCount: queueItems.length,
+        queueItems: queueItems.map(i => ({ // ← NOUVEAU : toute la file
+          buildingId:  i.buildingId,
+          targetLevel: i.targetLevel,
+          position:    i.position,
+          endsAt:      i.endsAt.toISOString(),
+        })),
+      };
     } catch (error) {
       return reply.status(404).send({ message: 'Village non trouvé' });
     }

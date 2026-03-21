@@ -24,6 +24,8 @@ mixin _$ConstructionState {
             String villageId,
             List<BuildingInstanceDto> buildings,
             BuildQueueDto? queue,
+            int queueCount,
+            List<BuildQueueItemDto> queueItems,
             double wood,
             double stone,
             double iron,
@@ -52,6 +54,8 @@ mixin _$ConstructionState {
             String villageId,
             List<BuildingInstanceDto> buildings,
             BuildQueueDto? queue,
+            int queueCount,
+            List<BuildQueueItemDto> queueItems,
             double wood,
             double stone,
             double iron,
@@ -74,6 +78,8 @@ mixin _$ConstructionState {
             String villageId,
             List<BuildingInstanceDto> buildings,
             BuildQueueDto? queue,
+            int queueCount,
+            List<BuildQueueItemDto> queueItems,
             double wood,
             double stone,
             double iron,
@@ -187,6 +193,8 @@ class _$InitialImpl implements _Initial {
             String villageId,
             List<BuildingInstanceDto> buildings,
             BuildQueueDto? queue,
+            int queueCount,
+            List<BuildQueueItemDto> queueItems,
             double wood,
             double stone,
             double iron,
@@ -218,6 +226,8 @@ class _$InitialImpl implements _Initial {
             String villageId,
             List<BuildingInstanceDto> buildings,
             BuildQueueDto? queue,
+            int queueCount,
+            List<BuildQueueItemDto> queueItems,
             double wood,
             double stone,
             double iron,
@@ -243,6 +253,8 @@ class _$InitialImpl implements _Initial {
             String villageId,
             List<BuildingInstanceDto> buildings,
             BuildQueueDto? queue,
+            int queueCount,
+            List<BuildQueueItemDto> queueItems,
             double wood,
             double stone,
             double iron,
@@ -355,6 +367,8 @@ class _$LoadingImpl implements _Loading {
             String villageId,
             List<BuildingInstanceDto> buildings,
             BuildQueueDto? queue,
+            int queueCount,
+            List<BuildQueueItemDto> queueItems,
             double wood,
             double stone,
             double iron,
@@ -386,6 +400,8 @@ class _$LoadingImpl implements _Loading {
             String villageId,
             List<BuildingInstanceDto> buildings,
             BuildQueueDto? queue,
+            int queueCount,
+            List<BuildQueueItemDto> queueItems,
             double wood,
             double stone,
             double iron,
@@ -411,6 +427,8 @@ class _$LoadingImpl implements _Loading {
             String villageId,
             List<BuildingInstanceDto> buildings,
             BuildQueueDto? queue,
+            int queueCount,
+            List<BuildQueueItemDto> queueItems,
             double wood,
             double stone,
             double iron,
@@ -486,6 +504,8 @@ abstract class _$$LoadedImplCopyWith<$Res> {
       {String villageId,
       List<BuildingInstanceDto> buildings,
       BuildQueueDto? queue,
+      int queueCount,
+      List<BuildQueueItemDto> queueItems,
       double wood,
       double stone,
       double iron,
@@ -511,6 +531,8 @@ class __$$LoadedImplCopyWithImpl<$Res>
     Object? villageId = null,
     Object? buildings = null,
     Object? queue = freezed,
+    Object? queueCount = null,
+    Object? queueItems = null,
     Object? wood = null,
     Object? stone = null,
     Object? iron = null,
@@ -532,6 +554,14 @@ class __$$LoadedImplCopyWithImpl<$Res>
           ? _value.queue
           : queue // ignore: cast_nullable_to_non_nullable
               as BuildQueueDto?,
+      queueCount: null == queueCount
+          ? _value.queueCount
+          : queueCount // ignore: cast_nullable_to_non_nullable
+              as int,
+      queueItems: null == queueItems
+          ? _value._queueItems
+          : queueItems // ignore: cast_nullable_to_non_nullable
+              as List<BuildQueueItemDto>,
       wood: null == wood
           ? _value.wood
           : wood // ignore: cast_nullable_to_non_nullable
@@ -571,6 +601,8 @@ class _$LoadedImpl implements _Loaded {
       {required this.villageId,
       required final List<BuildingInstanceDto> buildings,
       required this.queue,
+      this.queueCount = 0,
+      final List<BuildQueueItemDto> queueItems = const [],
       this.wood = 0.0,
       this.stone = 0.0,
       this.iron = 0.0,
@@ -578,7 +610,8 @@ class _$LoadedImpl implements _Loaded {
       this.stoneRate = 0.0,
       this.ironRate = 0.0,
       this.maxStorage = 5000.0})
-      : _buildings = buildings;
+      : _buildings = buildings,
+        _queueItems = queueItems;
 
   @override
   final String villageId;
@@ -592,6 +625,19 @@ class _$LoadedImpl implements _Loaded {
 
   @override
   final BuildQueueDto? queue;
+  @override
+  @JsonKey()
+  final int queueCount;
+  final List<BuildQueueItemDto> _queueItems;
+  @override
+  @JsonKey()
+  List<BuildQueueItemDto> get queueItems {
+    if (_queueItems is EqualUnmodifiableListView) return _queueItems;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_queueItems);
+  }
+
+// ← NOUVEAU
   @override
   @JsonKey()
   final double wood;
@@ -616,7 +662,7 @@ class _$LoadedImpl implements _Loaded {
 
   @override
   String toString() {
-    return 'ConstructionState.loaded(villageId: $villageId, buildings: $buildings, queue: $queue, wood: $wood, stone: $stone, iron: $iron, woodRate: $woodRate, stoneRate: $stoneRate, ironRate: $ironRate, maxStorage: $maxStorage)';
+    return 'ConstructionState.loaded(villageId: $villageId, buildings: $buildings, queue: $queue, queueCount: $queueCount, queueItems: $queueItems, wood: $wood, stone: $stone, iron: $iron, woodRate: $woodRate, stoneRate: $stoneRate, ironRate: $ironRate, maxStorage: $maxStorage)';
   }
 
   @override
@@ -629,6 +675,10 @@ class _$LoadedImpl implements _Loaded {
             const DeepCollectionEquality()
                 .equals(other._buildings, _buildings) &&
             (identical(other.queue, queue) || other.queue == queue) &&
+            (identical(other.queueCount, queueCount) ||
+                other.queueCount == queueCount) &&
+            const DeepCollectionEquality()
+                .equals(other._queueItems, _queueItems) &&
             (identical(other.wood, wood) || other.wood == wood) &&
             (identical(other.stone, stone) || other.stone == stone) &&
             (identical(other.iron, iron) || other.iron == iron) &&
@@ -648,6 +698,8 @@ class _$LoadedImpl implements _Loaded {
       villageId,
       const DeepCollectionEquality().hash(_buildings),
       queue,
+      queueCount,
+      const DeepCollectionEquality().hash(_queueItems),
       wood,
       stone,
       iron,
@@ -673,6 +725,8 @@ class _$LoadedImpl implements _Loaded {
             String villageId,
             List<BuildingInstanceDto> buildings,
             BuildQueueDto? queue,
+            int queueCount,
+            List<BuildQueueItemDto> queueItems,
             double wood,
             double stone,
             double iron,
@@ -692,8 +746,8 @@ class _$LoadedImpl implements _Loaded {
         upgrading,
     required TResult Function(String message) error,
   }) {
-    return loaded(villageId, buildings, queue, wood, stone, iron, woodRate,
-        stoneRate, ironRate, maxStorage);
+    return loaded(villageId, buildings, queue, queueCount, queueItems, wood,
+        stone, iron, woodRate, stoneRate, ironRate, maxStorage);
   }
 
   @override
@@ -705,6 +759,8 @@ class _$LoadedImpl implements _Loaded {
             String villageId,
             List<BuildingInstanceDto> buildings,
             BuildQueueDto? queue,
+            int queueCount,
+            List<BuildQueueItemDto> queueItems,
             double wood,
             double stone,
             double iron,
@@ -718,8 +774,8 @@ class _$LoadedImpl implements _Loaded {
         upgrading,
     TResult? Function(String message)? error,
   }) {
-    return loaded?.call(villageId, buildings, queue, wood, stone, iron,
-        woodRate, stoneRate, ironRate, maxStorage);
+    return loaded?.call(villageId, buildings, queue, queueCount, queueItems,
+        wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage);
   }
 
   @override
@@ -731,6 +787,8 @@ class _$LoadedImpl implements _Loaded {
             String villageId,
             List<BuildingInstanceDto> buildings,
             BuildQueueDto? queue,
+            int queueCount,
+            List<BuildQueueItemDto> queueItems,
             double wood,
             double stone,
             double iron,
@@ -746,8 +804,8 @@ class _$LoadedImpl implements _Loaded {
     required TResult orElse(),
   }) {
     if (loaded != null) {
-      return loaded(villageId, buildings, queue, wood, stone, iron, woodRate,
-          stoneRate, ironRate, maxStorage);
+      return loaded(villageId, buildings, queue, queueCount, queueItems, wood,
+          stone, iron, woodRate, stoneRate, ironRate, maxStorage);
     }
     return orElse();
   }
@@ -798,6 +856,8 @@ abstract class _Loaded implements ConstructionState {
       {required final String villageId,
       required final List<BuildingInstanceDto> buildings,
       required final BuildQueueDto? queue,
+      final int queueCount,
+      final List<BuildQueueItemDto> queueItems,
       final double wood,
       final double stone,
       final double iron,
@@ -809,6 +869,8 @@ abstract class _Loaded implements ConstructionState {
   String get villageId;
   List<BuildingInstanceDto> get buildings;
   BuildQueueDto? get queue;
+  int get queueCount;
+  List<BuildQueueItemDto> get queueItems; // ← NOUVEAU
   double get wood;
   double get stone;
   double get iron;
@@ -972,6 +1034,8 @@ class _$UpgradingImpl implements _Upgrading {
             String villageId,
             List<BuildingInstanceDto> buildings,
             BuildQueueDto? queue,
+            int queueCount,
+            List<BuildQueueItemDto> queueItems,
             double wood,
             double stone,
             double iron,
@@ -1004,6 +1068,8 @@ class _$UpgradingImpl implements _Upgrading {
             String villageId,
             List<BuildingInstanceDto> buildings,
             BuildQueueDto? queue,
+            int queueCount,
+            List<BuildQueueItemDto> queueItems,
             double wood,
             double stone,
             double iron,
@@ -1030,6 +1096,8 @@ class _$UpgradingImpl implements _Upgrading {
             String villageId,
             List<BuildingInstanceDto> buildings,
             BuildQueueDto? queue,
+            int queueCount,
+            List<BuildQueueItemDto> queueItems,
             double wood,
             double stone,
             double iron,
@@ -1191,6 +1259,8 @@ class _$ErrorImpl implements _Error {
             String villageId,
             List<BuildingInstanceDto> buildings,
             BuildQueueDto? queue,
+            int queueCount,
+            List<BuildQueueItemDto> queueItems,
             double wood,
             double stone,
             double iron,
@@ -1222,6 +1292,8 @@ class _$ErrorImpl implements _Error {
             String villageId,
             List<BuildingInstanceDto> buildings,
             BuildQueueDto? queue,
+            int queueCount,
+            List<BuildQueueItemDto> queueItems,
             double wood,
             double stone,
             double iron,
@@ -1247,6 +1319,8 @@ class _$ErrorImpl implements _Error {
             String villageId,
             List<BuildingInstanceDto> buildings,
             BuildQueueDto? queue,
+            int queueCount,
+            List<BuildQueueItemDto> queueItems,
             double wood,
             double stone,
             double iron,

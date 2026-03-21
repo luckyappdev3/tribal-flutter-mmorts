@@ -39,36 +39,58 @@ const path = __importStar(require("path"));
 const shared_1 = require("@mmorts/shared");
 class GameDataRegistry {
     buildings = new Map();
-    // On enlève l'appel automatique dans le constructeur pour mieux contrôler le démarrage
+    units = new Map();
     constructor() { }
-    // On change le nom pour "loadAll" et on la met en public
     async loadAll() {
-        // Chemin robuste : on remonte de packages/server/src/engine vers packages/shared
-        const buildingsPath = path.resolve(__dirname, '../../../shared/game-data/buildings');
-        console.log(`🔍 Recherche des données dans : ${buildingsPath}`);
+        const sharedPath = path.resolve(__dirname, '../../../shared/game-data');
+        const buildingsPath = path.join(sharedPath, 'buildings');
+        const unitsPath = path.join(sharedPath, 'units');
+        console.log(`🔍 Chargement des données de jeu depuis : ${sharedPath}`);
+        // Chargement des bâtiments
         if (!fs.existsSync(buildingsPath)) {
-            throw new Error(`⚠️ Dossier GameData introuvable : ${buildingsPath}`);
+            throw new Error(`⚠️ Dossier buildings introuvable : ${buildingsPath}`);
         }
-        const files = fs.readdirSync(buildingsPath);
-        files.forEach(file => {
-            if (file.endsWith('.json')) {
-                const filePath = path.join(buildingsPath, file);
-                try {
-                    const rawData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-                    const result = shared_1.BuildingDefinitionSchema.safeParse(rawData);
-                    if (result.success) {
-                        this.buildings.set(result.data.id, result.data);
-                        console.log(`✅ GameData: Bâtiment '${result.data.id}' chargé.`);
-                    }
-                    else {
-                        console.error(`❌ Erreur de validation dans ${file}:`, result.error.message);
-                    }
+        for (const file of fs.readdirSync(buildingsPath)) {
+            if (!file.endsWith('.json'))
+                continue;
+            try {
+                const raw = JSON.parse(fs.readFileSync(path.join(buildingsPath, file), 'utf-8'));
+                const result = shared_1.BuildingDefinitionSchema.safeParse(raw);
+                if (result.success) {
+                    this.buildings.set(result.data.id, result.data);
+                    console.log(`✅ Bâtiment chargé : '${result.data.id}'`);
                 }
-                catch (e) {
-                    console.error(`❌ Impossible de lire le fichier ${file}`);
+                else {
+                    console.error(`❌ Validation échouée pour ${file}:`, result.error.message);
                 }
             }
-        });
+            catch {
+                console.error(`❌ Impossible de lire : ${file}`);
+            }
+        }
+        // Chargement des unités
+        if (!fs.existsSync(unitsPath)) {
+            console.warn(`⚠️ Dossier units introuvable : ${unitsPath}`);
+            return;
+        }
+        for (const file of fs.readdirSync(unitsPath)) {
+            if (!file.endsWith('.json'))
+                continue;
+            try {
+                const raw = JSON.parse(fs.readFileSync(path.join(unitsPath, file), 'utf-8'));
+                const result = shared_1.UnitDefinitionSchema.safeParse(raw);
+                if (result.success) {
+                    this.units.set(result.data.id, result.data);
+                    console.log(`✅ Unité chargée : '${result.data.id}'`);
+                }
+                else {
+                    console.error(`❌ Validation échouée pour ${file}:`, result.error.message);
+                }
+            }
+            catch {
+                console.error(`❌ Impossible de lire : ${file}`);
+            }
+        }
     }
     getBuildingDef(id) {
         const b = this.buildings.get(id);
@@ -76,6 +98,17 @@ class GameDataRegistry {
             throw new Error(`Bâtiment introuvable dans le registre : ${id}`);
         return b;
     }
+    getUnitDef(id) {
+        const u = this.units.get(id);
+        if (!u)
+            throw new Error(`Unité introuvable dans le registre : ${id}`);
+        return u;
+    }
+    getAllUnits() {
+        return Array.from(this.units.values());
+    }
+    getAllBuildings() {
+        return Array.from(this.buildings.values());
+    }
 }
 exports.GameDataRegistry = GameDataRegistry;
-// On exporte la CLASSE, pas l'instance, pour pouvoir l'instancier proprement dans le bootstrap

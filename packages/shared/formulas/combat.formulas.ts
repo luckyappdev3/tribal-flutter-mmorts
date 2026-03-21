@@ -2,6 +2,7 @@ import { UnitGroup } from '../schemas/unit.schema';
 
 // ─────────────────────────────────────────────
 // RÉSOLUTION D'UN COMBAT (style Tribal Wars)
+// Phase 1 : + Bonus Mur + Système de Morale
 // ─────────────────────────────────────────────
 
 export type CombatResult = {
@@ -9,26 +10,59 @@ export type CombatResult = {
   attackerLosses: Record<string, number>;
   defenderLosses: Record<string, number>;
   lootCapacity:   number;
+  morale:         number; // 0.3 → 1.0
+  wallBonus:      number; // 1.0 → 2.0
 };
+
+/**
+ * Morale de l'attaquant selon l'écart de points.
+ * Formule TW : min(1.0, 3 × pointsDéf / pointsAtk)
+ * Plancher à 0.3 (jamais en-dessous de 30%).
+ */
+export function calculateMorale(
+  attackerPoints: number,
+  defenderPoints: number,
+): number {
+  if (attackerPoints <= 0 || defenderPoints <= 0) return 1.0;
+  const raw = (3 * defenderPoints) / attackerPoints;
+  return Math.min(1.0, Math.max(0.3, raw));
+}
+
+/**
+ * Bonus défensif du Mur.
+ * Formule : 1 + level × 0.05  (mur lvl 20 = ×2.0 défense)
+ */
+export function calculateWallBonus(wallLevel: number): number {
+  return 1 + Math.min(Math.max(0, wallLevel), 20) * 0.05;
+}
 
 /**
  * Résout un combat entre attaquants et défenseurs.
  *
- * Formule Tribal Wars :
- * - Ratio = atkPower / (atkPower + defPower)
- * - Pertes basées sur le ratio avec Math.ceil
- * - Victoire déterminée par les survivants réels (pas seulement le ratio)
- *   → Si tous les défenseurs meurent et qu'il reste des attaquants : victoire attaquant
- *   → Si tous les attaquants meurent et qu'il reste des défenseurs : victoire défenseur
+ * Options facultatives :
+ *  - wallLevel       : niveau du mur du défenseur (0 = pas de mur)
+ *  - attackerPoints  : points du joueur attaquant (pour la morale)
+ *  - defenderPoints  : points du joueur défenseur (pour la morale)
  */
 export function resolveBattle(
   attackers: UnitGroup[],
   defenders: UnitGroup[],
+  options?: {
+    wallLevel?:      number;
+    attackerPoints?: number;
+    defenderPoints?: number;
+  },
 ): CombatResult {
-  const atkPower = attackers.reduce((s, u) => s + u.count * u.attack,  0);
-  const defPower = defenders.reduce((s, u) => s + u.count * u.defense, 0);
+  const wallBonus = calculateWallBonus(options?.wallLevel ?? 0);
+  const morale    = calculateMorale(
+    options?.attackerPoints ?? 1,
+    options?.defenderPoints ?? 1,
+  );
 
-  // Village vide → victoire sans pertes
+  const atkPower = attackers.reduce((s, u) => s + u.count * u.attack, 0) * morale;
+  const defPower = defenders.reduce((s, u) => s + u.count * u.defense, 0) * wallBonus;
+
+  // Village sans défenseurs → victoire sans pertes
   if (defPower === 0) {
     const loot = attackers.reduce((s, u) => s + u.count * u.carryCapacity, 0);
     return {
@@ -36,88 +70,39 @@ export function resolveBattle(
       attackerLosses: Object.fromEntries(attackers.map(u => [u.unitType, 0])),
       defenderLosses: Object.fromEntries(defenders.map(u => [u.unitType, u.count])),
       lootCapacity:   loot,
+      morale,
+      wallBonus,
     };
   }
 
-  const totalPower = atkPower + defPower;
-  const atkRatio   = atkPower / totalPower;
+  const totalPower  = atkPower + defPower;
+  const atkRatio    = atkPower / totalPower;
+  const attackerWon = atkRatio > 0.5;
 
-  // Taux de pertes basés sur le ratio
-  const atkLossRateIfWin  = 1 - Math.pow(atkRatio, 1 / 3);
-  const atkLossRateIfLose = 1 - Math.pow(1 - atkRatio, 1 / 3);
-  const defLossRateIfWin  = Math.pow(atkRatio, 1 / 3);
-  const defLossRateIfLose = Math.pow(1 - atkRatio, 1 / 3);
+  const atkLossRate = attackerWon
+    ? 1 - Math.pow(atkRatio, 1 / 3)
+    : 1 - Math.pow(1 - atkRatio, 1 / 3);
 
-  // Calculer les pertes des attaquants selon les deux scénarios
-  const calcLosses = (units: UnitGroup[], lossRate: number) => {
-    const losses: Record<string, number> = {};
-    let survivors = 0;
-    for (const u of units) {
-      const lost     = Math.min(Math.ceil(u.count * lossRate), u.count);
-      const survived = u.count - lost;
-      losses[u.unitType] = lost;
-      survivors += survived;
-    }
-    return { losses, survivors };
-  };
+  const defLossRate = attackerWon
+    ? Math.pow(atkRatio, 1 / 3)
+    : Math.pow(1 - atkRatio, 1 / 3);
 
-  // Simuler victoire attaquant
-  const atkWinScenario = calcLosses(attackers, atkLossRateIfWin);
-  const defLoseScenario = calcLosses(defenders, defLossRateIfWin);
-
-  // Simuler victoire défenseur
-  const atkLoseScenario = calcLosses(attackers, atkLossRateIfLose);
-  const defWinScenario  = calcLosses(defenders, defLossRateIfLose);
-
-  // Déterminer le vrai résultat basé sur les survivants réels
-  // → L'attaquant gagne si au moins 1 survivant ET tous défenseurs morts
-  // → Le défenseur gagne si au moins 1 défenseur survit OU tous attaquants morts
-  let attackerWon: boolean;
-  let attackerLosses: Record<string, number>;
-  let defenderLosses: Record<string, number>;
+  const attackerLosses: Record<string, number> = {};
   let survivingCarry = 0;
 
-  if (atkRatio >= 0.5) {
-    // Scénario initial : attaquant devrait gagner
-    attackerLosses = atkWinScenario.losses;
-    defenderLosses = defLoseScenario.losses;
-
-    const atkSurvivors = atkWinScenario.survivors;
-    const defSurvivors = defLoseScenario.survivors;
-
-    // Vrai résultat : si le défenseur a des survivants, il résiste
-    if (defSurvivors > 0 && atkSurvivors === 0) {
-      attackerWon = false;
-    } else if (atkSurvivors > 0 && defSurvivors === 0) {
-      attackerWon = true;
-    } else {
-      attackerWon = atkSurvivors > 0; // Attaquant gagne s'il a des survivants
-    }
-  } else {
-    // Scénario initial : défenseur devrait gagner
-    attackerLosses = atkLoseScenario.losses;
-    defenderLosses = defWinScenario.losses;
-
-    const atkSurvivors = atkLoseScenario.survivors;
-    const defSurvivors = defWinScenario.survivors;
-
-    // Vrai résultat : si tous défenseurs sont morts malgré le ratio, attaquant gagne
-    if (defSurvivors === 0 && atkSurvivors > 0) {
-      attackerWon = true;
-    } else if (atkSurvivors === 0) {
-      attackerWon = false;
-    } else {
-      attackerWon = false; // Défenseur gagne si ratio en sa faveur et survivants
-    }
+  for (const u of attackers) {
+    const lost     = Math.ceil(u.count * atkLossRate);
+    const survived = Math.max(0, u.count - lost);
+    attackerLosses[u.unitType] = Math.min(lost, u.count);
+    survivingCarry += survived * u.carryCapacity;
   }
 
-  // Capacité de transport des survivants attaquants
-  if (attackerWon) {
-    for (const u of attackers) {
-      const lost     = attackerLosses[u.unitType] ?? 0;
-      const survived = u.count - lost;
-      survivingCarry += survived * u.carryCapacity;
-    }
+  const defenderLosses: Record<string, number> = {};
+  for (const u of defenders) {
+    const lost = attackerWon
+      ? u.count
+      : Math.ceil(u.count * defLossRate);
+    defenderLosses[u.unitType] = Math.min(lost, u.count);
   }
 
   return {
@@ -125,6 +110,8 @@ export function resolveBattle(
     attackerLosses,
     defenderLosses,
     lootCapacity: attackerWon ? survivingCarry : 0,
+    morale,
+    wallBonus,
   };
 }
 
@@ -132,58 +119,25 @@ export function resolveBattle(
 // CALCUL DU PILLAGE
 // ─────────────────────────────────────────────
 
-export type VillageResources = {
-  wood:  number;
-  stone: number;
-  iron:  number;
-};
+export type VillageResources = { wood: number; stone: number; iron: number };
 
-/**
- * Calcule les ressources pillées selon la capacité de transport.
- * Répartition proportionnelle avec redistribution des arrondis
- * pour utiliser exactement la capacité disponible.
- */
 export function calculateLoot(
   available: VillageResources,
   capacity:  number,
 ): VillageResources {
   const total = available.wood + available.stone + available.iron;
-
-  if (total <= 0 || capacity <= 0) {
-    return { wood: 0, stone: 0, iron: 0 };
-  }
-
-  if (capacity >= total) {
-    return {
-      wood:  Math.floor(available.wood),
-      stone: Math.floor(available.stone),
-      iron:  Math.floor(available.iron),
-    };
-  }
-
+  if (total <= 0 || capacity <= 0) return { wood: 0, stone: 0, iron: 0 };
+  if (capacity >= total) return {
+    wood:  Math.floor(available.wood),
+    stone: Math.floor(available.stone),
+    iron:  Math.floor(available.iron),
+  };
   const ratio = capacity / total;
-  let wood  = Math.floor(available.wood  * ratio);
-  let stone = Math.floor(available.stone * ratio);
-  let iron  = Math.floor(available.iron  * ratio);
-
-  // Redistribuer les unités perdues aux arrondis
-  let remainder = capacity - (wood + stone + iron);
-  const slots = [
-    { key: 'wood',  avail: Math.floor(available.wood)  - wood  },
-    { key: 'stone', avail: Math.floor(available.stone) - stone },
-    { key: 'iron',  avail: Math.floor(available.iron)  - iron  },
-  ].sort((a, b) => b.avail - a.avail);
-
-  for (const slot of slots) {
-    if (remainder <= 0) break;
-    const add = Math.min(remainder, slot.avail);
-    if (slot.key === 'wood')  wood  += add;
-    if (slot.key === 'stone') stone += add;
-    if (slot.key === 'iron')  iron  += add;
-    remainder -= add;
-  }
-
-  return { wood, stone, iron };
+  return {
+    wood:  Math.floor(available.wood  * ratio),
+    stone: Math.floor(available.stone * ratio),
+    iron:  Math.floor(available.iron  * ratio),
+  };
 }
 
 // ─────────────────────────────────────────────
@@ -201,7 +155,7 @@ export function calculateTravelTime(
 }
 
 // ─────────────────────────────────────────────
-// CALCUL DES POINTS PERDUS/GAGNÉS
+// CALCUL DES POINTS
 // ─────────────────────────────────────────────
 
 export function calculatePointsExchanged(
