@@ -1,20 +1,23 @@
-# Flutter build artifacts
-packages/mobile/.dart_tool/
-packages/mobile/build/
-packages/mobile/.flutter-plugins
-packages/mobile/.flutter-plugins-dependencies
-packages/mobile/.packages
+# Flutter/Dart global
+bin/
+build/
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+*.dill
+*.pdf
+*.log
 
-# Server build
-packages/server/dist/
+# Symboles de debug (très lourds)
+**/*.pdb
+**/*.exe
 
-# Node
-node_modules/
-packages/server/node_modules/
+# Android spécifique
+**/android/**/generated/
+**/android/.gradle/
+**/android/local.properties
 
-# Env
-.env
-packages/server/.env
-
-# OS
-.DS_Store
+# iOS spécifique
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh

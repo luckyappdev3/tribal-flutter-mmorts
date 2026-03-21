@@ -65,8 +65,10 @@ export function initAttackWorker(fastify: FastifyInstance) {
         }),
         fastify.prisma.village.findUnique({
           where:   { id: defenderVillageId },
-          // ← wallLevel inclus pour le bonus de mur
-          include: { troops: true },
+          include: {
+            troops:    true,
+            buildings: true, // ← pour lire le niveau du mur depuis BuildingInstance
+          },
         }),
       ]);
 
@@ -136,7 +138,10 @@ export function initAttackWorker(fastify: FastifyInstance) {
       ]);
 
       // ── Résolution du combat (mur + morale) ─────────────────
-      const wallLevel = (defenderVillage as any).wallLevel ?? 0;
+      // Lire le niveau du mur depuis BuildingInstance (pas la colonne wallLevel)
+      const wallLevel = ((defenderVillage as any).buildings ?? [])
+        .find((b: any) => b.buildingId === 'wall')?.level ?? 0;
+
       const result = resolveBattle(attackerGroups, defGroups, {
         wallLevel,
         attackerPoints: atkPlayer?.totalPoints ?? 1,

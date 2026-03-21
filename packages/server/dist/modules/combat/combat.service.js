@@ -1,0 +1,139 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CombatService = void 0;
+const shared_1 = require("@mmorts/shared");
+class CombatService {
+    prisma;
+    gameData;
+    attackQueue;
+    constructor(prisma, gameData, attackQueue) {
+        this.prisma = prisma;
+        this.gameData = gameData;
+        this.attackQueue = attackQueue;
+    }
+    async sendAttack(attackerVillageId, defenderVillageId, units) {
+        if (attackerVillageId === defenderVillageId) {
+            throw new Error('Vous ne pouvez pas attaquer votre propre village.');
+        }
+        const [attacker, defender] = await Promise.all([
+            this.prisma.village.findUnique({
+                where: { id: attackerVillageId },
+                include: { troops: true },
+            }),
+            this.prisma.village.findUnique({
+                where: { id: defenderVillageId },
+                select: { id: true, x: true, y: true, name: true },
+            }),
+        ]);
+        if (!attacker)
+            throw new Error('Village attaquant introuvable.');
+        if (!defender)
+            throw new Error('Village cible introuvable.');
+        const troopMap = Object.fromEntries(attacker.troops.map(t => [t.unitType, t.count]));
+        await this.prisma.$transaction(async (tx) => {
+            for (const [unitType, count] of Object.entries(units)) {
+                if (count <= 0)
+                    continue;
+                const available = troopMap[unitType] ?? 0;
+                if (available < count) {
+                    throw new Error(`Pas assez de ${unitType} (${available} dispo, ${count} demandés).`);
+                }
+                await tx.troop.update({
+                    where: { villageId_unitType: { villageId: attackerVillageId, unitType } },
+                    data: { count: { decrement: count } },
+                });
+            }
+        });
+        const unitList = Object.entries(units)
+            .filter(([, c]) => c > 0)
+            .map(([unitType]) => {
+            const def = this.gameData.getUnitDef(unitType);
+            return { unitType, count: units[unitType], speed: def.speed };
+        });
+        const travelSec = (0, shared_1.calculateTravelTime)(attacker.x, attacker.y, defender.x, defender.y, unitList);
+        const travelMs = travelSec * 1000;
+        const arrivesAt = new Date(Date.now() + travelMs);
+        const activeAttack = await this.prisma.activeAttack.create({
+            data: {
+                attackerVillageId,
+                defenderVillageId,
+                units,
+                arrivesAt,
+                status: 'traveling',
+            },
+        });
+        await this.attackQueue.addJob({ attackerVillageId, defenderVillageId, units, activeAttackId: activeAttack.id, travelMs }, travelMs);
+        return {
+            activeAttackId: activeAttack.id,
+            attackerVillageId,
+            defenderVillageId,
+            defenderName: defender.name,
+            units,
+            travelSec,
+            arrivesAt,
+        };
+    }
+    async getReports(villageId) {
+        const reports = await this.prisma.attackReport.findMany({
+            where: {
+                OR: [
+                    { attackerVillageId: villageId },
+                    { defenderVillageId: villageId },
+                ],
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 100,
+            include: {
+                attackerVillage: {
+                    select: {
+                        id: true,
+                        name: true,
+                        x: true,
+                        y: true,
+                        player: { select: { id: true, username: true } },
+                        isAbandoned: true,
+                    },
+                },
+                defenderVillage: {
+                    select: {
+                        id: true,
+                        name: true,
+                        x: true,
+                        y: true,
+                        player: { select: { id: true, username: true } },
+                        isAbandoned: true,
+                        abandonedLevel: true,
+                    },
+                },
+            },
+        });
+        return reports;
+    }
+    async getMovements(villageId) {
+        const movements = await this.prisma.activeAttack.findMany({
+            where: {
+                OR: [
+                    { attackerVillageId: villageId },
+                    { defenderVillageId: villageId },
+                ],
+            },
+            include: {
+                attackerVillage: { select: { id: true, name: true, x: true, y: true } },
+                defenderVillage: { select: { id: true, name: true, x: true, y: true } },
+            },
+            orderBy: { arrivesAt: 'asc' },
+        });
+        return movements.map(m => ({
+            id: m.id,
+            status: m.status,
+            direction: m.attackerVillageId === villageId ? 'outgoing' : 'incoming',
+            units: m.units,
+            survivors: m.survivors,
+            departsAt: m.departsAt,
+            arrivesAt: m.arrivesAt,
+            attackerVillage: m.attackerVillage,
+            defenderVillage: m.defenderVillage,
+        }));
+    }
+}
+exports.CombatService = CombatService;
