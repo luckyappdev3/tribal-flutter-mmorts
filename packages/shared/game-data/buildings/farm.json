@@ -1,13 +1,13 @@
 {
   "id": "farm",
   "name": "Ferme",
-  "description": "Nourrit votre population et détermine le nombre maximum de troupes que vous pouvez entretenir. Population max = 240 × 1.17^(niveau-1).",
+  "description": "Détermine votre population maximale. Niv.1 = 240 pop, Niv.30 = 24 000 pop.",
   "maxLevel": 30,
   "baseStats": {
-    "baseCost": { "wood": 45, "stone": 40, "iron": 0, "food": 0 },
-    "baseBuildTime": 12,
-    "costMultiplier": 1.26,
-    "timeMultiplier": 1.17,
+    "baseCost": { "wood": 45, "stone": 40, "iron": 30, "food": 0 },
+    "baseBuildTime": 1000,
+    "costMultiplier": 1.32,
+    "timeMultiplier": 1.2,
     "specialMultiplier": 0
   }
 }

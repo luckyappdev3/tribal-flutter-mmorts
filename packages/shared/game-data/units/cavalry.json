@@ -1,11 +1,13 @@
 {
   "id": "cavalry",
   "name": "Cavalier",
-  "description": "Unité rapide avec une grande capacité de transport. Parfait pour les raids éclair.",
+  "description": "Unité rapide avec une grande capacité de transport. Requiert les Écuries.",
   "cost": { "wood": 125, "stone": 100, "iron": 250 },
   "attack": 130,
   "defense": 40,
   "speed": 10,
   "carryCapacity": 100,
-  "recruitTime": 60
+  "recruitTime": 60,
+  "populationCost": 4,
+  "requiredBuilding": "stable"
 }

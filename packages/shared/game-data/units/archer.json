@@ -1,11 +1,13 @@
 {
   "id": "archer",
   "name": "Archer",
-  "description": "Unité d'attaque à distance. Fragile mais efficace en nombre.",
-  "cost": { "wood": 100, "stone": 30, "iron": 60 },
-  "attack": 45,
-  "defense": 20,
-  "speed": 18,
+  "description": "Attaque à distance équilibrée. Fragile mais polyvalent.",
+  "cost": { "wood": 100, "stone": 30, "iron": 0 },
+  "attack": 15,
+  "defense": 50,
+  "speed": 2,
   "carryCapacity": 10,
-  "recruitTime": 36
+  "recruitTime": 36,
+  "populationCost": 1,
+  "requiredBuilding": null
 }

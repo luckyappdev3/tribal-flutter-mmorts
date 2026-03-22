@@ -21,7 +21,7 @@ model GameWorld {
   id          String    @id @default(uuid())
   name        String    @unique
   description String    @default("")
-  gameSpeed   Float     @default(1.0)
+  gameSpeed   Float     @default(2000.0)
   mapSize     Int       @default(100)
   maxPlayers  Int       @default(500)
   isOpen      Boolean   @default(true)

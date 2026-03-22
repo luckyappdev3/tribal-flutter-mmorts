@@ -1,17 +1,12 @@
 {
   "id": "headquarters",
   "name": "Quartier Général",
-  "description": "Le cœur de votre village. Plus son niveau est élevé, plus les autres bâtiments se construisent vite.",
+  "description": "Le cœur de votre village. Chaque niveau réduit le temps de construction des autres bâtiments de 5%.",
   "maxLevel": 30,
   "baseStats": {
-    "baseCost": {
-      "wood": 200,
-      "stone": 170,
-      "iron": 90,
-      "food": 0
-    },
-    "baseBuildTime": 10,
-    "costMultiplier": 1.5,
+    "baseCost": { "wood": 90, "stone": 80, "iron": 70, "food": 0 },
+    "baseBuildTime": 900,
+    "costMultiplier": 1.26,
     "timeMultiplier": 1.2,
     "specialMultiplier": 0.05
   }

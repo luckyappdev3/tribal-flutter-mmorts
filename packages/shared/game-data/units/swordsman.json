@@ -1,11 +1,13 @@
 {
   "id": "swordsman",
   "name": "Épéiste",
-  "description": "Unité polyvalente avec une bonne défense. La colonne vertébrale de toute armée.",
+  "description": "Unité polyvalente avec bonne défense.",
   "cost": { "wood": 30, "stone": 30, "iron": 70 },
   "attack": 25,
   "defense": 50,
-  "speed": 22,
+  "speed": 1,
   "carryCapacity": 15,
-  "recruitTime": 26
+  "recruitTime": 20,
+  "populationCost": 1,
+  "requiredBuilding": null
 }

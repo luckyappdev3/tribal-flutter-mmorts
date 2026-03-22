@@ -5,7 +5,6 @@ import { AttackJobData } from '../engine/queue/queues/attack.queue';
 import {
   resolveBattle,
   calculateLoot,
-  calculatePointsExchanged,
   UnitGroup,
 } from '@mmorts/shared';
 
@@ -136,7 +135,6 @@ export function initAttackWorker(fastify: FastifyInstance) {
           select: { totalPoints: true },
         }),
       ]);
-
       // ── Résolution du combat (mur + morale) ─────────────────
       // Lire le niveau du mur depuis BuildingInstance (pas la colonne wallLevel)
       const wallLevel = ((defenderVillage as any).buildings ?? [])
@@ -155,9 +153,9 @@ export function initAttackWorker(fastify: FastifyInstance) {
           )
         : { wood: 0, stone: 0, iron: 0 };
 
-      const pointsExchanged = isAbandonedTarget
-        ? 0
-        : calculatePointsExchanged(result.defenderLosses, defGroups);
+      // ── Calcul des unités tuées (pour les stats) ─────────────
+      const killedByAttacker = Object.values(result.defenderLosses).reduce((s, v) => s + v, 0);
+      const killedByDefender = Object.values(result.attackerLosses).reduce((s, v) => s + v, 0);
 
       const survivors: Record<string, number> = {};
       for (const [unitType, count] of Object.entries(units)) {
@@ -194,24 +192,20 @@ export function initAttackWorker(fastify: FastifyInstance) {
           });
         }
 
-        // Points généraux + points attaque/défense séparés
-        if (!isAbandonedTarget && pointsExchanged > 0) {
-          await tx.player.updateMany({
-            where: { villages: { some: { id: defenderVillageId } } },
-            data:  { totalPoints: { decrement: pointsExchanged } },
-          });
-          await tx.player.updateMany({
-            where: { villages: { some: { id: attackerVillageId } } },
-            data:  {
-              totalPoints:   { increment: pointsExchanged },
-              attackPoints:  { increment: pointsExchanged }, // ← NOUVEAU
-            },
-          });
-          // Points de défense pour le perdant (même en perdant on gagne des pts défense)
-          if (!result.attackerWon) {
+        // ── Statistiques de combat (sans toucher aux totalPoints) ──
+        // totalPoints = basé sur bâtiments (mis à jour par build.worker)
+        // attackPoints / defensePoints = stats de combat pures
+        if (!isAbandonedTarget) {
+          if (killedByAttacker > 0) {
+            await tx.player.updateMany({
+              where: { villages: { some: { id: attackerVillageId } } },
+              data:  { attackPoints: { increment: killedByAttacker } },
+            });
+          }
+          if (killedByDefender > 0) {
             await tx.player.updateMany({
               where: { villages: { some: { id: defenderVillageId } } },
-              data:  { defensePoints: { increment: pointsExchanged } }, // ← NOUVEAU
+              data:  { defensePoints: { increment: killedByDefender } },
             });
           }
         }
@@ -228,10 +222,10 @@ export function initAttackWorker(fastify: FastifyInstance) {
               defGroups.map(u => [u.unitType, Math.max(0, u.count - (result.defenderLosses[u.unitType] ?? 0))])
             ),
             resourcesLooted:  loot,
-            morale:           result.morale,      // ← NOUVEAU
-            wallBonus:        result.wallBonus,   // ← NOUVEAU
-            pointsLost:       pointsExchanged,
-            pointsGained:     isAbandonedTarget ? 1 : pointsExchanged,
+            morale:           result.morale,
+            wallBonus:        result.wallBonus,
+            pointsLost:       0,   // plus d'échange de points au combat
+            pointsGained:     0,   // les points viennent des bâtiments
             attackerWon:      result.attackerWon,
           },
         });
@@ -265,7 +259,6 @@ export function initAttackWorker(fastify: FastifyInstance) {
         attackerLosses:   result.attackerLosses,
         survivors,
         resourcesLooted:  loot,
-        pointsGained:     isAbandonedTarget ? 1 : pointsExchanged,
         morale:           result.morale,
         wallBonus:        result.wallBonus,
         isAbandonedTarget,
@@ -276,7 +269,6 @@ export function initAttackWorker(fastify: FastifyInstance) {
           attackerWon:     result.attackerWon,
           defenderLosses:  result.defenderLosses,
           resourcesLooted: loot,
-          pointsLost:      pointsExchanged,
           wallBonus:       result.wallBonus,
           attackerVillageId,
         });

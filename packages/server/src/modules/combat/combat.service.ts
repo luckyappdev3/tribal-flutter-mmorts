@@ -64,10 +64,21 @@ export class CombatService {
         return { unitType, count: units[unitType], speed: def.speed };
       });
 
+    // Vitesse de l'unité la plus lente (secondes/case)
+    const slowestSpeed = Math.max(...unitList.map(u => u.speed));
+
+    // GameSpeed du monde
+    const villageWithWorld = await this.prisma.village.findUnique({
+      where: { id: attackerVillageId },
+      include: { world: { select: { gameSpeed: true } } },
+    });
+    const gameSpeed = (villageWithWorld as any)?.world?.gameSpeed ?? 1.0;
+
     const travelSec = calculateTravelTime(
       attacker.x, attacker.y,
       defender.x, defender.y,
-      unitList,
+      slowestSpeed,
+      gameSpeed,
     );
     const travelMs  = travelSec * 1000;
     const arrivesAt = new Date(Date.now() + travelMs);

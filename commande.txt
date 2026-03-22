@@ -10,6 +10,8 @@ rm -rf dist && pnpm build && pnpm dev
 cd /Users/yildirim/tribal-flutterV4/mmorts/packages/server
 npx prisma studio
 
+cd /Users/yildirim/tribal-flutterV4/mmorts/packages/shared && rm -rf dist && pnpm build
+cd /Users/yildirim/tribal-flutterV4/mmorts/packages/server && pnpm build && pnpm dev
 
 FLUTTER
 

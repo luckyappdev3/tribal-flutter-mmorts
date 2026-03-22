@@ -1,11 +1,11 @@
 {
   "id": "rally_point",
   "name": "Place d'armes",
-  "description": "Centre de commandement militaire. Requis pour envoyer des attaques. Affiche tous les mouvements de troupes en cours.",
+  "description": "Requis pour envoyer des attaques. Centre de commandement militaire.",
   "maxLevel": 1,
   "baseStats": {
     "baseCost": { "wood": 10, "stone": 40, "iron": 0, "food": 0 },
-    "baseBuildTime": 5,
+    "baseBuildTime": 300,
     "costMultiplier": 1.0,
     "timeMultiplier": 1.0,
     "specialMultiplier": 0

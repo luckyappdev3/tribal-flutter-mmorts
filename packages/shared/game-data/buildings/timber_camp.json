@@ -1,18 +1,13 @@
 {
   "id": "timber_camp",
   "name": "Camp de Bois",
-  "description": "Récolte le bois dans les forêts environnantes. Plus son niveau est élevé, plus la production augmente.",
+  "description": "Récolte le bois dans les forêts. Production : 30/h au niveau 1 jusqu'à ~2000/h au niveau 30.",
   "maxLevel": 30,
   "baseStats": {
-    "baseCost": {
-      "wood": 50,
-      "stone": 60,
-      "iron": 40,
-      "food": 0
-    },
-    "baseBuildTime": 10,
+    "baseCost": { "wood": 50, "stone": 60, "iron": 40, "food": 0 },
+    "baseBuildTime": 900,
     "costMultiplier": 1.2,
-    "timeMultiplier": 1.1,
-    "productionBase": 36000
+    "timeMultiplier": 1.2,
+    "productionBase": 30
   }
 }
