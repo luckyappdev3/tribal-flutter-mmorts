@@ -1,0 +1,16 @@
+GITHUB 
+
+git add . && git commit -m "12h30 22 mars, cavalerie cadenas ne fonctionne pas" && git push
+
+SERVEUR 
+
+cd /Users/yildirim/tribal-flutterV4/mmorts/packages/server
+rm -rf dist && pnpm build && pnpm dev
+
+cd /Users/yildirim/tribal-flutterV4/mmorts/packages/server
+npx prisma studio
+
+
+FLUTTER
+
+flutter run -d macos
