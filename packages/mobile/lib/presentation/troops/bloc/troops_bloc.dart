@@ -18,15 +18,22 @@ class TroopsBloc extends Bloc<TroopsEvent, TroopsState> {
     _socketService.instance.on('troops:ready', (data) {
       add(TroopsEvent.recruitFinished(data is Map<String, dynamic> ? data : {}));
     });
+
+    // ← 4 params : vid, troops, queue, population
     _socketService.instance.on('troops:returned', (_) {
-      final villageId = state.maybeWhen(loaded: (vid, _, __) => vid, orElse: () => null);
+      final villageId = state.maybeWhen(
+        loaded: (vid, _, __, ___) => vid,
+        orElse: () => null,
+      );
       if (villageId != null) add(TroopsEvent.loadRequested(villageId));
     });
 
-    // Auto-refresh quand l'onglet Troupes devient actif
     _tabSub = TabRefreshService.instance.stream.listen((index) {
       if (index == TabIndex.troops) {
-        final villageId = state.maybeWhen(loaded: (vid, _, __) => vid, orElse: () => null);
+        final villageId = state.maybeWhen(
+          loaded: (vid, _, __, ___) => vid,
+          orElse: () => null,
+        );
         if (villageId != null) add(TroopsEvent.loadRequested(villageId));
       }
     });
@@ -34,31 +41,53 @@ class TroopsBloc extends Bloc<TroopsEvent, TroopsState> {
 
   Future<void> _onEvent(TroopsEvent event, Emitter<TroopsState> emit) async {
     await event.when(
+
       loadRequested: (villageId) async {
         emit(const TroopsState.loading());
         try {
           final dto = await _troopsApi.getTroops(villageId);
-          emit(TroopsState.loaded(villageId: villageId, troops: dto.troops, queue: dto.queue));
+          emit(TroopsState.loaded(
+            villageId:  villageId,
+            troops:     dto.troops,
+            queue:      dto.queue,
+            population: dto.population,
+          ));
         } catch (e) {
           emit(TroopsState.error('Chargement impossible : $e'));
         }
       },
 
       recruitRequested: (unitType, count) async {
-        final villageId = state.maybeWhen(loaded: (vid, _, __) => vid, orElse: () => null);
-        final queue     = state.maybeWhen(loaded: (_, __, q) => q, orElse: () => null);
+        final villageId = state.maybeWhen(
+          loaded: (vid, _, __, ___) => vid,
+          orElse: () => null,
+        );
+        final queue = state.maybeWhen(
+          loaded: (_, __, q, ___) => q,
+          orElse: () => null,
+        );
         if (villageId == null || queue != null) return;
 
         emit(const TroopsState.recruiting());
         try {
           await _troopsApi.recruit(villageId, unitType, count);
           final dto = await _troopsApi.getTroops(villageId);
-          emit(TroopsState.loaded(villageId: villageId, troops: dto.troops, queue: dto.queue));
+          emit(TroopsState.loaded(
+            villageId:  villageId,
+            troops:     dto.troops,
+            queue:      dto.queue,
+            population: dto.population,
+          ));
         } catch (e) {
           if (villageId.isNotEmpty) {
             try {
               final dto = await _troopsApi.getTroops(villageId);
-              emit(TroopsState.loaded(villageId: villageId, troops: dto.troops, queue: dto.queue));
+              emit(TroopsState.loaded(
+                villageId:  villageId,
+                troops:     dto.troops,
+                queue:      dto.queue,
+                population: dto.population,
+              ));
             } catch (_) {}
           }
           emit(TroopsState.error('$e'));
@@ -66,10 +95,18 @@ class TroopsBloc extends Bloc<TroopsEvent, TroopsState> {
       },
 
       recruitFinished: (data) async {
-        final villageId = state.maybeWhen(loaded: (vid, _, __) => vid, orElse: () => null);
+        final villageId = state.maybeWhen(
+          loaded: (vid, _, __, ___) => vid,
+          orElse: () => null,
+        );
         if (villageId == null) return;
         final dto = await _troopsApi.getTroops(villageId);
-        emit(TroopsState.loaded(villageId: villageId, troops: dto.troops, queue: null));
+        emit(TroopsState.loaded(
+          villageId:  villageId,
+          troops:     dto.troops,
+          queue:      dto.queue,
+          population: dto.population,
+        ));
       },
     );
   }

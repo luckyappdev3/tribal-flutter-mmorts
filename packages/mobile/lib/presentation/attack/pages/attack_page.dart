@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../core/di/injection.dart';
 import '../../../data/remote/api/troops_api.dart';
@@ -86,9 +87,25 @@ class _AttackPageState extends State<AttackPage> {
       }
     } catch (e) {
       setState(() => _sending = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur : $e'), backgroundColor: Colors.red),
-      );
+      // Extraire le message lisible quelle que soit l'exception
+      String msg = 'Erreur inconnue';
+      if (e is DioException) {
+        msg = (e.response?.data?['error']  as String?)
+           ?? (e.response?.data?['message'] as String?)
+           ?? e.message
+           ?? 'Erreur inconnue';
+      } else {
+        msg = '$e';
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: Colors.red[900],
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
     }
   }
 

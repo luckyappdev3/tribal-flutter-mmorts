@@ -11,3 +11,7 @@ export const ProductionFormulas = {
   },
   calculateGain: calcResourceProduction,
 };
+export function calcMaxPopulation(farmLevel: number): number {
+  if (farmLevel <= 0) return 0;
+  return Math.floor(240 * Math.pow(1.17, farmLevel - 1));
+}

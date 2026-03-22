@@ -7,15 +7,17 @@ export const UnitCostSchema = z.object({
 });
 
 export const UnitDefinitionSchema = z.object({
-  id:           z.string(),           // ex: 'spearman'
-  name:         z.string(),           // ex: 'Lancier'
+  id:           z.string(),
+  name:         z.string(),
   description:  z.string(),
-  cost:         UnitCostSchema,       // Coût de recrutement
-  attack:       z.number().min(0),    // Points d'attaque
-  defense:      z.number().min(0),    // Points de défense
-  speed:        z.number().min(1),    // Secondes par case (plus petit = plus rapide)
-  carryCapacity: z.number().min(0),   // Ressources transportables par unité
-  recruitTime:  z.number().min(1),    // Secondes pour recruter 1 unité
+  cost:         UnitCostSchema,
+  attack:       z.number().min(0),
+  defense:      z.number().min(0),
+  speed:        z.number().min(1),
+  carryCapacity: z.number().min(0),
+  recruitTime:  z.number().min(1),
+  populationCost:    z.number().min(0).default(1),       // ← NOUVEAU
+  requiredBuilding:  z.string().nullable().default(null), // ← NOUVEAU (ex: 'stable')
 });
 
 export type UnitDefinition = z.infer<typeof UnitDefinitionSchema>;

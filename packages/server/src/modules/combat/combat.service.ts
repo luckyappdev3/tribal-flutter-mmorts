@@ -33,6 +33,14 @@ export class CombatService {
     if (!attacker) throw new Error('Village attaquant introuvable.');
     if (!defender) throw new Error('Village cible introuvable.');
 
+    // ── NOUVEAU : vérifier la Place d'armes ──
+    const rallyPoint = await this.prisma.buildingInstance.findUnique({
+      where: { villageId_buildingId: { villageId: attackerVillageId, buildingId: 'rally_point' } },
+    });
+    if (!rallyPoint || rallyPoint.level < 1) {
+      throw new Error('Vous devez construire une Place d\'armes pour envoyer des attaques.');
+    }
+
     const troopMap = Object.fromEntries(attacker.troops.map(t => [t.unitType, t.count]));
 
     await this.prisma.$transaction(async (tx) => {

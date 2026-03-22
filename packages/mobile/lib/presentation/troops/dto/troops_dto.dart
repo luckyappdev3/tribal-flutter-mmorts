@@ -22,6 +22,9 @@ class TroopDto {
   final int carryCapacity;
   final int recruitTime;
   final UnitCostDto cost;
+  final int     populationCost;   // ← NOUVEAU
+  final bool    prerequisiteMet;  // ← NOUVEAU
+  final String? prerequisiteMsg;  // ← NOUVEAU
 
   static const Map<String, String> descriptions = {
     'spearman':  'Défense solide, efficace contre la cavalerie',
@@ -68,18 +71,24 @@ class TroopDto {
     required this.carryCapacity,
     required this.recruitTime,
     required this.cost,
+    this.populationCost  = 1,
+    this.prerequisiteMet = true,
+    this.prerequisiteMsg,
   });
 
   factory TroopDto.fromJson(Map<String, dynamic> json) => TroopDto(
-        unitType:      json['unitType']      as String,
-        name:          json['name']          as String,
-        count:         json['count']         as int,
-        attack:        json['attack']        as int,
-        defense:       json['defense']       as int,
-        speed:         json['speed']         as int,
-        carryCapacity: json['carryCapacity'] as int,
-        recruitTime:   json['recruitTime']   as int,
-        cost: UnitCostDto.fromJson(json['cost'] as Map<String, dynamic>),
+        unitType:        json['unitType']        as String,
+        name:            json['name']            as String,
+        count:           json['count']           as int,
+        attack:          json['attack']          as int,
+        defense:         json['defense']         as int,
+        speed:           json['speed']           as int,
+        carryCapacity:   json['carryCapacity']   as int,
+        recruitTime:     json['recruitTime']     as int,
+        cost:            UnitCostDto.fromJson(json['cost'] as Map<String, dynamic>),
+        populationCost:  (json['populationCost'] as num?)?.toInt()  ?? 1,
+        prerequisiteMet: (json['prerequisiteMet'] as bool?) ?? true,
+        prerequisiteMsg: json['prerequisiteMsg']  as String?,
       );
 }
 
@@ -97,11 +106,30 @@ class RecruitQueueDto {
       );
 }
 
+// ── NOUVEAU : Population (Ferme) ─────────────────────────────
+class PopulationDto {
+  final int used;
+  final int max;
+  final int farmLevel;
+
+  const PopulationDto({required this.used, required this.max, required this.farmLevel});
+
+  double get ratio => max > 0 ? (used / max).clamp(0.0, 1.0) : 0.0;
+  bool get isFull  => used >= max;
+
+  factory PopulationDto.fromJson(Map<String, dynamic> json) => PopulationDto(
+        used:      (json['used']      as num).toInt(),
+        max:       (json['max']       as num).toInt(),
+        farmLevel: (json['farmLevel'] as num).toInt(),
+      );
+}
+
 class TroopsResponseDto {
   final List<TroopDto> troops;
   final RecruitQueueDto? queue;
+  final PopulationDto?   population; // ← NOUVEAU
 
-  const TroopsResponseDto({required this.troops, this.queue});
+  const TroopsResponseDto({required this.troops, this.queue, this.population});
 
   factory TroopsResponseDto.fromJson(Map<String, dynamic> json) {
     final rawTroops = json['troops'] as List<dynamic>? ?? [];
@@ -109,6 +137,9 @@ class TroopsResponseDto {
       troops: rawTroops.map((t) => TroopDto.fromJson(t as Map<String, dynamic>)).toList(),
       queue:  json['queue'] != null
           ? RecruitQueueDto.fromJson(json['queue'] as Map<String, dynamic>)
+          : null,
+      population: json['population'] != null
+          ? PopulationDto.fromJson(json['population'] as Map<String, dynamic>)
           : null,
     );
   }

@@ -20,8 +20,8 @@ mixin _$TroopsState {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(
-            String villageId, List<TroopDto> troops, RecruitQueueDto? queue)
+    required TResult Function(String villageId, List<TroopDto> troops,
+            RecruitQueueDto? queue, PopulationDto? population)
         loaded,
     required TResult Function() recruiting,
     required TResult Function(String message) error,
@@ -31,8 +31,8 @@ mixin _$TroopsState {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(
-            String villageId, List<TroopDto> troops, RecruitQueueDto? queue)?
+    TResult? Function(String villageId, List<TroopDto> troops,
+            RecruitQueueDto? queue, PopulationDto? population)?
         loaded,
     TResult? Function()? recruiting,
     TResult? Function(String message)? error,
@@ -42,8 +42,8 @@ mixin _$TroopsState {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(
-            String villageId, List<TroopDto> troops, RecruitQueueDto? queue)?
+    TResult Function(String villageId, List<TroopDto> troops,
+            RecruitQueueDto? queue, PopulationDto? population)?
         loaded,
     TResult Function()? recruiting,
     TResult Function(String message)? error,
@@ -144,8 +144,8 @@ class _$InitialImpl implements _Initial {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(
-            String villageId, List<TroopDto> troops, RecruitQueueDto? queue)
+    required TResult Function(String villageId, List<TroopDto> troops,
+            RecruitQueueDto? queue, PopulationDto? population)
         loaded,
     required TResult Function() recruiting,
     required TResult Function(String message) error,
@@ -158,8 +158,8 @@ class _$InitialImpl implements _Initial {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(
-            String villageId, List<TroopDto> troops, RecruitQueueDto? queue)?
+    TResult? Function(String villageId, List<TroopDto> troops,
+            RecruitQueueDto? queue, PopulationDto? population)?
         loaded,
     TResult? Function()? recruiting,
     TResult? Function(String message)? error,
@@ -172,8 +172,8 @@ class _$InitialImpl implements _Initial {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(
-            String villageId, List<TroopDto> troops, RecruitQueueDto? queue)?
+    TResult Function(String villageId, List<TroopDto> troops,
+            RecruitQueueDto? queue, PopulationDto? population)?
         loaded,
     TResult Function()? recruiting,
     TResult Function(String message)? error,
@@ -273,8 +273,8 @@ class _$LoadingImpl implements _Loading {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(
-            String villageId, List<TroopDto> troops, RecruitQueueDto? queue)
+    required TResult Function(String villageId, List<TroopDto> troops,
+            RecruitQueueDto? queue, PopulationDto? population)
         loaded,
     required TResult Function() recruiting,
     required TResult Function(String message) error,
@@ -287,8 +287,8 @@ class _$LoadingImpl implements _Loading {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(
-            String villageId, List<TroopDto> troops, RecruitQueueDto? queue)?
+    TResult? Function(String villageId, List<TroopDto> troops,
+            RecruitQueueDto? queue, PopulationDto? population)?
         loaded,
     TResult? Function()? recruiting,
     TResult? Function(String message)? error,
@@ -301,8 +301,8 @@ class _$LoadingImpl implements _Loading {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(
-            String villageId, List<TroopDto> troops, RecruitQueueDto? queue)?
+    TResult Function(String villageId, List<TroopDto> troops,
+            RecruitQueueDto? queue, PopulationDto? population)?
         loaded,
     TResult Function()? recruiting,
     TResult Function(String message)? error,
@@ -365,7 +365,11 @@ abstract class _$$LoadedImplCopyWith<$Res> {
           _$LoadedImpl value, $Res Function(_$LoadedImpl) then) =
       __$$LoadedImplCopyWithImpl<$Res>;
   @useResult
-  $Res call({String villageId, List<TroopDto> troops, RecruitQueueDto? queue});
+  $Res call(
+      {String villageId,
+      List<TroopDto> troops,
+      RecruitQueueDto? queue,
+      PopulationDto? population});
 }
 
 /// @nodoc
@@ -384,6 +388,7 @@ class __$$LoadedImplCopyWithImpl<$Res>
     Object? villageId = null,
     Object? troops = null,
     Object? queue = freezed,
+    Object? population = freezed,
   }) {
     return _then(_$LoadedImpl(
       villageId: null == villageId
@@ -398,6 +403,10 @@ class __$$LoadedImplCopyWithImpl<$Res>
           ? _value.queue
           : queue // ignore: cast_nullable_to_non_nullable
               as RecruitQueueDto?,
+      population: freezed == population
+          ? _value.population
+          : population // ignore: cast_nullable_to_non_nullable
+              as PopulationDto?,
     ));
   }
 }
@@ -408,7 +417,8 @@ class _$LoadedImpl implements _Loaded {
   const _$LoadedImpl(
       {required this.villageId,
       required final List<TroopDto> troops,
-      required this.queue})
+      required this.queue,
+      this.population})
       : _troops = troops;
 
   @override
@@ -423,10 +433,12 @@ class _$LoadedImpl implements _Loaded {
 
   @override
   final RecruitQueueDto? queue;
+  @override
+  final PopulationDto? population;
 
   @override
   String toString() {
-    return 'TroopsState.loaded(villageId: $villageId, troops: $troops, queue: $queue)';
+    return 'TroopsState.loaded(villageId: $villageId, troops: $troops, queue: $queue, population: $population)';
   }
 
   @override
@@ -437,12 +449,14 @@ class _$LoadedImpl implements _Loaded {
             (identical(other.villageId, villageId) ||
                 other.villageId == villageId) &&
             const DeepCollectionEquality().equals(other._troops, _troops) &&
-            (identical(other.queue, queue) || other.queue == queue));
+            (identical(other.queue, queue) || other.queue == queue) &&
+            (identical(other.population, population) ||
+                other.population == population));
   }
 
   @override
   int get hashCode => Object.hash(runtimeType, villageId,
-      const DeepCollectionEquality().hash(_troops), queue);
+      const DeepCollectionEquality().hash(_troops), queue, population);
 
   /// Create a copy of TroopsState
   /// with the given fields replaced by the non-null parameter values.
@@ -457,13 +471,13 @@ class _$LoadedImpl implements _Loaded {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(
-            String villageId, List<TroopDto> troops, RecruitQueueDto? queue)
+    required TResult Function(String villageId, List<TroopDto> troops,
+            RecruitQueueDto? queue, PopulationDto? population)
         loaded,
     required TResult Function() recruiting,
     required TResult Function(String message) error,
   }) {
-    return loaded(villageId, troops, queue);
+    return loaded(villageId, troops, queue, population);
   }
 
   @override
@@ -471,13 +485,13 @@ class _$LoadedImpl implements _Loaded {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(
-            String villageId, List<TroopDto> troops, RecruitQueueDto? queue)?
+    TResult? Function(String villageId, List<TroopDto> troops,
+            RecruitQueueDto? queue, PopulationDto? population)?
         loaded,
     TResult? Function()? recruiting,
     TResult? Function(String message)? error,
   }) {
-    return loaded?.call(villageId, troops, queue);
+    return loaded?.call(villageId, troops, queue, population);
   }
 
   @override
@@ -485,15 +499,15 @@ class _$LoadedImpl implements _Loaded {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(
-            String villageId, List<TroopDto> troops, RecruitQueueDto? queue)?
+    TResult Function(String villageId, List<TroopDto> troops,
+            RecruitQueueDto? queue, PopulationDto? population)?
         loaded,
     TResult Function()? recruiting,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
     if (loaded != null) {
-      return loaded(villageId, troops, queue);
+      return loaded(villageId, troops, queue, population);
     }
     return orElse();
   }
@@ -543,11 +557,13 @@ abstract class _Loaded implements TroopsState {
   const factory _Loaded(
       {required final String villageId,
       required final List<TroopDto> troops,
-      required final RecruitQueueDto? queue}) = _$LoadedImpl;
+      required final RecruitQueueDto? queue,
+      final PopulationDto? population}) = _$LoadedImpl;
 
   String get villageId;
   List<TroopDto> get troops;
   RecruitQueueDto? get queue;
+  PopulationDto? get population;
 
   /// Create a copy of TroopsState
   /// with the given fields replaced by the non-null parameter values.
@@ -599,8 +615,8 @@ class _$RecruitingImpl implements _Recruiting {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(
-            String villageId, List<TroopDto> troops, RecruitQueueDto? queue)
+    required TResult Function(String villageId, List<TroopDto> troops,
+            RecruitQueueDto? queue, PopulationDto? population)
         loaded,
     required TResult Function() recruiting,
     required TResult Function(String message) error,
@@ -613,8 +629,8 @@ class _$RecruitingImpl implements _Recruiting {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(
-            String villageId, List<TroopDto> troops, RecruitQueueDto? queue)?
+    TResult? Function(String villageId, List<TroopDto> troops,
+            RecruitQueueDto? queue, PopulationDto? population)?
         loaded,
     TResult? Function()? recruiting,
     TResult? Function(String message)? error,
@@ -627,8 +643,8 @@ class _$RecruitingImpl implements _Recruiting {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(
-            String villageId, List<TroopDto> troops, RecruitQueueDto? queue)?
+    TResult Function(String villageId, List<TroopDto> troops,
+            RecruitQueueDto? queue, PopulationDto? population)?
         loaded,
     TResult Function()? recruiting,
     TResult Function(String message)? error,
@@ -755,8 +771,8 @@ class _$ErrorImpl implements _Error {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(
-            String villageId, List<TroopDto> troops, RecruitQueueDto? queue)
+    required TResult Function(String villageId, List<TroopDto> troops,
+            RecruitQueueDto? queue, PopulationDto? population)
         loaded,
     required TResult Function() recruiting,
     required TResult Function(String message) error,
@@ -769,8 +785,8 @@ class _$ErrorImpl implements _Error {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(
-            String villageId, List<TroopDto> troops, RecruitQueueDto? queue)?
+    TResult? Function(String villageId, List<TroopDto> troops,
+            RecruitQueueDto? queue, PopulationDto? population)?
         loaded,
     TResult? Function()? recruiting,
     TResult? Function(String message)? error,
@@ -783,8 +799,8 @@ class _$ErrorImpl implements _Error {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(
-            String villageId, List<TroopDto> troops, RecruitQueueDto? queue)?
+    TResult Function(String villageId, List<TroopDto> troops,
+            RecruitQueueDto? queue, PopulationDto? population)?
         loaded,
     TResult Function()? recruiting,
     TResult Function(String message)? error,
