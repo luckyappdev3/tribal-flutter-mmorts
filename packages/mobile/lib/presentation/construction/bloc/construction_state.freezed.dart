@@ -32,7 +32,9 @@ mixin _$ConstructionState {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)
+            double maxStorage,
+            int popUsed,
+            int popMax)
         loaded,
     required TResult Function(
             double wood,
@@ -41,7 +43,9 @@ mixin _$ConstructionState {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)
+            double maxStorage,
+            int popUsed,
+            int popMax)
         upgrading,
     required TResult Function(String message) error,
   }) =>
@@ -62,10 +66,20 @@ mixin _$ConstructionState {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)?
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         loaded,
-    TResult? Function(double wood, double stone, double iron, double woodRate,
-            double stoneRate, double ironRate, double maxStorage)?
+    TResult? Function(
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         upgrading,
     TResult? Function(String message)? error,
   }) =>
@@ -86,10 +100,20 @@ mixin _$ConstructionState {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)?
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         loaded,
-    TResult Function(double wood, double stone, double iron, double woodRate,
-            double stoneRate, double ironRate, double maxStorage)?
+    TResult Function(
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         upgrading,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -201,7 +225,9 @@ class _$InitialImpl implements _Initial {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)
+            double maxStorage,
+            int popUsed,
+            int popMax)
         loaded,
     required TResult Function(
             double wood,
@@ -210,7 +236,9 @@ class _$InitialImpl implements _Initial {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)
+            double maxStorage,
+            int popUsed,
+            int popMax)
         upgrading,
     required TResult Function(String message) error,
   }) {
@@ -234,10 +262,20 @@ class _$InitialImpl implements _Initial {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)?
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         loaded,
-    TResult? Function(double wood, double stone, double iron, double woodRate,
-            double stoneRate, double ironRate, double maxStorage)?
+    TResult? Function(
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         upgrading,
     TResult? Function(String message)? error,
   }) {
@@ -261,10 +299,20 @@ class _$InitialImpl implements _Initial {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)?
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         loaded,
-    TResult Function(double wood, double stone, double iron, double woodRate,
-            double stoneRate, double ironRate, double maxStorage)?
+    TResult Function(
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         upgrading,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -375,7 +423,9 @@ class _$LoadingImpl implements _Loading {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)
+            double maxStorage,
+            int popUsed,
+            int popMax)
         loaded,
     required TResult Function(
             double wood,
@@ -384,7 +434,9 @@ class _$LoadingImpl implements _Loading {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)
+            double maxStorage,
+            int popUsed,
+            int popMax)
         upgrading,
     required TResult Function(String message) error,
   }) {
@@ -408,10 +460,20 @@ class _$LoadingImpl implements _Loading {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)?
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         loaded,
-    TResult? Function(double wood, double stone, double iron, double woodRate,
-            double stoneRate, double ironRate, double maxStorage)?
+    TResult? Function(
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         upgrading,
     TResult? Function(String message)? error,
   }) {
@@ -435,10 +497,20 @@ class _$LoadingImpl implements _Loading {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)?
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         loaded,
-    TResult Function(double wood, double stone, double iron, double woodRate,
-            double stoneRate, double ironRate, double maxStorage)?
+    TResult Function(
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         upgrading,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -512,7 +584,9 @@ abstract class _$$LoadedImplCopyWith<$Res> {
       double woodRate,
       double stoneRate,
       double ironRate,
-      double maxStorage});
+      double maxStorage,
+      int popUsed,
+      int popMax});
 }
 
 /// @nodoc
@@ -540,6 +614,8 @@ class __$$LoadedImplCopyWithImpl<$Res>
     Object? stoneRate = null,
     Object? ironRate = null,
     Object? maxStorage = null,
+    Object? popUsed = null,
+    Object? popMax = null,
   }) {
     return _then(_$LoadedImpl(
       villageId: null == villageId
@@ -590,6 +666,14 @@ class __$$LoadedImplCopyWithImpl<$Res>
           ? _value.maxStorage
           : maxStorage // ignore: cast_nullable_to_non_nullable
               as double,
+      popUsed: null == popUsed
+          ? _value.popUsed
+          : popUsed // ignore: cast_nullable_to_non_nullable
+              as int,
+      popMax: null == popMax
+          ? _value.popMax
+          : popMax // ignore: cast_nullable_to_non_nullable
+              as int,
     ));
   }
 }
@@ -609,7 +693,9 @@ class _$LoadedImpl implements _Loaded {
       this.woodRate = 0.0,
       this.stoneRate = 0.0,
       this.ironRate = 0.0,
-      this.maxStorage = 5000.0})
+      this.maxStorage = 5000.0,
+      this.popUsed = 0,
+      this.popMax = 0})
       : _buildings = buildings,
         _queueItems = queueItems;
 
@@ -637,7 +723,6 @@ class _$LoadedImpl implements _Loaded {
     return EqualUnmodifiableListView(_queueItems);
   }
 
-// ← NOUVEAU
   @override
   @JsonKey()
   final double wood;
@@ -659,10 +744,16 @@ class _$LoadedImpl implements _Loaded {
   @override
   @JsonKey()
   final double maxStorage;
+  @override
+  @JsonKey()
+  final int popUsed;
+  @override
+  @JsonKey()
+  final int popMax;
 
   @override
   String toString() {
-    return 'ConstructionState.loaded(villageId: $villageId, buildings: $buildings, queue: $queue, queueCount: $queueCount, queueItems: $queueItems, wood: $wood, stone: $stone, iron: $iron, woodRate: $woodRate, stoneRate: $stoneRate, ironRate: $ironRate, maxStorage: $maxStorage)';
+    return 'ConstructionState.loaded(villageId: $villageId, buildings: $buildings, queue: $queue, queueCount: $queueCount, queueItems: $queueItems, wood: $wood, stone: $stone, iron: $iron, woodRate: $woodRate, stoneRate: $stoneRate, ironRate: $ironRate, maxStorage: $maxStorage, popUsed: $popUsed, popMax: $popMax)';
   }
 
   @override
@@ -689,7 +780,9 @@ class _$LoadedImpl implements _Loaded {
             (identical(other.ironRate, ironRate) ||
                 other.ironRate == ironRate) &&
             (identical(other.maxStorage, maxStorage) ||
-                other.maxStorage == maxStorage));
+                other.maxStorage == maxStorage) &&
+            (identical(other.popUsed, popUsed) || other.popUsed == popUsed) &&
+            (identical(other.popMax, popMax) || other.popMax == popMax));
   }
 
   @override
@@ -706,7 +799,9 @@ class _$LoadedImpl implements _Loaded {
       woodRate,
       stoneRate,
       ironRate,
-      maxStorage);
+      maxStorage,
+      popUsed,
+      popMax);
 
   /// Create a copy of ConstructionState
   /// with the given fields replaced by the non-null parameter values.
@@ -733,7 +828,9 @@ class _$LoadedImpl implements _Loaded {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)
+            double maxStorage,
+            int popUsed,
+            int popMax)
         loaded,
     required TResult Function(
             double wood,
@@ -742,12 +839,27 @@ class _$LoadedImpl implements _Loaded {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)
+            double maxStorage,
+            int popUsed,
+            int popMax)
         upgrading,
     required TResult Function(String message) error,
   }) {
-    return loaded(villageId, buildings, queue, queueCount, queueItems, wood,
-        stone, iron, woodRate, stoneRate, ironRate, maxStorage);
+    return loaded(
+        villageId,
+        buildings,
+        queue,
+        queueCount,
+        queueItems,
+        wood,
+        stone,
+        iron,
+        woodRate,
+        stoneRate,
+        ironRate,
+        maxStorage,
+        popUsed,
+        popMax);
   }
 
   @override
@@ -767,15 +879,38 @@ class _$LoadedImpl implements _Loaded {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)?
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         loaded,
-    TResult? Function(double wood, double stone, double iron, double woodRate,
-            double stoneRate, double ironRate, double maxStorage)?
+    TResult? Function(
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         upgrading,
     TResult? Function(String message)? error,
   }) {
-    return loaded?.call(villageId, buildings, queue, queueCount, queueItems,
-        wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage);
+    return loaded?.call(
+        villageId,
+        buildings,
+        queue,
+        queueCount,
+        queueItems,
+        wood,
+        stone,
+        iron,
+        woodRate,
+        stoneRate,
+        ironRate,
+        maxStorage,
+        popUsed,
+        popMax);
   }
 
   @override
@@ -795,17 +930,40 @@ class _$LoadedImpl implements _Loaded {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)?
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         loaded,
-    TResult Function(double wood, double stone, double iron, double woodRate,
-            double stoneRate, double ironRate, double maxStorage)?
+    TResult Function(
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         upgrading,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
     if (loaded != null) {
-      return loaded(villageId, buildings, queue, queueCount, queueItems, wood,
-          stone, iron, woodRate, stoneRate, ironRate, maxStorage);
+      return loaded(
+          villageId,
+          buildings,
+          queue,
+          queueCount,
+          queueItems,
+          wood,
+          stone,
+          iron,
+          woodRate,
+          stoneRate,
+          ironRate,
+          maxStorage,
+          popUsed,
+          popMax);
     }
     return orElse();
   }
@@ -864,13 +1022,15 @@ abstract class _Loaded implements ConstructionState {
       final double woodRate,
       final double stoneRate,
       final double ironRate,
-      final double maxStorage}) = _$LoadedImpl;
+      final double maxStorage,
+      final int popUsed,
+      final int popMax}) = _$LoadedImpl;
 
   String get villageId;
   List<BuildingInstanceDto> get buildings;
   BuildQueueDto? get queue;
   int get queueCount;
-  List<BuildQueueItemDto> get queueItems; // ← NOUVEAU
+  List<BuildQueueItemDto> get queueItems;
   double get wood;
   double get stone;
   double get iron;
@@ -878,6 +1038,8 @@ abstract class _Loaded implements ConstructionState {
   double get stoneRate;
   double get ironRate;
   double get maxStorage;
+  int get popUsed;
+  int get popMax;
 
   /// Create a copy of ConstructionState
   /// with the given fields replaced by the non-null parameter values.
@@ -899,7 +1061,9 @@ abstract class _$$UpgradingImplCopyWith<$Res> {
       double woodRate,
       double stoneRate,
       double ironRate,
-      double maxStorage});
+      double maxStorage,
+      int popUsed,
+      int popMax});
 }
 
 /// @nodoc
@@ -922,6 +1086,8 @@ class __$$UpgradingImplCopyWithImpl<$Res>
     Object? stoneRate = null,
     Object? ironRate = null,
     Object? maxStorage = null,
+    Object? popUsed = null,
+    Object? popMax = null,
   }) {
     return _then(_$UpgradingImpl(
       wood: null == wood
@@ -952,6 +1118,14 @@ class __$$UpgradingImplCopyWithImpl<$Res>
           ? _value.maxStorage
           : maxStorage // ignore: cast_nullable_to_non_nullable
               as double,
+      popUsed: null == popUsed
+          ? _value.popUsed
+          : popUsed // ignore: cast_nullable_to_non_nullable
+              as int,
+      popMax: null == popMax
+          ? _value.popMax
+          : popMax // ignore: cast_nullable_to_non_nullable
+              as int,
     ));
   }
 }
@@ -966,7 +1140,9 @@ class _$UpgradingImpl implements _Upgrading {
       this.woodRate = 0.0,
       this.stoneRate = 0.0,
       this.ironRate = 0.0,
-      this.maxStorage = 5000.0});
+      this.maxStorage = 5000.0,
+      this.popUsed = 0,
+      this.popMax = 0});
 
   @override
   @JsonKey()
@@ -989,10 +1165,16 @@ class _$UpgradingImpl implements _Upgrading {
   @override
   @JsonKey()
   final double maxStorage;
+  @override
+  @JsonKey()
+  final int popUsed;
+  @override
+  @JsonKey()
+  final int popMax;
 
   @override
   String toString() {
-    return 'ConstructionState.upgrading(wood: $wood, stone: $stone, iron: $iron, woodRate: $woodRate, stoneRate: $stoneRate, ironRate: $ironRate, maxStorage: $maxStorage)';
+    return 'ConstructionState.upgrading(wood: $wood, stone: $stone, iron: $iron, woodRate: $woodRate, stoneRate: $stoneRate, ironRate: $ironRate, maxStorage: $maxStorage, popUsed: $popUsed, popMax: $popMax)';
   }
 
   @override
@@ -1010,12 +1192,14 @@ class _$UpgradingImpl implements _Upgrading {
             (identical(other.ironRate, ironRate) ||
                 other.ironRate == ironRate) &&
             (identical(other.maxStorage, maxStorage) ||
-                other.maxStorage == maxStorage));
+                other.maxStorage == maxStorage) &&
+            (identical(other.popUsed, popUsed) || other.popUsed == popUsed) &&
+            (identical(other.popMax, popMax) || other.popMax == popMax));
   }
 
   @override
   int get hashCode => Object.hash(runtimeType, wood, stone, iron, woodRate,
-      stoneRate, ironRate, maxStorage);
+      stoneRate, ironRate, maxStorage, popUsed, popMax);
 
   /// Create a copy of ConstructionState
   /// with the given fields replaced by the non-null parameter values.
@@ -1042,7 +1226,9 @@ class _$UpgradingImpl implements _Upgrading {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)
+            double maxStorage,
+            int popUsed,
+            int popMax)
         loaded,
     required TResult Function(
             double wood,
@@ -1051,12 +1237,14 @@ class _$UpgradingImpl implements _Upgrading {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)
+            double maxStorage,
+            int popUsed,
+            int popMax)
         upgrading,
     required TResult Function(String message) error,
   }) {
-    return upgrading(
-        wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage);
+    return upgrading(wood, stone, iron, woodRate, stoneRate, ironRate,
+        maxStorage, popUsed, popMax);
   }
 
   @override
@@ -1076,15 +1264,25 @@ class _$UpgradingImpl implements _Upgrading {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)?
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         loaded,
-    TResult? Function(double wood, double stone, double iron, double woodRate,
-            double stoneRate, double ironRate, double maxStorage)?
+    TResult? Function(
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         upgrading,
     TResult? Function(String message)? error,
   }) {
-    return upgrading?.call(
-        wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage);
+    return upgrading?.call(wood, stone, iron, woodRate, stoneRate, ironRate,
+        maxStorage, popUsed, popMax);
   }
 
   @override
@@ -1104,17 +1302,27 @@ class _$UpgradingImpl implements _Upgrading {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)?
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         loaded,
-    TResult Function(double wood, double stone, double iron, double woodRate,
-            double stoneRate, double ironRate, double maxStorage)?
+    TResult Function(
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         upgrading,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
     if (upgrading != null) {
-      return upgrading(
-          wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage);
+      return upgrading(wood, stone, iron, woodRate, stoneRate, ironRate,
+          maxStorage, popUsed, popMax);
     }
     return orElse();
   }
@@ -1168,7 +1376,9 @@ abstract class _Upgrading implements ConstructionState {
       final double woodRate,
       final double stoneRate,
       final double ironRate,
-      final double maxStorage}) = _$UpgradingImpl;
+      final double maxStorage,
+      final int popUsed,
+      final int popMax}) = _$UpgradingImpl;
 
   double get wood;
   double get stone;
@@ -1177,6 +1387,8 @@ abstract class _Upgrading implements ConstructionState {
   double get stoneRate;
   double get ironRate;
   double get maxStorage;
+  int get popUsed;
+  int get popMax;
 
   /// Create a copy of ConstructionState
   /// with the given fields replaced by the non-null parameter values.
@@ -1267,7 +1479,9 @@ class _$ErrorImpl implements _Error {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)
+            double maxStorage,
+            int popUsed,
+            int popMax)
         loaded,
     required TResult Function(
             double wood,
@@ -1276,7 +1490,9 @@ class _$ErrorImpl implements _Error {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)
+            double maxStorage,
+            int popUsed,
+            int popMax)
         upgrading,
     required TResult Function(String message) error,
   }) {
@@ -1300,10 +1516,20 @@ class _$ErrorImpl implements _Error {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)?
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         loaded,
-    TResult? Function(double wood, double stone, double iron, double woodRate,
-            double stoneRate, double ironRate, double maxStorage)?
+    TResult? Function(
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         upgrading,
     TResult? Function(String message)? error,
   }) {
@@ -1327,10 +1553,20 @@ class _$ErrorImpl implements _Error {
             double woodRate,
             double stoneRate,
             double ironRate,
-            double maxStorage)?
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         loaded,
-    TResult Function(double wood, double stone, double iron, double woodRate,
-            double stoneRate, double ironRate, double maxStorage)?
+    TResult Function(
+            double wood,
+            double stone,
+            double iron,
+            double woodRate,
+            double stoneRate,
+            double ironRate,
+            double maxStorage,
+            int popUsed,
+            int popMax)?
         upgrading,
     TResult Function(String message)? error,
     required TResult orElse(),

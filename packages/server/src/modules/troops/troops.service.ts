@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { GameDataRegistry } from '../../engine/game-data-registry';
 import { RecruitQueue } from '../../engine/queue/queues/recruit.queue';
-import { calcMaxPopulation } from '@mmorts/shared';
+import { calcMaxPopulation, calcTotalPopUsed } from '@mmorts/shared';
 
 export class TroopsService {
   constructor(
@@ -39,9 +39,42 @@ export class TroopsService {
     return used;
   }
 
+  // ── Troupes en déplacement (attaques actives) ─────────────
+  private calcActiveAttackPop(attacks: { units: any; survivors: any; status: string }[]): number {
+    let used = 0;
+    for (const attack of attacks) {
+      const rawUnits = attack.status === 'returning' && attack.survivors
+        ? attack.survivors
+        : attack.units;
+      if (!rawUnits || typeof rawUnits !== 'object') continue;
+      for (const [unitType, count] of Object.entries(rawUnits as Record<string, number>)) {
+        if (!count) continue;
+        try {
+          const def = this.gameData.getUnitDef(unitType);
+          used += count * (def.populationCost ?? 1);
+        } catch { continue; }
+      }
+    }
+    return used;
+  }
+
+  // ── Troupes en cours de recrutement (file) ────────────────
+  private calcRecruitQueuePop(queues: { unitType: string; totalCount: number; trainedCount: number }[]): number {
+    let used = 0;
+    for (const q of queues) {
+      const pending = q.totalCount - q.trainedCount;
+      if (pending <= 0) continue;
+      try {
+        const def = this.gameData.getUnitDef(q.unitType);
+        used += pending * (def.populationCost ?? 1);
+      } catch { continue; }
+    }
+    return used;
+  }
+
   // ── Liste des troupes + files actives ────────────────────────
   async getTroops(villageId: string) {
-    const [troops, queues, buildings, village] = await Promise.all([
+    const [troops, queues, buildings, village, activeAttacks] = await Promise.all([
       this.prisma.troop.findMany({ where: { villageId } }),
       this.prisma.recruitQueue.findMany({
         where:   { villageId },
@@ -51,6 +84,10 @@ export class TroopsService {
       this.prisma.village.findUnique({
         where: { id: villageId }, include: { world: { select: { gameSpeed: true } } },
       }),
+      this.prisma.activeAttack.findMany({
+        where: { attackerVillageId: villageId, status: { in: ['traveling', 'returning'] } },
+        select: { units: true, survivors: true, status: true },
+      }),
     ]);
 
     const allUnits = this.gameData.getAllUnits();
@@ -58,9 +95,14 @@ export class TroopsService {
     const buildMap = Object.fromEntries(buildings.map(b => [b.buildingId, b.level]));
     const gameSpeed = (village as any)?.world?.gameSpeed ?? 1.0;
 
-    const farmLevel = buildMap['farm'] ?? 1;
-    const maxPop    = calcMaxPopulation(farmLevel);
-    const usedPop   = this.calcUsedPopulation(troops);
+    const farmLevel       = buildMap['farm'] ?? 1;
+    const maxPop          = calcMaxPopulation(farmLevel);
+    const buildingPopUsed = calcTotalPopUsed(
+      buildings.map(b => ({ buildingId: b.buildingId, level: b.level })),
+    );
+    const usedPop = this.calcUsedPopulation(troops) + buildingPopUsed
+      + this.calcActiveAttackPop(activeAttacks)
+      + this.calcRecruitQueuePop(queues);
 
     return {
       troops: allUnits.map(u => {
@@ -147,15 +189,25 @@ export class TroopsService {
     }
 
     // 4. Vérifier le cap de population (Ferme)
-    const [troops, buildings] = await Promise.all([
+    const [troops, buildings, activeAttacks, existingQueues] = await Promise.all([
       this.prisma.troop.findMany({ where: { villageId } }),
       this.prisma.buildingInstance.findMany({ where: { villageId } }),
+      this.prisma.activeAttack.findMany({
+        where: { attackerVillageId: villageId, status: { in: ['traveling', 'returning'] } },
+        select: { units: true, survivors: true, status: true },
+      }),
+      this.prisma.recruitQueue.findMany({ where: { villageId } }),
     ]);
-    const buildMap  = Object.fromEntries(buildings.map(b => [b.buildingId, b.level]));
-    const farmLevel = buildMap['farm'] ?? 1;
-    const maxPop    = calcMaxPopulation(farmLevel);
-    const usedPop   = this.calcUsedPopulation(troops);
-    const newPop    = count * (unitDef.populationCost ?? 1);
+    const buildMap        = Object.fromEntries(buildings.map(b => [b.buildingId, b.level]));
+    const farmLevel       = buildMap['farm'] ?? 1;
+    const maxPop          = calcMaxPopulation(farmLevel);
+    const buildingPopUsed = calcTotalPopUsed(
+      buildings.map(b => ({ buildingId: b.buildingId, level: b.level })),
+    );
+    const usedPop = this.calcUsedPopulation(troops) + buildingPopUsed
+      + this.calcActiveAttackPop(activeAttacks)
+      + this.calcRecruitQueuePop(existingQueues);
+    const newPop  = count * (unitDef.populationCost ?? 1);
 
     if (usedPop + newPop > maxPop) {
       const available = Math.max(0, Math.floor((maxPop - usedPop) / (unitDef.populationCost ?? 1)));

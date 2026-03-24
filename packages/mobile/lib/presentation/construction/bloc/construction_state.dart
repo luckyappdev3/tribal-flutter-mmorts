@@ -12,7 +12,7 @@ class ConstructionState with _$ConstructionState {
     required List<BuildingInstanceDto> buildings,
     required BuildQueueDto?            queue,
     @Default(0)    int                        queueCount,
-    @Default([])   List<BuildQueueItemDto>    queueItems, // ← NOUVEAU
+    @Default([])   List<BuildQueueItemDto>    queueItems,
     @Default(0.0)  double wood,
     @Default(0.0)  double stone,
     @Default(0.0)  double iron,
@@ -20,6 +20,8 @@ class ConstructionState with _$ConstructionState {
     @Default(0.0)  double stoneRate,
     @Default(0.0)  double ironRate,
     @Default(5000.0) double maxStorage,
+    @Default(0)    int    popUsed,
+    @Default(0)    int    popMax,
   }) = _Loaded;
 
   const factory ConstructionState.upgrading({
@@ -30,6 +32,8 @@ class ConstructionState with _$ConstructionState {
     @Default(0.0)  double stoneRate,
     @Default(0.0)  double ironRate,
     @Default(5000.0) double maxStorage,
+    @Default(0)    int    popUsed,
+    @Default(0)    int    popMax,
   }) = _Upgrading;
 
   const factory ConstructionState.error(String message) = _Error;

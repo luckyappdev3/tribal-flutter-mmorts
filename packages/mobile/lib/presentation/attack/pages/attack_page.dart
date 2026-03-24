@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../core/di/injection.dart';
+import '../../../core/utils/app_snack_bar.dart';
 import '../../../data/remote/api/troops_api.dart';
 import 'package:mobile_client/presentation/troops/dto/troops_dto.dart';
 
@@ -55,9 +55,7 @@ class _AttackPageState extends State<AttackPage> {
 
   Future<void> _sendAttack() async {
     if (_totalSelected == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sélectionnez au moins 1 unité'), backgroundColor: Colors.red),
-      );
+      AppSnackBar.info(context, 'Sélectionnez au moins 1 unité.');
       return;
     }
 
@@ -78,34 +76,11 @@ class _AttackPageState extends State<AttackPage> {
       if (mounted) {
         final secs = result['travelSec'] as int? ?? 0;
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('⚔️ Attaque lancée ! Arrivée dans $secs secondes.'),
-            backgroundColor: Colors.red[800],
-          ),
-        );
+        AppSnackBar.success(context, 'Attaque lancée ! Arrivée dans $secs secondes.');
       }
     } catch (e) {
       setState(() => _sending = false);
-      // Extraire le message lisible quelle que soit l'exception
-      String msg = 'Erreur inconnue';
-      if (e is DioException) {
-        msg = (e.response?.data?['error']  as String?)
-           ?? (e.response?.data?['message'] as String?)
-           ?? e.message
-           ?? 'Erreur inconnue';
-      } else {
-        msg = '$e';
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            backgroundColor: Colors.red[900],
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
+      if (mounted) AppSnackBar.error(context, '$e');
     }
   }
 

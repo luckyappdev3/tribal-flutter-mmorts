@@ -80,6 +80,7 @@ class TroopsBloc extends Bloc<TroopsEvent, TroopsState> {
             population: dto.population,
           ));
         } catch (e) {
+          emit(TroopsState.error('$e'));
           if (villageId.isNotEmpty) {
             try {
               final dto = await _troopsApi.getTroops(villageId);
@@ -91,7 +92,6 @@ class TroopsBloc extends Bloc<TroopsEvent, TroopsState> {
               ));
             } catch (_) {}
           }
-          emit(TroopsState.error('$e'));
         }
       },
 

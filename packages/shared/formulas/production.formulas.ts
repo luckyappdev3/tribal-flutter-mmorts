@@ -32,12 +32,13 @@ export function calcMaxStorage(level: number): number {
 
 /**
  * Population maximale selon le niveau de la Ferme.
- * Formule TW : cap_base=240, cap_factor=1.1721
- * Niv 1 = 240, Niv 10 ≈ 1 086, Niv 20 ≈ 5 549, Niv 30 ≈ 24 000
+ * Table exacte Tribal Wars : Niv 1 = 240, Niv 30 = 24 000
  */
+const _FARM_CAPACITY = [240,281,329,386,452,530,622,729,854,1002,1174,1376,1613,1891,2216,2598,3045,3569,4183,4903,5747,6737,7896,9255,10848,12715,14904,17469,20476,24000];
+
 export function calcMaxPopulation(farmLevel: number): number {
   if (farmLevel <= 0) return 0;
-  return Math.floor(240 * Math.pow(1.1721, farmLevel - 1));
+  return _FARM_CAPACITY[farmLevel - 1] ?? 0;
 }
 
 /**

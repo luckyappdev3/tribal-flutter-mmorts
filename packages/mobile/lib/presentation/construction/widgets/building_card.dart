@@ -141,6 +141,21 @@ class BuildingCard extends StatelessWidget {
                     style: const TextStyle(color: Colors.white38, fontSize: 10),
                   ),
                   const Spacer(),
+                  // ── Coût population ──────────────────────────
+                  if (building.nextLevelPopCost != null &&
+                      building.nextLevelPopCost! > 0) ...[
+                    const Icon(Icons.people, color: Colors.tealAccent, size: 11),
+                    const SizedBox(width: 2),
+                    Text(
+                      '+${building.nextLevelPopCost}',
+                      style: const TextStyle(
+                        color: Colors.tealAccent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
                   Text(
                     '→ Niv. ${building.level + 1}',
                     style: const TextStyle(color: Colors.white24, fontSize: 10),

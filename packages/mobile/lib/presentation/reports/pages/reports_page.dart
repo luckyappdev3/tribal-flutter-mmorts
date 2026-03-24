@@ -23,54 +23,6 @@ class _ReportsView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF111111),
-      appBar: AppBar(
-        title: BlocBuilder<ReportsBloc, ReportsState>(
-          builder: (context, state) {
-            final unread = state.maybeWhen(
-              loaded: (_, __, ___, u) => u,
-              orElse: () => 0,
-            );
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Rapports', style: TextStyle(fontWeight: FontWeight.bold)),
-                if (unread > 0) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      '$unread',
-                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ],
-            );
-          },
-        ),
-        backgroundColor: Colors.black87,
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          BlocBuilder<ReportsBloc, ReportsState>(
-            builder: (context, state) {
-              final hasUnread = state.maybeWhen(
-                loaded: (_, __, ___, u) => u > 0,
-                orElse: () => false,
-              );
-              if (!hasUnread) return const SizedBox.shrink();
-              return TextButton(
-                onPressed: () => context.read<ReportsBloc>().add(const ReportsEvent.markAllRead()),
-                child: const Text('Tout lire', style: TextStyle(color: Colors.amber, fontSize: 12)),
-              );
-            },
-          ),
-        ],
-      ),
       body: BlocBuilder<ReportsBloc, ReportsState>(
         builder: (context, state) {
           return state.when(
@@ -100,13 +52,28 @@ class _ReportsView extends StatelessWidget {
                 );
               }
 
+              final hasUnread = allItems.any((e) => e.isScout ? !e.scout!.isRead : !e.attack!.isRead);
               return ListView.separated(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: allItems.length,
+                padding: const EdgeInsets.only(top: 4, bottom: 8),
+                itemCount: allItems.length + (hasUnread ? 1 : 0),
                 separatorBuilder: (_, __) =>
                     const Divider(height: 1, color: Colors.white12, indent: 16, endIndent: 16),
                 itemBuilder: (context, index) {
-                  final entry = allItems[index];
+                  if (hasUnread && index == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () => context.read<ReportsBloc>().add(const ReportsEvent.markAllRead()),
+                          icon: const Icon(Icons.done_all, size: 14, color: Colors.amber),
+                          label: const Text('Tout lire', style: TextStyle(color: Colors.amber, fontSize: 12)),
+                          style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+                        ),
+                      ),
+                    );
+                  }
+                  final entry = allItems[hasUnread ? index - 1 : index];
                   if (entry.isScout) {
                     return _ScoutReportListItem(
                       report:    entry.scout!,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/utils/app_snack_bar.dart';
 import '../../../../data/remote/api/auth_api.dart';
 import '../../../../data/remote/websocket/socket_service.dart';
 
@@ -60,9 +61,11 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _showSnack(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color),
-    );
+    if (color == Colors.green) {
+      AppSnackBar.success(context, message);
+    } else {
+      AppSnackBar.error(context, message);
+    }
   }
 
   @override

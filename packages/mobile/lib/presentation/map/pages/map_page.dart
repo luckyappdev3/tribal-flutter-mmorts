@@ -29,38 +29,35 @@ class _MapView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B0D),
-      appBar: AppBar(
-        title: const Text('Carte du Monde', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.black87,
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.my_location, color: Colors.amber),
-            tooltip: 'Mon village',
-            onPressed: () {
-              final vb = Hive.box('village');
-              final x  = vb.get('village_x', defaultValue: 500) as int;
-              final y  = vb.get('village_y', defaultValue: 500) as int;
-              context.read<MapBloc>().add(MapEvent.loadRequested(x: x, y: y));
-            },
-          ),
-        ],
-      ),
       body: Column(
         children: [
-          // ── Légende ──
+          // ── Légende + bouton centrer ──
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             color: Colors.black54,
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _LegendItem(color: Colors.amber,         icon: Icons.shield,          label: 'Mon village'),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 _LegendItem(color: Colors.red[300]!,     icon: Icons.fort,            label: 'Ennemi'),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 _LegendItem(color: Colors.grey[400]!,    icon: Icons.holiday_village, label: 'Abandonné'),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () {
+                    final vb = Hive.box('village');
+                    final x  = vb.get('village_x', defaultValue: 500) as int;
+                    final y  = vb.get('village_y', defaultValue: 500) as int;
+                    context.read<MapBloc>().add(MapEvent.loadRequested(x: x, y: y));
+                  },
+                  child: const Row(
+                    children: [
+                      Icon(Icons.my_location, color: Colors.amber, size: 16),
+                      SizedBox(width: 4),
+                      Text('Mon village', style: TextStyle(color: Colors.amber, fontSize: 11)),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),

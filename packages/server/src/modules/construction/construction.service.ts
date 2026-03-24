@@ -2,7 +2,13 @@ import { PrismaClient } from '@prisma/client';
 import { BuildingQueue } from '../../engine/queue/queues/build.queue';
 import { GameDataRegistry } from '../../engine/game-data-registry';
 import { VillageService } from '../village/village.service';
-import { calculateCostForLevel, calculateTimeForLevel } from '@mmorts/shared/formulas';
+import {
+  calculateCostForLevel,
+  calculateTimeForLevel,
+  calcBuildingPopCost,
+  calcTotalPopUsed,
+  calcMaxPopulation,
+} from '@mmorts/shared';
 
 // ─────────────────────────────────────────────────────────────
 //  ConstructionService — Phase 1 patch
@@ -69,6 +75,61 @@ export class ConstructionService {
     const targetLevel  = currentLevel + 1;
     const buildingDef  = this.gameData.getBuildingDef(buildingId);
     const costs        = calculateCostForLevel(buildingDef, targetLevel);
+
+    // ── Vérification de la population libre ─────────────────────
+    // Le coût = valeur directe du tableau pour le niveau cible
+    const popCost = calcBuildingPopCost(buildingId, targetLevel);
+    if (popCost > 0) {
+      const [allInstances, troops, activeAttacks, recruitQueues] = await Promise.all([
+        this.prisma.buildingInstance.findMany({
+          where:  { villageId },
+          select: { buildingId: true, level: true },
+        }),
+        this.prisma.troop.findMany({ where: { villageId } }),
+        this.prisma.activeAttack.findMany({
+          where: { attackerVillageId: villageId, status: { in: ['traveling', 'returning'] } },
+          select: { units: true, survivors: true, status: true },
+        }),
+        this.prisma.recruitQueue.findMany({ where: { villageId } }),
+      ]);
+      const farmLevel     = allInstances.find(b => b.buildingId === 'farm')?.level ?? 1;
+      const popMax        = calcMaxPopulation(farmLevel);
+      const buildingPopUsed = calcTotalPopUsed(allInstances);
+      const troopsPopUsed   = troops.reduce((sum, t) => {
+        try {
+          const def = this.gameData.getUnitDef(t.unitType);
+          return sum + t.count * (def.populationCost ?? 1);
+        } catch { return sum; }
+      }, 0);
+      const attackPopUsed = activeAttacks.reduce((sum, attack) => {
+        const rawUnits = attack.status === 'returning' && attack.survivors
+          ? attack.survivors as Record<string, number>
+          : attack.units as Record<string, number>;
+        if (!rawUnits || typeof rawUnits !== 'object') return sum;
+        return sum + Object.entries(rawUnits).reduce((s, [unitType, count]) => {
+          if (!count) return s;
+          try {
+            const def = this.gameData.getUnitDef(unitType);
+            return s + count * (def.populationCost ?? 1);
+          } catch { return s; }
+        }, 0);
+      }, 0);
+      const recruitPopUsed = recruitQueues.reduce((sum, q) => {
+        const pending = q.totalCount - q.trainedCount;
+        if (pending <= 0) return sum;
+        try {
+          const def = this.gameData.getUnitDef(q.unitType);
+          return sum + pending * (def.populationCost ?? 1);
+        } catch { return sum; }
+      }, 0);
+      const popUsed = buildingPopUsed + troopsPopUsed + attackPopUsed + recruitPopUsed;
+      const popFree = popMax - popUsed;
+      if (popFree < popCost) {
+        throw new Error(
+          `Population insuffisante : ${popFree} libre(s), ${popCost} nécessaire(s). Améliorez votre Ferme.`,
+        );
+      }
+    }
 
     // ── Bonus de vitesse QG + gameSpeed du monde ────────────────
     const hqInstance = await this.prisma.buildingInstance.findUnique({

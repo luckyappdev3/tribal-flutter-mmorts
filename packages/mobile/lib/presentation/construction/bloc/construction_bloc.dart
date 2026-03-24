@@ -24,7 +24,7 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
 
     _tabSub = TabRefreshService.instance.stream.listen((index) {
       if (index == TabIndex.construction) {
-        final villageId = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => v);
+        final villageId = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms, pu, pm) => v);
         if (villageId != null) add(ConstructionEvent.loadRequested(villageId));
       }
     });
@@ -55,6 +55,8 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
             stoneRate:  village.productionRates.stone,
             ironRate:   village.productionRates.iron,
             maxStorage: village.maxStorage,
+            popUsed:    buildings.popUsed,
+            popMax:     buildings.popMax,
           ));
           _startInterpolation();
         } catch (e) {
@@ -65,7 +67,8 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
       localTick: () {
         state.maybeWhen(
           loaded: (villageId, buildings, queue, queueCount, queueItems,
-                   wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage) {
+                   wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage,
+                   popUsed, popMax) {
             emit(ConstructionState.loaded(
               villageId:  villageId,
               buildings:  buildings,
@@ -79,6 +82,8 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
               stoneRate:  stoneRate,
               ironRate:   ironRate,
               maxStorage: maxStorage,
+              popUsed:    popUsed,
+              popMax:     popMax,
             ));
           },
           orElse: () {},
@@ -86,15 +91,18 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
       },
 
       upgradeRequested: (buildingId) async {
-        final villageId  = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => v);
-        final queueCount = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => qc) ?? 0;
-        final wood       = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => wo) ?? 0.0;
-        final stone      = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => s)  ?? 0.0;
-        final iron       = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => i)  ?? 0.0;
-        final woodRate   = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => wr) ?? 0.0;
-        final stoneRate  = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => sr) ?? 0.0;
-        final ironRate   = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => ir) ?? 0.0;
-        final maxStorage = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => ms) ?? 5000.0;
+        final villageId  = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms, pu, pm) => v);
+        final queueCount = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms, pu, pm) => qc) ?? 0;
+        final wood       = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms, pu, pm) => wo) ?? 0.0;
+        final stone      = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms, pu, pm) => s)  ?? 0.0;
+        final iron       = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms, pu, pm) => i)  ?? 0.0;
+        final woodRate   = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms, pu, pm) => wr) ?? 0.0;
+        final stoneRate  = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms, pu, pm) => sr) ?? 0.0;
+        final ironRate   = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms, pu, pm) => ir) ?? 0.0;
+        final maxStorage = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms, pu, pm) => ms) ?? 5000.0;
+
+        final popUsed    = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms, pu, pm) => pu) ?? 0;
+        final popMax     = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms, pu, pm) => pm) ?? 0;
 
         if (villageId == null) return;
         if (queueCount >= _maxQueueSlots) return;
@@ -103,6 +111,8 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
           wood: wood, stone: stone, iron: iron,
           woodRate: woodRate, stoneRate: stoneRate, ironRate: ironRate,
           maxStorage: maxStorage,
+          popUsed: popUsed,
+          popMax:  popMax,
         ));
 
         try {
@@ -120,7 +130,7 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
       },
 
       buildFinished: (data) async {
-        final villageId = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms) => v);
+        final villageId = _getField((v, b, q, qc, qi, wo, s, i, wr, sr, ir, ms, pu, pm) => v);
         if (villageId == null) return;
         await _reloadAndEmit(villageId, emit);
         _startInterpolation();
@@ -149,6 +159,8 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
       stoneRate:  village.productionRates.stone,
       ironRate:   village.productionRates.iron,
       maxStorage: village.maxStorage,
+      popUsed:    buildings.popUsed,
+      popMax:     buildings.popMax,
     ));
   }
 
@@ -166,13 +178,17 @@ class ConstructionBloc extends Bloc<ConstructionEvent, ConstructionState> {
       double,  // stoneRate
       double,  // ironRate
       double,  // maxStorage
+      int,     // popUsed
+      int,     // popMax
     ) extractor,
   ) {
     return state.maybeWhen(
       loaded: (villageId, buildings, queue, queueCount, queueItems,
-               wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage) =>
+               wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage,
+               popUsed, popMax) =>
         extractor(villageId, buildings, queue, queueCount, queueItems,
-                  wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage),
+                  wood, stone, iron, woodRate, stoneRate, ironRate, maxStorage,
+                  popUsed, popMax),
       orElse: () => null,
     );
   }

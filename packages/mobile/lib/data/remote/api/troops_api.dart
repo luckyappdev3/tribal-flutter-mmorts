@@ -1,5 +1,15 @@
+import 'package:dio/dio.dart';
 import 'package:mobile_client/data/remote/api/api_client.dart';
 import '../../../presentation/troops/dto/troops_dto.dart';
+
+String _extractServerMessage(DioException e) {
+  final data = e.response?.data;
+  if (data is Map) {
+    final msg = data['error'] ?? data['message'];
+    if (msg is String && msg.isNotEmpty) return msg;
+  }
+  return 'Erreur lors du recrutement.';
+}
 
 class TroopsApi {
   final ApiClient _client;
@@ -12,11 +22,15 @@ class TroopsApi {
 
   Future<Map<String, dynamic>> recruit(
       String villageId, String unitType, int count) async {
-    final response = await _client.dio.post(
-      '/villages/$villageId/recruit',
-      data: {'unitType': unitType, 'count': count},
-    );
-    return response.data as Map<String, dynamic>;
+    try {
+      final response = await _client.dio.post(
+        '/villages/$villageId/recruit',
+        data: {'unitType': unitType, 'count': count},
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw Exception(_extractServerMessage(e));
+    }
   }
 
   Future<Map<String, dynamic>> sendAttack(

@@ -79,12 +79,6 @@ class _RankingPageState extends State<RankingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A1A),
-      appBar: AppBar(
-        title: const Text('Classement', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.black54,
-        elevation: 0,
-        centerTitle: true,
-      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: Colors.amber))
           : _error != null

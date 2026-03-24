@@ -13,6 +13,8 @@ import '../../presentation/reports/pages/reports_page.dart';
 import '../../presentation/ranking/pages/ranking_page.dart';
 import '../../presentation/attack/pages/attack_page.dart';
 import '../../presentation/movements/bloc/movements_bloc.dart';
+import '../resources/global_resources_cubit.dart';
+import '../widgets/global_top_bar.dart';
 import 'route_names.dart';
 
 final appRouter = GoRouter(
@@ -54,16 +56,23 @@ class _ScaffoldWithNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF1A1A1A),
-      body: shell,
-      bottomNavigationBar: _BottomNav(
-        currentIndex: shell.currentIndex,
-        onTap: (i) {
-          // Notifier le service → tous les BLoCs abonnés se rafraîchissent
-          TabRefreshService.instance.notifyTabSelected(i);
-          shell.goBranch(i, initialLocation: i == shell.currentIndex);
-        },
+    return BlocProvider<GlobalResourcesCubit>(
+      create: (_) => GlobalResourcesCubit(),
+      child: Scaffold(
+        backgroundColor: const Color(0xFF1A1A1A),
+        body: Column(
+          children: [
+            SafeArea(bottom: false, child: const GlobalTopBar()),
+            Expanded(child: shell),
+          ],
+        ),
+        bottomNavigationBar: _BottomNav(
+          currentIndex: shell.currentIndex,
+          onTap: (i) {
+            TabRefreshService.instance.notifyTabSelected(i);
+            shell.goBranch(i, initialLocation: i == shell.currentIndex);
+          },
+        ),
       ),
     );
   }

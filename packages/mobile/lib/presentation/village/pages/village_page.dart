@@ -67,35 +67,6 @@ class _VillageView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A1A),
-      appBar: AppBar(
-        title: BlocBuilder<VillageBloc, VillageState>(
-          builder: (_, state) => Text(
-            state.maybeWhen(
-              loaded: (id, name, wood, stone, iron,
-                  woodRate, stoneRate, ironRate, maxStorage) => name,
-              orElse: () => 'Mon Royaume',
-            ),
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ),
-        backgroundColor: Colors.black54,
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.amber),
-            onPressed: () {
-              final villageId =
-                  Hive.box('village').get('current_village_id') as String?;
-              if (villageId != null) {
-                context
-                    .read<VillageBloc>()
-                    .add(VillageEvent.loadRequested(villageId));
-              }
-            },
-          ),
-        ],
-      ),
       body: BlocBuilder<VillageBloc, VillageState>(
         builder: (context, state) => state.when(
           initial: () =>
@@ -144,53 +115,6 @@ class _LoadedBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // ── BARRE DES RESSOURCES ────────────────────────────────
-        // Le VillageBloc émet localTick() toutes les secondes —
-        // les valeurs s'actualisent automatiquement via BlocBuilder.
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-          decoration: const BoxDecoration(
-            color: Colors.black87,
-            borderRadius:
-                BorderRadius.vertical(bottom: Radius.circular(20)),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black45,
-                  blurRadius: 8,
-                  offset: Offset(0, 4))
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _ResourceItem(
-                icon: Icons.forest,
-                label: 'Bois',
-                value: wood,
-                rate: woodRate,
-                max: maxStorage,
-                color: const Color(0xFF8D6E63),
-              ),
-              _ResourceItem(
-                icon: Icons.terrain,
-                label: 'Pierre',
-                value: stone,
-                rate: stoneRate,
-                max: maxStorage,
-                color: const Color(0xFF90A4AE),
-              ),
-              _ResourceItem(
-                icon: Icons.hardware,
-                label: 'Fer',
-                value: iron,
-                rate: ironRate,
-                max: maxStorage,
-                color: const Color(0xFF78909C),
-              ),
-            ],
-          ),
-        ),
-
         const Spacer(),
 
         // ── VISUEL VILLAGE ──────────────────────────────────────
@@ -267,77 +191,6 @@ class _LoadedBody extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-// ── Ressource individuelle ──────────────────────────────────────
-
-class _ResourceItem extends StatelessWidget {
-  const _ResourceItem({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.rate,
-    required this.max,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String label;
-  final double value, rate, max;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final pct = max > 0 ? (value / max).clamp(0.0, 1.0) : 0.0;
-    final atCap = value >= max;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: color, size: 24),
-        const SizedBox(height: 2),
-        Text(
-          _format(value.floor()),
-          style: TextStyle(
-            color: atCap ? Colors.red[300] : Colors.white,
-            fontSize: 17,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'monospace',
-          ),
-        ),
-        Text(
-          label.toUpperCase(),
-          style: TextStyle(
-              color: color,
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          '+${rate.toStringAsFixed(2)}/s',
-          style: const TextStyle(color: Colors.white38, fontSize: 9),
-        ),
-        const SizedBox(height: 4),
-        SizedBox(
-          width: 56,
-          child: LinearProgressIndicator(
-            value: pct,
-            backgroundColor: Colors.white12,
-            color: atCap ? Colors.red[400] : color,
-            minHeight: 3,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _format(int v) {
-    if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
-    if (v >= 10000)   return '${(v / 1000).toStringAsFixed(1)}k';
-    return v.toString();
   }
 }
 

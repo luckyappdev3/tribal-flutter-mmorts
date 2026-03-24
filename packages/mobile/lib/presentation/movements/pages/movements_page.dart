@@ -32,20 +32,6 @@ class _MovementsView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A1A),
-      appBar: AppBar(
-        title: const Text('Mouvements', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.black54,
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.amber),
-            onPressed: () => context
-                .read<MovementsBloc>()
-                .add(const MovementsEvent.refreshRequested()),
-          ),
-        ],
-      ),
       body: BlocConsumer<MovementsBloc, MovementsState>(
         listener: (context, state) {},
         builder: (context, state) {

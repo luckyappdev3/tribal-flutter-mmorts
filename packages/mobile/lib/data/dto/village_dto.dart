@@ -126,6 +126,7 @@ class BuildingInstanceDto {
   final int level;
   final NextLevelCostDto? nextLevelCost;
   final int? nextLevelTimeSec;
+  final int? nextLevelPopCost;
   final double? currentProdPerSec;
   final double? nextProdPerSec;
   final bool isLocked;
@@ -205,6 +206,7 @@ class BuildingInstanceDto {
     required this.level,
     this.nextLevelCost,
     this.nextLevelTimeSec,
+    this.nextLevelPopCost,
     this.currentProdPerSec,
     this.nextProdPerSec,
     this.isLocked = false,
@@ -220,6 +222,7 @@ class BuildingInstanceDto {
           ? NextLevelCostDto.fromJson(json['nextLevelCost'] as Map<String, dynamic>)
           : null,
       nextLevelTimeSec:     json['nextLevelTimeSec'] as int?,
+      nextLevelPopCost:     (json['nextLevelPopCost'] as num?)?.toInt(),
       currentProdPerSec:    (json['currentProdPerSec'] as num?)?.toDouble(),
       nextProdPerSec:       (json['nextProdPerSec']    as num?)?.toDouble(),
       isLocked:             json['isLocked'] as bool? ?? false,
@@ -258,12 +261,16 @@ class VillageBuildingsDto {
   final BuildQueueDto?            queue;       // 1er item (compat)
   final int                       queueCount;
   final List<BuildQueueItemDto>   queueItems;  // ← NOUVEAU : toute la file
+  final int                       popUsed;
+  final int                       popMax;
 
   VillageBuildingsDto({
     required this.buildings,
     this.queue,
     this.queueCount = 0,
     this.queueItems = const [],
+    this.popUsed = 0,
+    this.popMax  = 0,
   });
 
   factory VillageBuildingsDto.fromJson(Map<String, dynamic> json) {
@@ -280,6 +287,8 @@ class VillageBuildingsDto {
       queueItems: rawItems
           .map((i) => BuildQueueItemDto.fromJson(i as Map<String, dynamic>))
           .toList(),
+      popUsed: (json['popUsed'] as num?)?.toInt() ?? 0,
+      popMax:  (json['popMax']  as num?)?.toInt() ?? 0,
     );
   }
 }

@@ -4,6 +4,9 @@ import {
   calculateCostForLevel,
   calculateTimeForLevel,
   calcMaxStorage,
+  calcMaxPopulation,
+  calcBuildingPopCost,
+  calcTotalPopUsed,
 } from '@mmorts/shared';
 
 const PRODUCTION_BUILDINGS = ['timber_camp', 'quarry', 'iron_mine'];
@@ -89,13 +92,19 @@ export async function villageRoutes(fastify: FastifyInstance) {
         return reply.status(403).send({ message: 'Accès refusé' });
       }
 
-      const [instances, queueItems, gameSpeed] = await Promise.all([
+      const [instances, queueItems, gameSpeed, troops, activeAttacks, recruitQueues] = await Promise.all([
         fastify.prisma.buildingInstance.findMany({ where: { villageId: id } }),
         fastify.prisma.buildingQueueItem.findMany({
           where:   { villageId: id },
           orderBy: { position: 'asc' },
         }),
         getGameSpeed(fastify, id),
+        fastify.prisma.troop.findMany({ where: { villageId: id } }),
+        fastify.prisma.activeAttack.findMany({
+          where: { attackerVillageId: id, status: { in: ['traveling', 'returning'] } },
+          select: { units: true, survivors: true, status: true },
+        }),
+        fastify.prisma.recruitQueue.findMany({ where: { villageId: id } }),
       ]);
 
       const activeItem = queueItems.find(i => i.position === 0) ?? null;
@@ -116,6 +125,7 @@ export async function villageRoutes(fastify: FastifyInstance) {
 
         let nextLevelCost: { wood: number; stone: number; iron: number } | null = null;
         let nextLevelTimeSec: number | null = null;
+        let nextLevelPopCost: number | null = null;
         let currentProdPerSec: number | null = null;
         let nextProdPerSec: number | null = null;
 
@@ -127,6 +137,9 @@ export async function villageRoutes(fastify: FastifyInstance) {
           const hqLevel    = instanceMap.get('headquarters') ?? 0;
           const hqBonus    = Math.max(0.1, 1 - hqLevel * 0.05);
           nextLevelTimeSec = Math.max(1, Math.floor(baseSec * hqBonus / gameSpeed));
+
+          // Coût en population = valeur directe du tableau pour le niveau cible
+          nextLevelPopCost = calcBuildingPopCost(def.id, nextLevel);
         }
 
         if (PRODUCTION_BUILDINGS.includes(def.id)) {
@@ -152,12 +165,49 @@ export async function villageRoutes(fastify: FastifyInstance) {
           level:                currentLevel,
           nextLevelCost,
           nextLevelTimeSec,
+          nextLevelPopCost,
           currentProdPerSec,
           nextProdPerSec,
           isLocked,
           missingPrerequisites,
         };
       });
+
+      // ── Population globale du village ─────────────────────────
+      const allBuildingData = Array.from(instanceMap.entries()).map(
+        ([buildingId, level]) => ({ buildingId, level }),
+      );
+      const farmLevel = instanceMap.get('farm') ?? 1;
+      const popMax    = calcMaxPopulation(farmLevel);
+      const buildingPopUsed = calcTotalPopUsed(allBuildingData);
+      const troopsPopUsed   = troops.reduce((sum, t) => {
+        try {
+          const def = fastify.gameData.getUnitDef(t.unitType);
+          return sum + t.count * (def.populationCost ?? 1);
+        } catch { return sum; }
+      }, 0);
+      const attackPopUsed = activeAttacks.reduce((sum, attack) => {
+        const rawUnits = attack.status === 'returning' && attack.survivors
+          ? attack.survivors as Record<string, number>
+          : attack.units as Record<string, number>;
+        if (!rawUnits || typeof rawUnits !== 'object') return sum;
+        return sum + Object.entries(rawUnits).reduce((s, [unitType, count]) => {
+          if (!count) return s;
+          try {
+            const def = fastify.gameData.getUnitDef(unitType);
+            return s + count * (def.populationCost ?? 1);
+          } catch { return s; }
+        }, 0);
+      }, 0);
+      const recruitPopUsed = recruitQueues.reduce((sum, q) => {
+        const pending = q.totalCount - q.trainedCount;
+        if (pending <= 0) return sum;
+        try {
+          const def = fastify.gameData.getUnitDef(q.unitType);
+          return sum + pending * (def.populationCost ?? 1);
+        } catch { return sum; }
+      }, 0);
+      const popUsed = buildingPopUsed + troopsPopUsed + attackPopUsed + recruitPopUsed;
 
       return {
         buildings:  enrichedBuildings,
@@ -169,6 +219,8 @@ export async function villageRoutes(fastify: FastifyInstance) {
           position:    i.position,
           endsAt:      i.endsAt.toISOString(),
         })),
+        popUsed,
+        popMax,
       };
     } catch (error) {
       return reply.status(404).send({ message: 'Village non trouvé' });
