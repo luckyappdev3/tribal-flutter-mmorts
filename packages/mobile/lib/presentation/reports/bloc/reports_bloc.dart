@@ -33,12 +33,11 @@ class ReportsBloc extends Bloc<ReportsEvent, ReportsState> {
       loadRequested: (villageId) async {
         emit(const ReportsState.loading());
         try {
-          final (reports, scoutReports) = await _fetchAll(villageId);
+          final reports = await _fetchAll(villageId);
           emit(ReportsState.loaded(
-            villageId:    villageId,
-            reports:      reports,
-            scoutReports: scoutReports,
-            unreadCount:  _countUnread(reports, scoutReports),
+            villageId:   villageId,
+            reports:     reports,
+            unreadCount: _countUnread(reports),
           ));
         } catch (e) {
           emit(ReportsState.error('$e'));
@@ -46,29 +45,27 @@ class ReportsBloc extends Bloc<ReportsEvent, ReportsState> {
       },
 
       refreshRequested: () async {
-        final villageId = state.maybeWhen(loaded: (vid, _, __, ___) => vid, orElse: () => null);
+        final villageId = state.maybeWhen(loaded: (vid, _, __) => vid, orElse: () => null);
         if (villageId == null) return;
         try {
-          final (reports, scoutReports) = await _fetchAll(villageId);
+          final reports = await _fetchAll(villageId);
           emit(ReportsState.loaded(
-            villageId:    villageId,
-            reports:      reports,
-            scoutReports: scoutReports,
-            unreadCount:  _countUnread(reports, scoutReports),
+            villageId:   villageId,
+            reports:     reports,
+            unreadCount: _countUnread(reports),
           ));
         } catch (_) {}
       },
 
       newReportReceived: () async {
-        final villageId = state.maybeWhen(loaded: (vid, _, __, ___) => vid, orElse: () => null);
+        final villageId = state.maybeWhen(loaded: (vid, _, __) => vid, orElse: () => null);
         if (villageId == null) return;
         try {
-          final (reports, scoutReports) = await _fetchAll(villageId);
+          final reports = await _fetchAll(villageId);
           emit(ReportsState.loaded(
-            villageId:    villageId,
-            reports:      reports,
-            scoutReports: scoutReports,
-            unreadCount:  _countUnread(reports, scoutReports),
+            villageId:   villageId,
+            reports:     reports,
+            unreadCount: _countUnread(reports),
           ));
         } catch (_) {}
       },
@@ -76,16 +73,13 @@ class ReportsBloc extends Bloc<ReportsEvent, ReportsState> {
       markRead: (reportId) {
         _readIds.add(reportId);
         state.maybeWhen(
-          loaded: (villageId, reports, scoutReports, _) {
-            final updatedAttack = reports.map((r) =>
-                r.id == reportId ? r.copyWith(isRead: true) : r).toList();
-            final updatedScout = scoutReports.map((r) =>
+          loaded: (villageId, reports, _) {
+            final updated = reports.map((r) =>
                 r.id == reportId ? r.copyWith(isRead: true) : r).toList();
             emit(ReportsState.loaded(
-              villageId:    villageId,
-              reports:      updatedAttack,
-              scoutReports: updatedScout,
-              unreadCount:  _countUnread(updatedAttack, updatedScout),
+              villageId:   villageId,
+              reports:     updated,
+              unreadCount: _countUnread(updated),
             ));
           },
           orElse: () {},
@@ -94,16 +88,13 @@ class ReportsBloc extends Bloc<ReportsEvent, ReportsState> {
 
       markAllRead: () {
         state.maybeWhen(
-          loaded: (villageId, reports, scoutReports, _) {
-            for (final r in reports)      { _readIds.add(r.id); }
-            for (final r in scoutReports) { _readIds.add(r.id); }
-            final updatedAttack = reports.map((r) => r.copyWith(isRead: true)).toList();
-            final updatedScout  = scoutReports.map((r) => r.copyWith(isRead: true)).toList();
+          loaded: (villageId, reports, _) {
+            for (final r in reports) { _readIds.add(r.id); }
+            final updated = reports.map((r) => r.copyWith(isRead: true)).toList();
             emit(ReportsState.loaded(
-              villageId:    villageId,
-              reports:      updatedAttack,
-              scoutReports: updatedScout,
-              unreadCount:  0,
+              villageId:   villageId,
+              reports:     updated,
+              unreadCount: 0,
             ));
           },
           orElse: () {},
@@ -112,24 +103,13 @@ class ReportsBloc extends Bloc<ReportsEvent, ReportsState> {
     );
   }
 
-  Future<(List<AttackReportDto>, List<ScoutReportDto>)> _fetchAll(String villageId) async {
-    final results = await Future.wait([
-      _api.getReports(villageId),
-      _api.getScoutReports(villageId),
-    ]);
-    final attacks = _applyReadStatus(results[0] as List<AttackReportDto>);
-    final scouts  = _applyScoutReadStatus(results[1] as List<ScoutReportDto>);
-    return (attacks, scouts);
+  Future<List<CombatReportDto>> _fetchAll(String villageId) async {
+    final reports = await _api.getCombatReports(villageId);
+    return reports.map((r) => r.copyWith(isRead: _readIds.contains(r.id))).toList();
   }
 
-  int _countUnread(List<AttackReportDto> attacks, List<ScoutReportDto> scouts) =>
-      attacks.where((r) => !r.isRead).length + scouts.where((r) => !r.isRead).length;
-
-  List<AttackReportDto> _applyReadStatus(List<AttackReportDto> reports) =>
-      reports.map((r) => r.copyWith(isRead: _readIds.contains(r.id))).toList();
-
-  List<ScoutReportDto> _applyScoutReadStatus(List<ScoutReportDto> reports) =>
-      reports.map((r) => r.copyWith(isRead: _readIds.contains(r.id))).toList();
+  int _countUnread(List<CombatReportDto> reports) =>
+      reports.where((r) => !r.isRead).length;
 
   @override
   Future<void> close() {

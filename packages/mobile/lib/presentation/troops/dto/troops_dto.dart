@@ -260,219 +260,157 @@ class ReportVillageDto {
 }
 
 // ─────────────────────────────────────────────
-// Rapport de combat enrichi
+// Rapport unifié (combat + espionnage + combiné)
 // ─────────────────────────────────────────────
-class AttackReportDto {
-  final String   id;
-  final String   attackerVillageId;
-  final String   defenderVillageId;
-  final Map<String, int> unitsSent;
-  final Map<String, int> unitsSurvived;
-  final Map<String, int> defenderUnitsBefore;
-  final Map<String, int> defenderUnitsAfter;
-  final Map<String, int> resourcesLooted;
-  final int      pointsGained;
-  final int      pointsLost;
-  final bool     attackerWon;
-  final double   morale;      // ← NOUVEAU : 0.3 → 1.0
-  final double   wallBonus;   // ← NOUVEAU : 1.0 → 2.0
+class CombatReportDto {
+  final String id;
+  final String type; // 'attack' | 'scout' | 'combined'
+  final String attackerVillageId;
+  final String defenderVillageId;
   final DateTime createdAt;
+  final bool isRead;
+  final bool isDefenderReport;
+
+  // Données combat (non-null si type == 'attack' ou 'combined')
+  final Map<String, int>? unitsSent;
+  final Map<String, int>? unitsSurvived;
+  final Map<String, int>? defenderUnitsBefore;
+  final Map<String, int>? defenderUnitsAfter;
+  final Map<String, int>? resourcesLooted;
+  final double morale;
+  final double wallBonus;
+  final int pointsGained;
+  final int pointsLost;
+  final bool? attackerWon;
+
+  // Données scout (non-null si type == 'scout' ou 'combined')
+  final int? scoutsSent;
+  final int? scoutsLost;
+  final int? scoutsSurvived;
+  final double? survivorRatio;
+  final int? tier;
+  final int? defenderScoutsKilled;
+  final Map<String, int>? scoutResources;
+  final Map<String, int>? troopsAtHome;
+  final Map<String, int>? buildings;
+  final Map<String, int>? troopsOutside;
+
   final ReportVillageDto? attackerVillage;
   final ReportVillageDto? defenderVillage;
 
-  // Suivi lu/non-lu local (géré dans le BLoC)
-  final bool isRead;
+  bool get hasCombat => attackerWon != null;
+  bool get hasScout  => tier != null;
 
   bool isAttacker(String villageId) => attackerVillageId == villageId;
 
-  // Pertes attaquant
-  Map<String, int> get attackerLosses {
-    final losses = <String, int>{};
-    for (final entry in unitsSent.entries) {
-      final survived = unitsSurvived[entry.key] ?? 0;
-      final lost     = entry.value - survived;
-      if (lost > 0) losses[entry.key] = lost;
-    }
-    return losses;
-  }
-
-  // Total des ressources pillées
   int get totalLooted =>
-      (resourcesLooted['wood']  ?? 0) +
-      (resourcesLooted['stone'] ?? 0) +
-      (resourcesLooted['iron']  ?? 0);
+      (resourcesLooted?['wood']  ?? 0) +
+      (resourcesLooted?['stone'] ?? 0) +
+      (resourcesLooted?['iron']  ?? 0);
 
-  AttackReportDto copyWith({bool? isRead}) => AttackReportDto(
-        id:                  id,
-        attackerVillageId:   attackerVillageId,
-        defenderVillageId:   defenderVillageId,
-        unitsSent:           unitsSent,
-        unitsSurvived:       unitsSurvived,
-        defenderUnitsBefore: defenderUnitsBefore,
-        defenderUnitsAfter:  defenderUnitsAfter,
-        resourcesLooted:     resourcesLooted,
-        pointsGained:        pointsGained,
-        pointsLost:          pointsLost,
-        attackerWon:         attackerWon,
-        morale:              morale,
-        wallBonus:           wallBonus,
-        createdAt:           createdAt,
-        attackerVillage:     attackerVillage,
-        defenderVillage:     defenderVillage,
-        isRead:              isRead ?? this.isRead,
-      );
-
-  const AttackReportDto({
+  const CombatReportDto({
     required this.id,
+    required this.type,
     required this.attackerVillageId,
     required this.defenderVillageId,
-    required this.unitsSent,
-    required this.unitsSurvived,
-    required this.defenderUnitsBefore,
-    required this.defenderUnitsAfter,
-    required this.resourcesLooted,
-    required this.pointsGained,
-    required this.pointsLost,
-    required this.attackerWon,
+    required this.createdAt,
+    this.isRead = false,
+    this.isDefenderReport = false,
+    this.unitsSent,
+    this.unitsSurvived,
+    this.defenderUnitsBefore,
+    this.defenderUnitsAfter,
+    this.resourcesLooted,
     this.morale   = 1.0,
     this.wallBonus = 1.0,
-    required this.createdAt,
-    this.attackerVillage,
-    this.defenderVillage,
-    this.isRead = false,
-  });
-
-  factory AttackReportDto.fromJson(Map<String, dynamic> json) {
-    Map<String, int> toIntMap(dynamic raw) {
-      if (raw == null) return {};
-      return (raw as Map<String, dynamic>).map((k, v) => MapEntry(k, (v as num).toInt()));
-    }
-    return AttackReportDto(
-      id:                  json['id']                as String,
-      attackerVillageId:   json['attackerVillageId'] as String,
-      defenderVillageId:   json['defenderVillageId'] as String,
-      unitsSent:           toIntMap(json['unitsSent']),
-      unitsSurvived:       toIntMap(json['unitsSurvived']),
-      defenderUnitsBefore: toIntMap(json['defenderUnitsBefore']),
-      defenderUnitsAfter:  toIntMap(json['defenderUnitsAfter']),
-      resourcesLooted:     toIntMap(json['resourcesLooted']),
-      pointsGained:        (json['pointsGained'] as num).toInt(),
-      pointsLost:          (json['pointsLost']   as num).toInt(),
-      attackerWon:         json['attackerWon']   as bool,
-      morale:              (json['morale']    as num?)?.toDouble() ?? 1.0,
-      wallBonus:           (json['wallBonus'] as num?)?.toDouble() ?? 1.0,
-      createdAt:           DateTime.parse(json['createdAt'] as String).toLocal(),
-      attackerVillage:     json['attackerVillage'] != null
-          ? ReportVillageDto.fromJson(json['attackerVillage'] as Map<String, dynamic>)
-          : null,
-      defenderVillage:     json['defenderVillage'] != null
-          ? ReportVillageDto.fromJson(json['defenderVillage'] as Map<String, dynamic>)
-          : null,
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-// Rapport d'espionnage
-// ─────────────────────────────────────────────
-class ScoutReportDto {
-  final String id;
-  final String attackerVillageId;
-  final String defenderVillageId;
-
-  final int    scoutsSent;
-  final int    scoutsLost;
-  final int    scoutsSurvived;
-  final double survivorRatio;
-  /// 0 = échec total, 1/2/3 = paliers d'information croissants
-  final int    tier;
-
-  // Palier 1 (tier >= 1)
-  final Map<String, int>? resources;    // wood/stone/iron/food
-  final Map<String, int>? troopsAtHome; // unitType → count
-
-  // Palier 2 (tier >= 2)
-  final Map<String, int>? buildings;   // buildingId → level
-
-  // Palier 3 (tier >= 3)
-  final Map<String, int>? troopsOutside; // unitType → count
-
-  final ReportVillageDto? attackerVillage;
-  final ReportVillageDto? defenderVillage;
-  final DateTime createdAt;
-  final bool     isRead;
-  final bool     isDefenderReport;
-  final int      defenderScoutsKilled;
-
-  const ScoutReportDto({
-    required this.id,
-    required this.attackerVillageId,
-    required this.defenderVillageId,
-    required this.scoutsSent,
-    required this.scoutsLost,
-    required this.scoutsSurvived,
-    required this.survivorRatio,
-    required this.tier,
-    required this.createdAt,
-    this.resources,
+    this.pointsGained = 0,
+    this.pointsLost   = 0,
+    this.attackerWon,
+    this.scoutsSent,
+    this.scoutsLost,
+    this.scoutsSurvived,
+    this.survivorRatio,
+    this.tier,
+    this.defenderScoutsKilled,
+    this.scoutResources,
     this.troopsAtHome,
     this.buildings,
     this.troopsOutside,
     this.attackerVillage,
     this.defenderVillage,
-    this.isRead = false,
-    this.isDefenderReport = false,
-    this.defenderScoutsKilled = 0,
   });
 
-  ScoutReportDto copyWith({bool? isRead}) => ScoutReportDto(
+  CombatReportDto copyWith({bool? isRead}) => CombatReportDto(
     id:                   id,
+    type:                 type,
     attackerVillageId:    attackerVillageId,
     defenderVillageId:    defenderVillageId,
+    createdAt:            createdAt,
+    isRead:               isRead ?? this.isRead,
+    isDefenderReport:     isDefenderReport,
+    unitsSent:            unitsSent,
+    unitsSurvived:        unitsSurvived,
+    defenderUnitsBefore:  defenderUnitsBefore,
+    defenderUnitsAfter:   defenderUnitsAfter,
+    resourcesLooted:      resourcesLooted,
+    morale:               morale,
+    wallBonus:            wallBonus,
+    pointsGained:         pointsGained,
+    pointsLost:           pointsLost,
+    attackerWon:          attackerWon,
     scoutsSent:           scoutsSent,
     scoutsLost:           scoutsLost,
     scoutsSurvived:       scoutsSurvived,
     survivorRatio:        survivorRatio,
     tier:                 tier,
-    createdAt:            createdAt,
-    resources:            resources,
+    defenderScoutsKilled: defenderScoutsKilled,
+    scoutResources:       scoutResources,
     troopsAtHome:         troopsAtHome,
     buildings:            buildings,
     troopsOutside:        troopsOutside,
     attackerVillage:      attackerVillage,
     defenderVillage:      defenderVillage,
-    isRead:               isRead ?? this.isRead,
-    isDefenderReport:     isDefenderReport,
-    defenderScoutsKilled: defenderScoutsKilled,
   );
 
-  factory ScoutReportDto.fromJson(Map<String, dynamic> json) {
-    Map<String, int>? toIntMap(dynamic raw) {
+  factory CombatReportDto.fromJson(Map<String, dynamic> json) {
+    Map<String, int>? toOptMap(dynamic raw) {
       if (raw == null) return null;
       return (raw as Map<String, dynamic>).map((k, v) => MapEntry(k, (v as num).toInt()));
     }
-    return ScoutReportDto(
+    return CombatReportDto(
       id:                   json['id']                as String,
+      type:                 json['type']              as String,
       attackerVillageId:    json['attackerVillageId'] as String,
       defenderVillageId:    json['defenderVillageId'] as String,
-      scoutsSent:           (json['scoutsSent']      as num).toInt(),
-      scoutsLost:           (json['scoutsLost']      as num).toInt(),
-      scoutsSurvived:       (json['scoutsSurvived']  as num).toInt(),
-      survivorRatio:        (json['survivorRatio']   as num).toDouble(),
-      tier:                 (json['tier']            as num).toInt(),
       createdAt:            DateTime.parse(json['createdAt'] as String).toLocal(),
-      resources:            toIntMap(json['resources']),
-      troopsAtHome:         toIntMap(json['troopsAtHome']),
-      buildings:            toIntMap(json['buildings']),
-      troopsOutside:        toIntMap(json['troopsOutside']),
+      isDefenderReport:     json['isDefenderReport']  as bool? ?? false,
+      unitsSent:            toOptMap(json['unitsSent']),
+      unitsSurvived:        toOptMap(json['unitsSurvived']),
+      defenderUnitsBefore:  toOptMap(json['defenderUnitsBefore']),
+      defenderUnitsAfter:   toOptMap(json['defenderUnitsAfter']),
+      resourcesLooted:      toOptMap(json['resourcesLooted']),
+      morale:               (json['morale']    as num?)?.toDouble() ?? 1.0,
+      wallBonus:            (json['wallBonus'] as num?)?.toDouble() ?? 1.0,
+      pointsGained:         (json['pointsGained'] as num?)?.toInt() ?? 0,
+      pointsLost:           (json['pointsLost']   as num?)?.toInt() ?? 0,
+      attackerWon:          json['attackerWon']   as bool?,
+      scoutsSent:           (json['scoutsSent']      as num?)?.toInt(),
+      scoutsLost:           (json['scoutsLost']      as num?)?.toInt(),
+      scoutsSurvived:       (json['scoutsSurvived']  as num?)?.toInt(),
+      survivorRatio:        (json['survivorRatio']   as num?)?.toDouble(),
+      tier:                 (json['tier']            as num?)?.toInt(),
+      defenderScoutsKilled: (json['defenderScoutsKilled'] as num?)?.toInt(),
+      scoutResources:       toOptMap(json['scoutResources']),
+      troopsAtHome:         toOptMap(json['troopsAtHome']),
+      buildings:            toOptMap(json['buildings']),
+      troopsOutside:        toOptMap(json['troopsOutside']),
       attackerVillage:      json['attackerVillage'] != null
           ? ReportVillageDto.fromJson(json['attackerVillage'] as Map<String, dynamic>)
           : null,
       defenderVillage:      json['defenderVillage'] != null
           ? ReportVillageDto.fromJson(json['defenderVillage'] as Map<String, dynamic>)
           : null,
-      isDefenderReport:     json['isDefenderReport'] as bool? ?? false,
-      defenderScoutsKilled: (json['defenderScoutsKilled'] as num?)?.toInt() ?? 0,
     );
   }
 }
+

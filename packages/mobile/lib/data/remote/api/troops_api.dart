@@ -53,19 +53,11 @@ class TroopsApi {
     return response.data as Map<String, dynamic>;
   }
 
-  Future<List<AttackReportDto>> getReports(String villageId) async {
-    final response = await _client.dio.get('/villages/$villageId/reports');
+  Future<List<CombatReportDto>> getCombatReports(String villageId) async {
+    final response = await _client.dio.get('/villages/$villageId/combat-reports');
     final data = response.data as List<dynamic>;
     return data
-        .map((r) => AttackReportDto.fromJson(r as Map<String, dynamic>))
-        .toList();
-  }
-
-  Future<List<ScoutReportDto>> getScoutReports(String villageId) async {
-    final response = await _client.dio.get('/villages/$villageId/scout-reports');
-    final data = response.data as List<dynamic>;
-    return data
-        .map((r) => ScoutReportDto.fromJson(r as Map<String, dynamic>))
+        .map((r) => CombatReportDto.fromJson(r as Map<String, dynamic>))
         .toList();
   }
 

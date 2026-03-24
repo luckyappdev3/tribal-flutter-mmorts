@@ -203,39 +203,8 @@ export class CombatService {
     };
   }
 
-  async getScoutReports(villageId: string) {
-    const reports = await this.prisma.scoutReport.findMany({
-      where: {
-        OR: [
-          { attackerVillageId: villageId },
-          { defenderVillageId: villageId },
-        ],
-      },
-      orderBy: { createdAt: 'desc' },
-      take:    100,
-      include: {
-        attackerVillage: {
-          select: { id: true, name: true, x: true, y: true,
-            player: { select: { id: true, username: true } } },
-        },
-        defenderVillage: {
-          select: { id: true, name: true, x: true, y: true,
-            player: { select: { id: true, username: true } } },
-        },
-      },
-    });
-
-    // Ajouter un flag isDefenderReport calculé côté serveur
-    return reports.map(r => ({
-      ...r,
-      isDefenderReport: r.defenderVillageId === villageId,
-      // Masquer le nombre de scouts envoyés dans le rapport défenseur
-      scoutsSent:     r.defenderVillageId === villageId ? 0 : r.scoutsSent,
-    }));
-  }
-
-  async getReports(villageId: string) {
-    const reports = await this.prisma.attackReport.findMany({
+  async getCombatReports(villageId: string) {
+    const reports = await this.prisma.combatReport.findMany({
       where: {
         OR: [
           { attackerVillageId: villageId },
@@ -247,29 +216,30 @@ export class CombatService {
       include: {
         attackerVillage: {
           select: {
-            id:      true,
-            name:    true,
-            x:       true,
-            y:       true,
-            player:  { select: { id: true, username: true } },
-            isAbandoned: true,
+            id: true, name: true, x: true, y: true,
+            isAbandoned: true, abandonedLevel: true,
+            player: { select: { id: true, username: true } },
           },
         },
         defenderVillage: {
           select: {
-            id:      true,
-            name:    true,
-            x:       true,
-            y:       true,
-            player:  { select: { id: true, username: true } },
-            isAbandoned:    true,
-            abandonedLevel: true,
+            id: true, name: true, x: true, y: true,
+            isAbandoned: true, abandonedLevel: true,
+            player: { select: { id: true, username: true } },
           },
         },
       },
     });
 
-    return reports;
+    return reports.map(r => {
+      const isDefenderReport = r.defenderVillageId === villageId;
+      return {
+        ...r,
+        isDefenderReport,
+        // Masquer les scouts envoyés dans le rapport côté défenseur
+        scoutsSent: isDefenderReport && r.type !== 'attack' ? 0 : r.scoutsSent,
+      };
+    });
   }
 
   async getMovements(villageId: string) {

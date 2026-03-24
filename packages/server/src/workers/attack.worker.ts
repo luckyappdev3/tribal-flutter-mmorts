@@ -150,8 +150,9 @@ async function resolveScoutMission(
       }
     }
 
-    await tx.scoutReport.create({
+    await tx.combatReport.create({
       data: {
+        type:                 'scout',
         attackerVillageId,
         defenderVillageId,
         scoutsSent:           result.scoutsSent,
@@ -160,7 +161,7 @@ async function resolveScoutMission(
         survivorRatio:        result.survivorRatio,
         tier:                 result.tier,
         defenderScoutsKilled: result.defenderScoutsKilled,
-        resources,
+        scoutResources:       resources,
         troopsAtHome,
         buildings,
         troopsOutside,
@@ -477,42 +478,23 @@ export function initAttackWorker(fastify: FastifyInstance) {
           }
         }
 
-        // Rapport de combat — ignoré si l'attaque ne contient que des scouts
-        // (les scouts ont ATK:0, ce qui produirait toujours un faux rapport de défaite)
-        const isScoutOnly = Object.keys(units).every(u => u === 'scout');
-        if (!isScoutOnly) await tx.attackReport.create({
-          data: {
-            attackerVillageId,
-            defenderVillageId,
-            unitsSent:           units,
-            unitsSurvived:       survivors,
-            defenderUnitsBefore,
-            defenderUnitsAfter: {
-              ...Object.fromEntries(
-                defGroups.map(u => [u.unitType, Math.max(0, u.count - (result.defenderLosses[u.unitType] ?? 0))])
-              ),
-              // Scouts : pertes du sous-combat (non inclus dans defGroups)
-              ...(defenderScoutsCount > 0 ? {
-                scout: Math.max(0, defenderScoutsCount - (scoutSubResult?.defenderScoutsKilled ?? 0)),
-              } : {}),
-            },
-            resourcesLooted:  loot,
-            morale:           result.morale,
-            wallBonus:        result.wallBonus,
-            pointsLost:       0,   // plus d'échange de points au combat
-            pointsGained:     0,   // les points viennent des bâtiments
-            attackerWon:      result.attackerWon,
-          },
-        });
+        // ── Rapport unifié (combat + scout éventuel) ─────────────
+        const defenderUnitsAfterMap = {
+          ...Object.fromEntries(
+            defGroups.map(u => [u.unitType, Math.max(0, u.count - (result.defenderLosses[u.unitType] ?? 0))])
+          ),
+          ...(defenderScoutsCount > 0 ? {
+            scout: Math.max(0, defenderScoutsCount - (scoutSubResult?.defenderScoutsKilled ?? 0)),
+          } : {}),
+        };
 
-        // ── Rapport d'espionnage (sous-combat scout) ─────────────
-        // resolveScout() a déjà calculé tier/pertes en amont.
-        // L'état capturé est celui d'AVANT le combat principal.
+        // Données scout du sous-combat (null si aucun scout dans l'attaque)
+        let scoutResources:    Record<string, number> | null = null;
+        let scoutTroopsAtHome: Record<string, number> | null = null;
+        let scoutBuildings:    Record<string, number> | null = null;
+        let scoutTroopsOutside: Record<string, number> | null = null;
         if (scoutSubResult) {
-          const { scoutsSurvived, scoutsLost, survivorRatio, tier, defenderScoutsKilled } = scoutSubResult;
-
-          let scoutResources:    Record<string, number> | null = null;
-          let scoutTroopsAtHome: Record<string, number> | null = null;
+          const { tier } = scoutSubResult;
           if (tier >= 1) {
             scoutResources = {
               wood:  Math.floor(defenderVillage.wood),
@@ -524,16 +506,12 @@ export function initAttackWorker(fastify: FastifyInstance) {
               if (t.count > 0) scoutTroopsAtHome[t.unitType] = t.count;
             }
           }
-
-          let scoutBuildings: Record<string, number> | null = null;
           if (tier >= 2) {
             scoutBuildings = {};
             for (const b of (defenderVillage as any).buildings ?? []) {
               if (b.level > 0) scoutBuildings[b.buildingId] = b.level;
             }
           }
-
-          let scoutTroopsOutside: Record<string, number> | null = null;
           if (tier >= 3) {
             const outgoing = await tx.activeAttack.findMany({
               where:  { attackerVillageId: defenderVillageId, status: 'traveling' },
@@ -546,26 +524,38 @@ export function initAttackWorker(fastify: FastifyInstance) {
               }
             }
           }
-
-          await tx.scoutReport.create({
-            data: {
-              attackerVillageId,
-              defenderVillageId,
-              scoutsSent:    scoutsSentInAttack,
-              scoutsLost,
-              scoutsSurvived,
-              survivorRatio,
-              tier,
-              defenderScoutsKilled,
-              resources:     scoutResources,
-              troopsAtHome:  scoutTroopsAtHome,
-              buildings:     scoutBuildings,
-              troopsOutside: scoutTroopsOutside,
-            },
-          });
-
-          console.log(`🔍 Scout (Palier ${tier}) — ${scoutsSurvived}/${scoutsSentInAttack} revenus, ${defenderScoutsKilled} scouts défenseurs éliminés`);
+          console.log(`🔍 Scout (Palier ${tier}) — ${scoutSubResult.scoutsSurvived}/${scoutsSentInAttack} revenus, ${scoutSubResult.defenderScoutsKilled} scouts défenseurs éliminés`);
         }
+
+        await tx.combatReport.create({
+          data: {
+            type:                 scoutSubResult ? 'combined' : 'attack',
+            attackerVillageId,
+            defenderVillageId,
+            unitsSent:            units,
+            unitsSurvived:        survivors,
+            defenderUnitsBefore,
+            defenderUnitsAfter:   defenderUnitsAfterMap,
+            resourcesLooted:      loot,
+            morale:               result.morale,
+            wallBonus:            result.wallBonus,
+            pointsLost:           0,
+            pointsGained:         0,
+            attackerWon:          result.attackerWon,
+            ...(scoutSubResult ? {
+              scoutsSent:           scoutsSentInAttack,
+              scoutsLost:           scoutSubResult.scoutsLost,
+              scoutsSurvived:       scoutSubResult.scoutsSurvived,
+              survivorRatio:        scoutSubResult.survivorRatio,
+              tier:                 scoutSubResult.tier,
+              defenderScoutsKilled: scoutSubResult.defenderScoutsKilled,
+              scoutResources,
+              troopsAtHome:         scoutTroopsAtHome,
+              buildings:            scoutBuildings,
+              troopsOutside:        scoutTroopsOutside,
+            } : {}),
+          },
+        });
 
         // Statut du mouvement actif
         const travelMs = job.data.travelMs ?? 15000;

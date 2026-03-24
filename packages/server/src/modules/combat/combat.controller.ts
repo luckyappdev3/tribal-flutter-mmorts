@@ -69,9 +69,9 @@ export async function combatRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // GET /api/villages/:id/scout-reports
-  // Récupère les rapports d'espionnage envoyés depuis ce village
-  fastify.get('/:id/scout-reports', async (request: FastifyRequest, reply: FastifyReply) => {
+  // GET /api/villages/:id/combat-reports
+  // Récupère tous les rapports (combat + espionnage + combinés) d'un village
+  fastify.get('/:id/combat-reports', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const player = request.user as { id: string };
 
@@ -83,27 +83,7 @@ export async function combatRoutes(fastify: FastifyInstance) {
         return reply.status(403).send({ message: 'Accès refusé' });
       }
 
-      return await fastify.combatService.getScoutReports(id);
-    } catch (error: any) {
-      return reply.status(500).send({ error: error.message });
-    }
-  });
-
-  // GET /api/villages/:id/reports
-  // Récupère les rapports de combat d'un village
-  fastify.get('/:id/reports', async (request: FastifyRequest, reply: FastifyReply) => {
-    const { id }   = request.params as { id: string };
-    const player   = request.user as { id: string };
-
-    try {
-      const village = await fastify.prisma.village.findUnique({
-        where: { id }, select: { playerId: true },
-      });
-      if (!village || village.playerId !== player.id) {
-        return reply.status(403).send({ message: 'Accès refusé' });
-      }
-
-      return await fastify.combatService.getReports(id);
+      return await fastify.combatService.getCombatReports(id);
     } catch (error: any) {
       return reply.status(500).send({ error: error.message });
     }

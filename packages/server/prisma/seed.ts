@@ -121,7 +121,7 @@ async function createMaxVillageForPlayerA(
   await prisma.troop.createMany({
     data: ALL_UNIT_TYPES.map(unitType => ({
       unitType,
-      count: 10,
+      count: 5,
       villageId: village.id,
     })),
   });

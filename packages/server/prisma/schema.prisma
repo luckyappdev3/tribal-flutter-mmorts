@@ -101,14 +101,11 @@ model Village {
   troops        Troop[]
   recruitQueues RecruitQueue[]
 
-  attacksSent     AttackReport[]  @relation("AttackerVillage")
-  attacksReceived AttackReport[]  @relation("DefenderVillage")
+  combatReportsSent     CombatReport[] @relation("CombatReportAttacker")
+  combatReportsReceived CombatReport[] @relation("CombatReportDefender")
 
   activeAttacksSent     ActiveAttack[] @relation("ActiveAttackAttacker")
   activeAttacksReceived ActiveAttack[] @relation("ActiveAttackDefender")
-
-  scoutReportsSent     ScoutReport[] @relation("ScoutReportAttacker")
-  scoutReportsReceived ScoutReport[] @relation("ScoutReportDefender")
 
   @@unique([x, y])
 }
@@ -186,29 +183,45 @@ model RecruitQueue {
   @@index([villageId, buildingType])
 }
 
-// ── Rapports de combat ───────────────────────────────────────
-model AttackReport {
-  id String @id @default(uuid())
+// ── Rapport unifié (combat + espionnage) ─────────────────────
+model CombatReport {
+  id   String @id @default(uuid())
+  type String // 'attack' | 'scout' | 'combined'
 
-  attackerVillage   Village @relation("AttackerVillage", fields: [attackerVillageId], references: [id], onDelete: Cascade)
+  attackerVillage   Village @relation("CombatReportAttacker", fields: [attackerVillageId], references: [id], onDelete: Cascade)
   attackerVillageId String
 
-  defenderVillage   Village @relation("DefenderVillage", fields: [defenderVillageId], references: [id], onDelete: Cascade)
+  defenderVillage   Village @relation("CombatReportDefender", fields: [defenderVillageId], references: [id], onDelete: Cascade)
   defenderVillageId String
 
-  unitsSent           Json
-  unitsSurvived       Json
-  defenderUnitsBefore Json
-  defenderUnitsAfter  Json
-  resourcesLooted     Json
+  // Données de combat (null si espionnage seul)
+  unitsSent           Json?
+  unitsSurvived       Json?
+  defenderUnitsBefore Json?
+  defenderUnitsAfter  Json?
+  resourcesLooted     Json?
+  morale              Float?
+  wallBonus           Float?
+  pointsGained        Int?
+  pointsLost          Int?
+  attackerWon         Boolean?
 
-  morale       Float   @default(1.0) // ← NOUVEAU
-  wallBonus    Float   @default(1.0) // ← NOUVEAU
-  pointsLost   Int     @default(0)
-  pointsGained Int     @default(0)
-  attackerWon  Boolean
+  // Données d'espionnage (null si aucun scout)
+  scoutsSent           Int?
+  scoutsLost           Int?
+  scoutsSurvived       Int?
+  survivorRatio        Float?
+  tier                 Int?
+  defenderScoutsKilled Int?
+  scoutResources       Json?
+  troopsAtHome         Json?
+  buildings            Json?
+  troopsOutside        Json?
 
   createdAt DateTime @default(now())
+
+  @@index([attackerVillageId])
+  @@index([defenderVillageId])
 }
 
 // ── Attaques actives ─────────────────────────────────────────
@@ -232,41 +245,4 @@ model ActiveAttack {
   missionType String @default("attack")
 }
 
-// ── Rapports d'espionnage ────────────────────────────────────
-// Créé après chaque mission d'éclaireurs avec succès (tier >= 1).
-// Les champs optionnels sont null si le palier n'est pas atteint.
-model ScoutReport {
-  id String @id @default(uuid())
-
-  attackerVillage   Village @relation("ScoutReportAttacker", fields: [attackerVillageId], references: [id], onDelete: Cascade)
-  attackerVillageId String
-
-  defenderVillage   Village @relation("ScoutReportDefender", fields: [defenderVillageId], references: [id], onDelete: Cascade)
-  defenderVillageId String
-
-  scoutsSent      Int
-  scoutsLost      Int
-  scoutsSurvived  Int
-  survivorRatio   Float  // 0.0 → 1.0
-  tier            Int    // 0 | 1 | 2 | 3
-
-  // Pertes défenseur (nombre d'éclaireurs adverses tués)
-  defenderScoutsKilled Int @default(0)
-
-  // Palier 1 (tier >= 1) : ressources + troupes stationnées
-  resources    Json?  // { wood, stone, iron, food }
-  troopsAtHome Json?  // Record<unitType, count>
-
-  // Palier 2 (tier >= 2) : niveaux des bâtiments
-  buildings Json?  // Record<buildingId, level>
-
-  // Palier 3 (tier >= 3) : troupes à l'extérieur
-  troopsOutside Json?  // Record<unitType, count>
-
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  @@index([attackerVillageId])
-  @@index([defenderVillageId])
-}
 
