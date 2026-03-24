@@ -70,10 +70,10 @@ export class GameDataRegistry {
   }
 
   public getAllUnits(): UnitDefinition[] {
-    return Array.from(this.units.values());
+    return Array.from(this.units.values()).sort((a, b) => a.order - b.order);
   }
 
   public getAllBuildings(): BuildingDefinition[] {
-    return Array.from(this.buildings.values());
+    return Array.from(this.buildings.values()).sort((a, b) => a.order - b.order);
   }
 }

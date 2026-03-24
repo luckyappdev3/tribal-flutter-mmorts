@@ -10,7 +10,24 @@ export class TroopsService {
     private recruitQ:  RecruitQueue,
   ) {}
 
-  // ── Calcule la population utilisée (troupes présentes) ──
+  // ── Mapping catégorie → bâtiment de recrutement ──────────────
+  private getBuildingTypeForUnit(category: string): string {
+    switch (category) {
+      case 'cavalry':   return 'stable';
+      case 'siege':     return 'garage';
+      case 'hero':      return 'statue';
+      case 'conquest':  return 'snob';
+      default:          return 'barracks'; // infantry, archer
+    }
+  }
+
+  // ── Formule : T_reel = T_base × 0.94^(niveau−1) / gameSpeed ──
+  private calcRecruitTimeMs(baseTimeSec: number, buildingLevel: number, gameSpeed: number): number {
+    const T_real = baseTimeSec * Math.pow(0.94, Math.max(0, buildingLevel - 1));
+    return Math.max(1000, Math.floor(T_real * 1000 / gameSpeed));
+  }
+
+  // ── Calcule la population utilisée ──────────────────────────
   private calcUsedPopulation(troops: { unitType: string; count: number }[]): number {
     let used = 0;
     for (const t of troops) {
@@ -22,99 +39,123 @@ export class TroopsService {
     return used;
   }
 
-  // ── Liste des troupes disponibles dans un village ──
+  // ── Liste des troupes + files actives ────────────────────────
   async getTroops(villageId: string) {
-    const [troops, queue, buildings] = await Promise.all([
+    const [troops, queues, buildings, village] = await Promise.all([
       this.prisma.troop.findMany({ where: { villageId } }),
-      this.prisma.recruitQueue.findUnique({ where: { villageId } }),
+      this.prisma.recruitQueue.findMany({
+        where:   { villageId },
+        orderBy: { startsAt: 'asc' },
+      }),
       this.prisma.buildingInstance.findMany({ where: { villageId } }),
+      this.prisma.village.findUnique({
+        where: { id: villageId }, include: { world: { select: { gameSpeed: true } } },
+      }),
     ]);
 
     const allUnits = this.gameData.getAllUnits();
     const troopMap = Object.fromEntries(troops.map(t => [t.unitType, t.count]));
     const buildMap = Object.fromEntries(buildings.map(b => [b.buildingId, b.level]));
+    const gameSpeed = (village as any)?.world?.gameSpeed ?? 1.0;
 
-    // Population
-    const farmLevel    = buildMap['farm']    ?? 1;
-    const stableLevel  = buildMap['stable']  ?? 0;
-    const maxPop       = calcMaxPopulation(farmLevel);
-    const usedPop      = this.calcUsedPopulation(troops);
+    const farmLevel = buildMap['farm'] ?? 1;
+    const maxPop    = calcMaxPopulation(farmLevel);
+    const usedPop   = this.calcUsedPopulation(troops);
 
     return {
       troops: allUnits.map(u => {
-        // Prérequis bâtiment (ex: stable pour cavalry)
         let prerequisiteMet = true;
         let prerequisiteMsg: string | null = null;
-        if (u.requiredBuilding) {
-          const requiredLevel = buildMap[u.requiredBuilding] ?? 0;
-          prerequisiteMet = requiredLevel >= 1;
-          if (!prerequisiteMet) {
-            const bDef = this.gameData.getBuildingDef(u.requiredBuilding);
-            prerequisiteMsg = `Requiert : ${bDef.name} niveau 1`;
-          }
+        const missing = (u.requiredBuildings ?? []).filter(
+          req => (buildMap[req.buildingId] ?? 0) < req.level,
+        );
+        if (missing.length > 0) {
+          prerequisiteMet = false;
+          prerequisiteMsg = 'Requiert : ' + missing.map(req => {
+            try {
+              const bDef = this.gameData.getBuildingDef(req.buildingId);
+              return `${bDef.name} niv.${req.level}`;
+            } catch {
+              return `${req.buildingId} niv.${req.level}`;
+            }
+          }).join(', ');
         }
 
+        // Temps de recrutement + vitesse effectifs (gamespeed + bâtiment)
+        const buildingType         = this.getBuildingTypeForUnit(u.category);
+        const buildingLevel        = buildMap[buildingType] ?? 1;
+        const effectiveRecruitTime = Math.max(
+          1,
+          Math.round(u.recruitTime * Math.pow(0.94, Math.max(0, buildingLevel - 1)) / gameSpeed),
+        );
+        // Vitesse effective : secondes pour traverser 1 case (gamespeed appliqué)
+        const effectiveSpeed = Math.round((u.speed / gameSpeed) * 100) / 100;
+
         return {
-          unitType:        u.id,
-          name:            u.name,
-          count:           troopMap[u.id] ?? 0,
-          attack:          u.attack,
-          defense:         u.defense,
-          speed:           u.speed,
-          carryCapacity:   u.carryCapacity,
-          cost:            u.cost,
-          recruitTime:     u.recruitTime,
-          populationCost:  u.populationCost ?? 1,
+          unitType:             u.id,
+          name:                 u.name,
+          count:                troopMap[u.id] ?? 0,
+          attack:               u.attack,
+          defenseGeneral:       u.defenseGeneral,
+          defenseCavalry:       u.defenseCavalry,
+          defenseArcher:        u.defenseArcher,
+          speed:                u.speed,            // base (référence combat)
+          effectiveSpeed,                           // s/case affiché
+          carryCapacity:        u.carryCapacity,
+          cost:                 u.cost,
+          recruitTime:          u.recruitTime,
+          effectiveRecruitTime,
+          populationCost:       u.populationCost ?? 1,
           prerequisiteMet,
           prerequisiteMsg,
         };
       }),
-      queue,
-      // ── NOUVEAU : infos de population ──
-      population: {
-        used:    usedPop,
-        max:     maxPop,
-        farmLevel,
-      },
+      queues,
+      population: { used: usedPop, max: maxPop, farmLevel },
     };
   }
 
-  // ── Lancer un recrutement ──
+  // ── Lancer un recrutement ────────────────────────────────────
   async startRecruit(villageId: string, unitType: string, count: number) {
     if (count <= 0) throw new Error('La quantité doit être supérieure à 0.');
 
-    // 1. Vérifier la caserne
-    const barracks = await this.prisma.buildingInstance.findUnique({
-      where: { villageId_buildingId: { villageId, buildingId: 'barracks' } },
+    // 1. Définition + bâtiment responsable
+    const unitDef      = this.gameData.getUnitDef(unitType);
+    const buildingType = this.getBuildingTypeForUnit(unitDef.category);
+
+    // 2. Vérifier que le bâtiment de recrutement existe (niveau ≥ 1)
+    const building = await this.prisma.buildingInstance.findUnique({
+      where: { villageId_buildingId: { villageId, buildingId: buildingType } },
     });
-    if (!barracks || barracks.level < 1) {
-      throw new Error('Vous devez construire une Caserne pour recruter des troupes.');
+    if (!building || building.level < 1) {
+      let bName = buildingType;
+      try { bName = this.gameData.getBuildingDef(buildingType).name; } catch { /* ok */ }
+      throw new Error(`Vous devez construire ${bName} (niv.1) pour recruter cette unité.`);
     }
 
-    // 2. Récupérer la définition de l'unité
-    const unitDef = this.gameData.getUnitDef(unitType);
-
-    // 3. ── NOUVEAU : vérifier le prérequis de bâtiment ──
-    if (unitDef.requiredBuilding) {
-      const reqBuilding = await this.prisma.buildingInstance.findUnique({
-        where: { villageId_buildingId: { villageId, buildingId: unitDef.requiredBuilding } },
-      });
-      if (!reqBuilding || reqBuilding.level < 1) {
-        const bDef = this.gameData.getBuildingDef(unitDef.requiredBuilding);
-        throw new Error(`Vous devez construire ${bDef.name} pour recruter des ${unitDef.name}.`);
+    // 3. Prérequis de bâtiments de l'unité
+    if (unitDef.requiredBuildings && unitDef.requiredBuildings.length > 0) {
+      const buildingInstances = await this.prisma.buildingInstance.findMany({ where: { villageId } });
+      const buildMap = Object.fromEntries(buildingInstances.map(b => [b.buildingId, b.level]));
+      for (const req of unitDef.requiredBuildings) {
+        if ((buildMap[req.buildingId] ?? 0) < req.level) {
+          let bName = req.buildingId;
+          try { bName = this.gameData.getBuildingDef(req.buildingId).name; } catch { /* ok */ }
+          throw new Error(`Requiert ${bName} niveau ${req.level} pour recruter des ${unitDef.name}.`);
+        }
       }
     }
 
-    // 4. ── NOUVEAU : vérifier le cap de population (Ferme) ──
+    // 4. Vérifier le cap de population (Ferme)
     const [troops, buildings] = await Promise.all([
       this.prisma.troop.findMany({ where: { villageId } }),
       this.prisma.buildingInstance.findMany({ where: { villageId } }),
     ]);
-    const buildMap   = Object.fromEntries(buildings.map(b => [b.buildingId, b.level]));
-    const farmLevel  = buildMap['farm'] ?? 1;
-    const maxPop     = calcMaxPopulation(farmLevel);
-    const usedPop    = this.calcUsedPopulation(troops);
-    const newPop     = count * (unitDef.populationCost ?? 1);
+    const buildMap  = Object.fromEntries(buildings.map(b => [b.buildingId, b.level]));
+    const farmLevel = buildMap['farm'] ?? 1;
+    const maxPop    = calcMaxPopulation(farmLevel);
+    const usedPop   = this.calcUsedPopulation(troops);
+    const newPop    = count * (unitDef.populationCost ?? 1);
 
     if (usedPop + newPop > maxPop) {
       const available = Math.max(0, Math.floor((maxPop - usedPop) / (unitDef.populationCost ?? 1)));
@@ -124,30 +165,30 @@ export class TroopsService {
       );
     }
 
-    // 5. Vérifier qu'aucun recrutement n'est en cours
-    const existing = await this.prisma.recruitQueue.findUnique({ where: { villageId } });
-    if (existing) throw new Error('Un recrutement est déjà en cours.');
-
-    // 6. Calcul du coût total
+    // 5. Coût total
     const totalCost = {
       wood:  unitDef.cost.wood  * count,
       stone: unitDef.cost.stone * count,
       iron:  unitDef.cost.iron  * count,
     };
 
-    // 7. Bonus de vitesse de la caserne (−5% par niveau)
-    const barracksDef = this.gameData.getBuildingDef('barracks');
-    const speedBonus  = 1 - (barracks.level * (barracksDef.baseStats.specialMultiplier ?? 0.05));
-
-    // 8. Appliquer gameSpeed du monde
-    const village    = await this.prisma.village.findUnique({
+    // 6. GameSpeed du monde
+    const village   = await this.prisma.village.findUnique({
       where: { id: villageId }, include: { world: { select: { gameSpeed: true } } },
     });
-    const gameSpeed  = (village as any)?.world?.gameSpeed ?? 1.0;
-    const durationMs = Math.floor(unitDef.recruitTime * count * 1000 * speedBonus / gameSpeed);
+    const gameSpeed = (village as any)?.world?.gameSpeed ?? 1.0;
 
-    // 9. Transaction : ressources → queue → BullMQ
-    return await this.prisma.$transaction(async (tx) => {
+    // 7. Durée de la première unité
+    const firstUnitMs = this.calcRecruitTimeMs(unitDef.recruitTime, building.level, gameSpeed);
+
+    // 8. Y a-t-il déjà une chaîne active pour ce bâtiment ?
+    const existingEntries = await this.prisma.recruitQueue.findMany({
+      where: { villageId, buildingType },
+    });
+    const hasActiveChain = existingEntries.length > 0;
+
+    // 9. Transaction : déduction ressources + création entrée
+    const entry = await this.prisma.$transaction(async (tx) => {
       const v = await tx.village.findUnique({ where: { id: villageId } });
       if (!v || v.wood < totalCost.wood || v.stone < totalCost.stone || v.iron < totalCost.iron) {
         throw new Error('Ressources insuffisantes pour ce recrutement.');
@@ -162,14 +203,81 @@ export class TroopsService {
         },
       });
 
-      const endsAt = new Date(Date.now() + durationMs);
-      const entry  = await tx.recruitQueue.create({
-        data: { villageId, unitType, count, endsAt },
+      const nextUnitAt = new Date(Date.now() + firstUnitMs);
+      return await tx.recruitQueue.create({
+        data: { villageId, buildingType, unitType, totalCount: count, trainedCount: 0, nextUnitAt },
       });
-
-      await this.recruitQ.addJob({ villageId, unitType, count }, durationMs);
-
-      return { ...entry, durationMs, totalCost, unitName: unitDef.name };
     });
+
+    // 10. Lancer le premier job BullMQ si aucune chaîne active
+    if (!hasActiveChain) {
+      await this.recruitQ.addJob(
+        { villageId, unitType, count, queueId: entry.id, buildingType },
+        firstUnitMs,
+      );
+    }
+
+    return { ...entry, firstUnitMs, totalCost, unitName: unitDef.name };
+  }
+
+  // ── Annuler une entrée de file + remboursement ───────────────
+  async cancelRecruit(villageId: string, queueId: string) {
+    const entry = await this.prisma.recruitQueue.findUnique({ where: { id: queueId } });
+    if (!entry || entry.villageId !== villageId) {
+      throw new Error('Entrée de file introuvable.');
+    }
+
+    const unitDef   = this.gameData.getUnitDef(entry.unitType);
+    const remaining = entry.totalCount - entry.trainedCount;
+    const refund    = {
+      wood:  unitDef.cost.wood  * remaining,
+      stone: unitDef.cost.stone * remaining,
+      iron:  unitDef.cost.iron  * remaining,
+    };
+
+    // Est-ce l'entrée active (la plus ancienne pour ce bâtiment) ?
+    const olderCount = await this.prisma.recruitQueue.count({
+      where: { villageId, buildingType: entry.buildingType, startsAt: { lt: entry.startsAt } },
+    });
+    const isActive = olderCount === 0;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.village.update({
+        where: { id: villageId },
+        data:  { wood: { increment: refund.wood }, stone: { increment: refund.stone }, iron: { increment: refund.iron } },
+      });
+      await tx.recruitQueue.delete({ where: { id: queueId } });
+    });
+
+    // Si c'était l'entrée active, lancer le prochain lot
+    if (isActive) {
+      const nextEntry = await this.prisma.recruitQueue.findFirst({
+        where:   { villageId, buildingType: entry.buildingType },
+        orderBy: { startsAt: 'asc' },
+      });
+      if (nextEntry) {
+        const [building, village] = await Promise.all([
+          this.prisma.buildingInstance.findUnique({
+            where: { villageId_buildingId: { villageId, buildingId: entry.buildingType } },
+          }),
+          this.prisma.village.findUnique({
+            where: { id: villageId }, include: { world: { select: { gameSpeed: true } } },
+          }),
+        ]);
+        const gameSpeed = (village as any)?.world?.gameSpeed ?? 1.0;
+        const nextDef   = this.gameData.getUnitDef(nextEntry.unitType);
+        const nextMs    = this.calcRecruitTimeMs(nextDef.recruitTime, building?.level ?? 1, gameSpeed);
+        await this.prisma.recruitQueue.update({
+          where: { id: nextEntry.id },
+          data:  { nextUnitAt: new Date(Date.now() + nextMs) },
+        });
+        await this.recruitQ.addJob(
+          { villageId, unitType: nextEntry.unitType, count: nextEntry.totalCount, queueId: nextEntry.id, buildingType: entry.buildingType },
+          nextMs,
+        );
+      }
+    }
+
+    return { refund, cancelledUnitType: entry.unitType, remainingRefunded: remaining };
   }
 }

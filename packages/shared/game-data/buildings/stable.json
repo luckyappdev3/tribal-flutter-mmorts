@@ -3,6 +3,8 @@
   "name": "Écuries",
   "description": "Prérequis pour recruter la cavalerie. Chaque niveau améliore la vitesse d'entraînement.",
   "maxLevel": 20,
+  "order": 11,
+  "prerequisites": { "headquarters": 10, "barracks": 5, "smith": 5 },
   "baseStats": {
     "baseCost": { "wood": 270, "stone": 240, "iron": 200, "food": 0 },
     "baseBuildTime": 2000,

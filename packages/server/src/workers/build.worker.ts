@@ -2,6 +2,7 @@ import { Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
 import { FastifyInstance } from 'fastify';
 import { BuildJobData } from '../engine/queue/queues/build.queue';
+import { io } from '../infra/ws/socket.server';
 import { calculateVillagePoints } from '@mmorts/shared';
 
 export function initBuildWorker(fastify: FastifyInstance) {
@@ -82,7 +83,7 @@ export function initBuildWorker(fastify: FastifyInstance) {
 
         console.log(`✅ ${buildingId} Niv.${targetLevel} terminé !`);
 
-        fastify.io.to(`village:${villageId}`).emit('build:finished', {
+        io?.to(`village:${villageId}`).emit('build:finished', {
           buildingId,
           level:   targetLevel,
           message: `${buildingId} est maintenant niveau ${targetLevel} !`,

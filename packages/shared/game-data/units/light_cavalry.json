@@ -1,0 +1,20 @@
+{
+  "id": "light_cavalry",
+  "name": "Cavalerie Légère",
+  "description": "La meilleure unité pour le pillage et les attaques rapides.",
+  "category": "cavalry",
+  "order": 6,
+  "cost": { "wood": 125, "stone": 100, "iron": 250 },
+  "attack": 130,
+  "defenseGeneral": 30,
+  "defenseCavalry": 40,
+  "defenseArcher": 30,
+  "speed": 600,
+  "carryCapacity": 80,
+  "recruitTime": 1800,
+  "populationCost": 4,
+  "requiredBuildings": [
+    { "buildingId": "stable", "level": 3 },
+    { "buildingId": "smith", "level": 5 }
+  ]
+}

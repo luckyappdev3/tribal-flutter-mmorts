@@ -1,13 +1,20 @@
 {
   "id": "axeman",
-  "name": "Hacheur",
-  "description": "Unité offensive pure. Idéale pour les raids.",
+  "name": "Guerrier à la Hache",
+  "description": "Le pilier de toute armée offensive. Très fragile en défense.",
+  "category": "infantry",
+  "order": 3,
   "cost": { "wood": 60, "stone": 30, "iron": 40 },
   "attack": 40,
-  "defense": 10,
-  "speed": 2,
+  "defenseGeneral": 10,
+  "defenseCavalry": 5,
+  "defenseArcher": 10,
+  "speed": 1080,
   "carryCapacity": 10,
-  "recruitTime": 26,
+  "recruitTime": 1200,
   "populationCost": 1,
-  "requiredBuilding": null
+  "requiredBuildings": [
+    { "buildingId": "barracks", "level": 1 },
+    { "buildingId": "smith", "level": 2 }
+  ]
 }

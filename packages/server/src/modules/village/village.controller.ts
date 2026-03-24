@@ -136,13 +136,26 @@ export async function villageRoutes(fastify: FastifyInstance) {
             : null;
         }
 
+        // ── Prérequis manquants ─────────────────────────────────
+        const prereqs = def.prerequisites ?? {};
+        const missingPrerequisites = Object.entries(prereqs)
+          .filter(([bid, req]) => (instanceMap.get(bid) ?? 0) < (req as number))
+          .map(([bid, req]) => ({
+            buildingId: bid,
+            required:   req as number,
+            current:    instanceMap.get(bid) ?? 0,
+          }));
+        const isLocked = currentLevel === 0 && missingPrerequisites.length > 0;
+
         return {
-          buildingId:       def.id,
-          level:            currentLevel,
+          buildingId:           def.id,
+          level:                currentLevel,
           nextLevelCost,
           nextLevelTimeSec,
           currentProdPerSec,
           nextProdPerSec,
+          isLocked,
+          missingPrerequisites,
         };
       });
 

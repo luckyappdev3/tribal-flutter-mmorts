@@ -1,0 +1,20 @@
+{
+  "id": "catapult",
+  "name": "Catapulte",
+  "description": "Réduit en cendres les bâtiments adverses. Utile pour la guerre psychologique.",
+  "category": "siege",
+  "order": 10,
+  "cost": { "wood": 320, "stone": 400, "iron": 100 },
+  "attack": 100,
+  "defenseGeneral": 100,
+  "defenseCavalry": 50,
+  "defenseArcher": 100,
+  "speed": 1800,
+  "carryCapacity": 0,
+  "recruitTime": 7200,
+  "populationCost": 8,
+  "requiredBuildings": [
+    { "buildingId": "garage", "level": 2 },
+    { "buildingId": "smith", "level": 12 }
+  ]
+}

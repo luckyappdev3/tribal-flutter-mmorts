@@ -105,7 +105,7 @@ async function bootstrap() {
     await fastify.register(rankingRoutes,   { prefix: '/api/ranking' });
 
     initBuildWorker(fastify);
-    initRecruitWorker(fastify);
+    initRecruitWorker(fastify, gameDataRegistry, recruitQueue);
     initAttackWorker(fastify);
     fastify.log.info('👷 Workers prêts');
 

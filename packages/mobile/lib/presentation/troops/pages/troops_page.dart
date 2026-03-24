@@ -6,7 +6,7 @@ import '../bloc/troops_event.dart';
 import '../bloc/troops_state.dart';
 import '../dto/troops_dto.dart';
 import '../widgets/unit_card.dart';
-import '../widgets/recruit_timer_widget.dart';
+import '../widgets/recruit_queue_section.dart';
 
 class TroopsPage extends StatelessWidget {
   const TroopsPage({super.key});
@@ -63,10 +63,10 @@ class _TroopsView extends StatelessWidget {
             loading:    () => const Center(child: CircularProgressIndicator(color: Colors.amber)),
             recruiting: () => const Center(child: CircularProgressIndicator(color: Colors.green)),
             error:      (msg) => Center(child: Text(msg, style: const TextStyle(color: Colors.red))),
-            loaded:     (villageId, troops, queue, population) => _LoadedBody(
+            loaded:     (villageId, troops, queues, population) => _LoadedBody(
               villageId:  villageId,
               troops:     troops,
-              queue:      queue,
+              queues:     queues,
               population: population,
             ),
           );
@@ -77,22 +77,30 @@ class _TroopsView extends StatelessWidget {
 }
 
 class _LoadedBody extends StatelessWidget {
-  final String           villageId;
-  final List<TroopDto>   troops;
-  final RecruitQueueDto? queue;
-  final PopulationDto?   population;
+  final String                villageId;
+  final List<TroopDto>        troops;
+  final List<RecruitQueueDto> queues;
+  final PopulationDto?        population;
 
   const _LoadedBody({
     required this.villageId,
     required this.troops,
-    required this.queue,
+    required this.queues,
     this.population,
   });
 
   int get _totalTroops => troops.fold<int>(0, (s, t) => s + t.count);
 
+  // Files actives groupées par bâtiment (première entrée de chaque file = en cours)
+  List<RecruitQueueDto> get _activeQueues {
+    final seen = <String>{};
+    return queues.where((q) => seen.add(q.buildingType)).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final activeQueues = _activeQueues;
+
     return Column(
       children: [
         // ── Résumé + Population ──────────────────────────────
@@ -108,10 +116,15 @@ class _LoadedBody extends StatelessWidget {
                     '⚔️ $_totalTroops troupes disponibles',
                     style: const TextStyle(color: Colors.white70, fontSize: 13),
                   ),
-                  if (queue == null)
-                    const Text('File libre',   style: TextStyle(color: Colors.green,  fontSize: 12))
-                  else
-                    const Text('File occupée', style: TextStyle(color: Colors.orange, fontSize: 12)),
+                  Text(
+                    activeQueues.isEmpty
+                        ? 'Files libres'
+                        : '${activeQueues.length} file(s) active(s)',
+                    style: TextStyle(
+                      color: activeQueues.isEmpty ? Colors.green : Colors.orange,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
 
@@ -124,8 +137,15 @@ class _LoadedBody extends StatelessWidget {
           ),
         ),
 
-        // ── Timer recrutement ─────────────────────────────────
-        if (queue != null) RecruitTimerWidget(queue: queue!),
+        // ── Section de recrutement (files parallèles) ────────
+        if (queues.isNotEmpty)
+          RecruitQueueSection(
+            queues:   queues,
+            troops:   troops,
+            onCancel: (queueId) => context
+                .read<TroopsBloc>()
+                .add(TroopsEvent.cancelRequested(queueId)),
+          ),
 
         // ── Grille des unités ─────────────────────────────────
         Expanded(
@@ -142,7 +162,7 @@ class _LoadedBody extends StatelessWidget {
               final troop = troops[index];
               return UnitCard(
                 troop:      troop,
-                queue:      queue,
+                queues:     queues,
                 population: population,
                 onRecruit:  (unitType, count) => context
                     .read<TroopsBloc>()

@@ -15,11 +15,16 @@ class TroopsBloc extends Bloc<TroopsEvent, TroopsState> {
   TroopsBloc() : super(const TroopsState.initial()) {
     on<TroopsEvent>(_onEvent);
 
+    // Chaque unité libérée → rafraîchir les troupes
+    _socketService.instance.on('troops:unit_ready', (data) {
+      add(TroopsEvent.recruitFinished(data is Map<String, dynamic> ? data : {}));
+    });
+
+    // Conserver la compatibilité avec l'ancien événement
     _socketService.instance.on('troops:ready', (data) {
       add(TroopsEvent.recruitFinished(data is Map<String, dynamic> ? data : {}));
     });
 
-    // ← 4 params : vid, troops, queue, population
     _socketService.instance.on('troops:returned', (_) {
       final villageId = state.maybeWhen(
         loaded: (vid, _, __, ___) => vid,
@@ -49,7 +54,7 @@ class TroopsBloc extends Bloc<TroopsEvent, TroopsState> {
           emit(TroopsState.loaded(
             villageId:  villageId,
             troops:     dto.troops,
-            queue:      dto.queue,
+            queues:     dto.queues,
             population: dto.population,
           ));
         } catch (e) {
@@ -62,11 +67,7 @@ class TroopsBloc extends Bloc<TroopsEvent, TroopsState> {
           loaded: (vid, _, __, ___) => vid,
           orElse: () => null,
         );
-        final queue = state.maybeWhen(
-          loaded: (_, __, q, ___) => q,
-          orElse: () => null,
-        );
-        if (villageId == null || queue != null) return;
+        if (villageId == null) return;
 
         emit(const TroopsState.recruiting());
         try {
@@ -75,7 +76,7 @@ class TroopsBloc extends Bloc<TroopsEvent, TroopsState> {
           emit(TroopsState.loaded(
             villageId:  villageId,
             troops:     dto.troops,
-            queue:      dto.queue,
+            queues:     dto.queues,
             population: dto.population,
           ));
         } catch (e) {
@@ -85,7 +86,7 @@ class TroopsBloc extends Bloc<TroopsEvent, TroopsState> {
               emit(TroopsState.loaded(
                 villageId:  villageId,
                 troops:     dto.troops,
-                queue:      dto.queue,
+                queues:     dto.queues,
                 population: dto.population,
               ));
             } catch (_) {}
@@ -104,7 +105,25 @@ class TroopsBloc extends Bloc<TroopsEvent, TroopsState> {
         emit(TroopsState.loaded(
           villageId:  villageId,
           troops:     dto.troops,
-          queue:      dto.queue,
+          queues:     dto.queues,
+          population: dto.population,
+        ));
+      },
+
+      cancelRequested: (queueId) async {
+        final villageId = state.maybeWhen(
+          loaded: (vid, _, __, ___) => vid,
+          orElse: () => null,
+        );
+        if (villageId == null) return;
+        try {
+          await _troopsApi.cancelRecruit(villageId, queueId);
+        } catch (_) { /* ignore — server returns error if already done */ }
+        final dto = await _troopsApi.getTroops(villageId);
+        emit(TroopsState.loaded(
+          villageId:  villageId,
+          troops:     dto.troops,
+          queues:     dto.queues,
           population: dto.population,
         ));
       },

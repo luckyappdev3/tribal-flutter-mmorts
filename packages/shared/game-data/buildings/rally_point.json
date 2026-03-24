@@ -3,6 +3,7 @@
   "name": "Place d'armes",
   "description": "Requis pour envoyer des attaques. Centre de commandement militaire.",
   "maxLevel": 1,
+  "order": 15,
   "baseStats": {
     "baseCost": { "wood": 10, "stone": 40, "iron": 0, "food": 0 },
     "baseBuildTime": 300,

@@ -1,0 +1,19 @@
+{
+  "id": "paladin",
+  "name": "Paladin",
+  "description": "Seul et unique. Booste les troupes et porte des reliques sacrées.",
+  "category": "hero",
+  "order": 11,
+  "cost": { "wood": 20, "stone": 20, "iron": 40 },
+  "attack": 150,
+  "defenseGeneral": 250,
+  "defenseCavalry": 400,
+  "defenseArcher": 150,
+  "speed": 600,
+  "carryCapacity": 100,
+  "recruitTime": 1440,
+  "populationCost": 10,
+  "requiredBuildings": [
+    { "buildingId": "statue", "level": 1 }
+  ]
+}

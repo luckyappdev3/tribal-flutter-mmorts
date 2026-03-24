@@ -3,6 +3,8 @@
   "name": "Caserne",
   "description": "Permet de recruter des troupes. Chaque niveau réduit le temps de recrutement de 5%.",
   "maxLevel": 25,
+  "order": 9,
+  "prerequisites": { "headquarters": 3 },
   "baseStats": {
     "baseCost": { "wood": 200, "stone": 170, "iron": 90, "food": 0 },
     "baseBuildTime": 1100,

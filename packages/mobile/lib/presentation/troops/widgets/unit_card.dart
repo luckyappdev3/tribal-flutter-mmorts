@@ -2,21 +2,22 @@ import 'package:flutter/material.dart';
 import '../dto/troops_dto.dart';
 
 class UnitCard extends StatelessWidget {
-  final TroopDto        troop;
-  final RecruitQueueDto? queue;
-  final PopulationDto?   population;
+  final TroopDto              troop;
+  final List<RecruitQueueDto> queues;
+  final PopulationDto?        population;
   final void Function(String unitType, int count)? onRecruit;
 
   const UnitCard({
     super.key,
     required this.troop,
-    required this.queue,
+    required this.queues,
     this.population,
     this.onRecruit,
   });
 
-  bool get _isRecruiting  => queue?.unitType == troop.unitType;
-  bool get _queueOccupied => queue != null;
+  // File active pour cette unité spécifique (en cours de recrutement)
+  RecruitQueueDto? get _activeQueue =>
+      queues.where((q) => q.unitType == troop.unitType).firstOrNull;
 
   // Nombre max recrutables selon la population restante
   int get _maxByPop {
@@ -26,15 +27,12 @@ class UnitCard extends StatelessWidget {
     return remaining ~/ troop.populationCost;
   }
 
-  bool get _canRecruit =>
-      !_queueOccupied &&
-      troop.prerequisiteMet &&
-      _maxByPop > 0;
+  bool get _canRecruit => troop.prerequisiteMet && _maxByPop > 0;
 
   String get _buttonLabel {
     if (!troop.prerequisiteMet) return '🔒 Prérequis';
     if (_maxByPop <= 0)         return '🌾 Pop. max';
-    if (_queueOccupied)         return 'File occupée';
+    if (_activeQueue != null)   return '+ Ajouter en file';
     return 'Recruter →';
   }
 
@@ -49,12 +47,12 @@ class UnitCard extends StatelessWidget {
           color: const Color(0xFF222222),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: _isRecruiting
+            color: (_activeQueue != null)
                 ? Colors.green.withOpacity(0.6)
                 : isLocked
                     ? Colors.white12
                     : Colors.white.withOpacity(0.08),
-            width: _isRecruiting ? 1.5 : 0.5,
+            width: (_activeQueue != null) ? 1.5 : 0.5,
           ),
         ),
         child: Padding(
@@ -105,14 +103,23 @@ class UnitCard extends StatelessWidget {
                 ),
               const SizedBox(height: 6),
 
-              // ── Stats ──────────────────────────────────────
+              // ── Stats attaque + vitesse + port ─────────────
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _Stat(label: 'ATK',  value: '${troop.attack}',        color: Colors.redAccent),
-                  _Stat(label: 'DEF',  value: '${troop.defense}',       color: Colors.blueAccent),
-                  _Stat(label: 'VIT',  value: '${troop.speed}s',        color: Colors.amber),
+                  _Stat(label: 'VIT',  value: troop.formattedSpeed,      color: Colors.amber),
                   _Stat(label: 'PORT', value: '${troop.carryCapacity}', color: Colors.green),
+                ],
+              ),
+              const SizedBox(height: 4),
+              // ── Défense pondérée (Gén / Cav / Arc) ─────────
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _Stat(label: 'DEF-G', value: '${troop.defenseGeneral}', color: Colors.blueAccent),
+                  _Stat(label: 'DEF-C', value: '${troop.defenseCavalry}', color: Colors.lightBlueAccent),
+                  _Stat(label: 'DEF-A', value: '${troop.defenseArcher}',  color: Colors.cyanAccent),
                 ],
               ),
               const SizedBox(height: 6),
@@ -158,7 +165,7 @@ class UnitCard extends StatelessWidget {
               const SizedBox(height: 8),
 
               // ── Bouton recruter ────────────────────────────
-              if (_isRecruiting)
+              if ((_activeQueue != null))
                 const Center(
                   child: Text(
                     '⏳ Recrutement...',

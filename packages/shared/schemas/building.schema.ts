@@ -6,7 +6,9 @@ export const BuildingDefinitionSchema = z.object({
   name: z.string(),
   description: z.string(),
   maxLevel: z.number().int().default(30),
-  
+  order: z.number().int().default(99), // ordre d'affichage dans l'UI
+  prerequisites: z.record(z.string(), z.number()).optional(), // buildingId → niveau requis
+
   baseStats: z.object({
     baseCost: ResourcesSchema,
     baseBuildTime: z.number().min(1),

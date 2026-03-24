@@ -3,6 +3,7 @@
   "name": "Entrepôt",
   "description": "Augmente la capacité de stockage. Niv.1 = 1 000, Niv.30 = 400 000 ressources.",
   "maxLevel": 30,
+  "order": 6,
   "baseStats": {
     "baseCost": { "wood": 60, "stone": 50, "iron": 40, "food": 0 },
     "baseBuildTime": 1000,

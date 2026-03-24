@@ -21,6 +21,7 @@ mixin _$TroopsEvent {
     required TResult Function(String villageId) loadRequested,
     required TResult Function(String unitType, int count) recruitRequested,
     required TResult Function(Map<String, dynamic> data) recruitFinished,
+    required TResult Function(String queueId) cancelRequested,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -28,6 +29,7 @@ mixin _$TroopsEvent {
     TResult? Function(String villageId)? loadRequested,
     TResult? Function(String unitType, int count)? recruitRequested,
     TResult? Function(Map<String, dynamic> data)? recruitFinished,
+    TResult? Function(String queueId)? cancelRequested,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -35,6 +37,7 @@ mixin _$TroopsEvent {
     TResult Function(String villageId)? loadRequested,
     TResult Function(String unitType, int count)? recruitRequested,
     TResult Function(Map<String, dynamic> data)? recruitFinished,
+    TResult Function(String queueId)? cancelRequested,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
@@ -43,6 +46,7 @@ mixin _$TroopsEvent {
     required TResult Function(_LoadRequested value) loadRequested,
     required TResult Function(_RecruitRequested value) recruitRequested,
     required TResult Function(_RecruitFinished value) recruitFinished,
+    required TResult Function(_CancelRequested value) cancelRequested,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -50,6 +54,7 @@ mixin _$TroopsEvent {
     TResult? Function(_LoadRequested value)? loadRequested,
     TResult? Function(_RecruitRequested value)? recruitRequested,
     TResult? Function(_RecruitFinished value)? recruitFinished,
+    TResult? Function(_CancelRequested value)? cancelRequested,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -57,6 +62,7 @@ mixin _$TroopsEvent {
     TResult Function(_LoadRequested value)? loadRequested,
     TResult Function(_RecruitRequested value)? recruitRequested,
     TResult Function(_RecruitFinished value)? recruitFinished,
+    TResult Function(_CancelRequested value)? cancelRequested,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
@@ -155,6 +161,7 @@ class _$LoadRequestedImpl implements _LoadRequested {
     required TResult Function(String villageId) loadRequested,
     required TResult Function(String unitType, int count) recruitRequested,
     required TResult Function(Map<String, dynamic> data) recruitFinished,
+    required TResult Function(String queueId) cancelRequested,
   }) {
     return loadRequested(villageId);
   }
@@ -165,6 +172,7 @@ class _$LoadRequestedImpl implements _LoadRequested {
     TResult? Function(String villageId)? loadRequested,
     TResult? Function(String unitType, int count)? recruitRequested,
     TResult? Function(Map<String, dynamic> data)? recruitFinished,
+    TResult? Function(String queueId)? cancelRequested,
   }) {
     return loadRequested?.call(villageId);
   }
@@ -175,6 +183,7 @@ class _$LoadRequestedImpl implements _LoadRequested {
     TResult Function(String villageId)? loadRequested,
     TResult Function(String unitType, int count)? recruitRequested,
     TResult Function(Map<String, dynamic> data)? recruitFinished,
+    TResult Function(String queueId)? cancelRequested,
     required TResult orElse(),
   }) {
     if (loadRequested != null) {
@@ -189,6 +198,7 @@ class _$LoadRequestedImpl implements _LoadRequested {
     required TResult Function(_LoadRequested value) loadRequested,
     required TResult Function(_RecruitRequested value) recruitRequested,
     required TResult Function(_RecruitFinished value) recruitFinished,
+    required TResult Function(_CancelRequested value) cancelRequested,
   }) {
     return loadRequested(this);
   }
@@ -199,6 +209,7 @@ class _$LoadRequestedImpl implements _LoadRequested {
     TResult? Function(_LoadRequested value)? loadRequested,
     TResult? Function(_RecruitRequested value)? recruitRequested,
     TResult? Function(_RecruitFinished value)? recruitFinished,
+    TResult? Function(_CancelRequested value)? cancelRequested,
   }) {
     return loadRequested?.call(this);
   }
@@ -209,6 +220,7 @@ class _$LoadRequestedImpl implements _LoadRequested {
     TResult Function(_LoadRequested value)? loadRequested,
     TResult Function(_RecruitRequested value)? recruitRequested,
     TResult Function(_RecruitFinished value)? recruitFinished,
+    TResult Function(_CancelRequested value)? cancelRequested,
     required TResult orElse(),
   }) {
     if (loadRequested != null) {
@@ -311,6 +323,7 @@ class _$RecruitRequestedImpl implements _RecruitRequested {
     required TResult Function(String villageId) loadRequested,
     required TResult Function(String unitType, int count) recruitRequested,
     required TResult Function(Map<String, dynamic> data) recruitFinished,
+    required TResult Function(String queueId) cancelRequested,
   }) {
     return recruitRequested(unitType, count);
   }
@@ -321,6 +334,7 @@ class _$RecruitRequestedImpl implements _RecruitRequested {
     TResult? Function(String villageId)? loadRequested,
     TResult? Function(String unitType, int count)? recruitRequested,
     TResult? Function(Map<String, dynamic> data)? recruitFinished,
+    TResult? Function(String queueId)? cancelRequested,
   }) {
     return recruitRequested?.call(unitType, count);
   }
@@ -331,6 +345,7 @@ class _$RecruitRequestedImpl implements _RecruitRequested {
     TResult Function(String villageId)? loadRequested,
     TResult Function(String unitType, int count)? recruitRequested,
     TResult Function(Map<String, dynamic> data)? recruitFinished,
+    TResult Function(String queueId)? cancelRequested,
     required TResult orElse(),
   }) {
     if (recruitRequested != null) {
@@ -345,6 +360,7 @@ class _$RecruitRequestedImpl implements _RecruitRequested {
     required TResult Function(_LoadRequested value) loadRequested,
     required TResult Function(_RecruitRequested value) recruitRequested,
     required TResult Function(_RecruitFinished value) recruitFinished,
+    required TResult Function(_CancelRequested value) cancelRequested,
   }) {
     return recruitRequested(this);
   }
@@ -355,6 +371,7 @@ class _$RecruitRequestedImpl implements _RecruitRequested {
     TResult? Function(_LoadRequested value)? loadRequested,
     TResult? Function(_RecruitRequested value)? recruitRequested,
     TResult? Function(_RecruitFinished value)? recruitFinished,
+    TResult? Function(_CancelRequested value)? cancelRequested,
   }) {
     return recruitRequested?.call(this);
   }
@@ -365,6 +382,7 @@ class _$RecruitRequestedImpl implements _RecruitRequested {
     TResult Function(_LoadRequested value)? loadRequested,
     TResult Function(_RecruitRequested value)? recruitRequested,
     TResult Function(_RecruitFinished value)? recruitFinished,
+    TResult Function(_CancelRequested value)? cancelRequested,
     required TResult orElse(),
   }) {
     if (recruitRequested != null) {
@@ -466,6 +484,7 @@ class _$RecruitFinishedImpl implements _RecruitFinished {
     required TResult Function(String villageId) loadRequested,
     required TResult Function(String unitType, int count) recruitRequested,
     required TResult Function(Map<String, dynamic> data) recruitFinished,
+    required TResult Function(String queueId) cancelRequested,
   }) {
     return recruitFinished(data);
   }
@@ -476,6 +495,7 @@ class _$RecruitFinishedImpl implements _RecruitFinished {
     TResult? Function(String villageId)? loadRequested,
     TResult? Function(String unitType, int count)? recruitRequested,
     TResult? Function(Map<String, dynamic> data)? recruitFinished,
+    TResult? Function(String queueId)? cancelRequested,
   }) {
     return recruitFinished?.call(data);
   }
@@ -486,6 +506,7 @@ class _$RecruitFinishedImpl implements _RecruitFinished {
     TResult Function(String villageId)? loadRequested,
     TResult Function(String unitType, int count)? recruitRequested,
     TResult Function(Map<String, dynamic> data)? recruitFinished,
+    TResult Function(String queueId)? cancelRequested,
     required TResult orElse(),
   }) {
     if (recruitFinished != null) {
@@ -500,6 +521,7 @@ class _$RecruitFinishedImpl implements _RecruitFinished {
     required TResult Function(_LoadRequested value) loadRequested,
     required TResult Function(_RecruitRequested value) recruitRequested,
     required TResult Function(_RecruitFinished value) recruitFinished,
+    required TResult Function(_CancelRequested value) cancelRequested,
   }) {
     return recruitFinished(this);
   }
@@ -510,6 +532,7 @@ class _$RecruitFinishedImpl implements _RecruitFinished {
     TResult? Function(_LoadRequested value)? loadRequested,
     TResult? Function(_RecruitRequested value)? recruitRequested,
     TResult? Function(_RecruitFinished value)? recruitFinished,
+    TResult? Function(_CancelRequested value)? cancelRequested,
   }) {
     return recruitFinished?.call(this);
   }
@@ -520,6 +543,7 @@ class _$RecruitFinishedImpl implements _RecruitFinished {
     TResult Function(_LoadRequested value)? loadRequested,
     TResult Function(_RecruitRequested value)? recruitRequested,
     TResult Function(_RecruitFinished value)? recruitFinished,
+    TResult Function(_CancelRequested value)? cancelRequested,
     required TResult orElse(),
   }) {
     if (recruitFinished != null) {
@@ -539,5 +563,158 @@ abstract class _RecruitFinished implements TroopsEvent {
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$RecruitFinishedImplCopyWith<_$RecruitFinishedImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$CancelRequestedImplCopyWith<$Res> {
+  factory _$$CancelRequestedImplCopyWith(_$CancelRequestedImpl value,
+          $Res Function(_$CancelRequestedImpl) then) =
+      __$$CancelRequestedImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({String queueId});
+}
+
+/// @nodoc
+class __$$CancelRequestedImplCopyWithImpl<$Res>
+    extends _$TroopsEventCopyWithImpl<$Res, _$CancelRequestedImpl>
+    implements _$$CancelRequestedImplCopyWith<$Res> {
+  __$$CancelRequestedImplCopyWithImpl(
+      _$CancelRequestedImpl _value, $Res Function(_$CancelRequestedImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of TroopsEvent
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? queueId = null,
+  }) {
+    return _then(_$CancelRequestedImpl(
+      null == queueId
+          ? _value.queueId
+          : queueId // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$CancelRequestedImpl implements _CancelRequested {
+  const _$CancelRequestedImpl(this.queueId);
+
+  @override
+  final String queueId;
+
+  @override
+  String toString() {
+    return 'TroopsEvent.cancelRequested(queueId: $queueId)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$CancelRequestedImpl &&
+            (identical(other.queueId, queueId) || other.queueId == queueId));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, queueId);
+
+  /// Create a copy of TroopsEvent
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$CancelRequestedImplCopyWith<_$CancelRequestedImpl> get copyWith =>
+      __$$CancelRequestedImplCopyWithImpl<_$CancelRequestedImpl>(
+          this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String villageId) loadRequested,
+    required TResult Function(String unitType, int count) recruitRequested,
+    required TResult Function(Map<String, dynamic> data) recruitFinished,
+    required TResult Function(String queueId) cancelRequested,
+  }) {
+    return cancelRequested(queueId);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String villageId)? loadRequested,
+    TResult? Function(String unitType, int count)? recruitRequested,
+    TResult? Function(Map<String, dynamic> data)? recruitFinished,
+    TResult? Function(String queueId)? cancelRequested,
+  }) {
+    return cancelRequested?.call(queueId);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String villageId)? loadRequested,
+    TResult Function(String unitType, int count)? recruitRequested,
+    TResult Function(Map<String, dynamic> data)? recruitFinished,
+    TResult Function(String queueId)? cancelRequested,
+    required TResult orElse(),
+  }) {
+    if (cancelRequested != null) {
+      return cancelRequested(queueId);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(_LoadRequested value) loadRequested,
+    required TResult Function(_RecruitRequested value) recruitRequested,
+    required TResult Function(_RecruitFinished value) recruitFinished,
+    required TResult Function(_CancelRequested value) cancelRequested,
+  }) {
+    return cancelRequested(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(_LoadRequested value)? loadRequested,
+    TResult? Function(_RecruitRequested value)? recruitRequested,
+    TResult? Function(_RecruitFinished value)? recruitFinished,
+    TResult? Function(_CancelRequested value)? cancelRequested,
+  }) {
+    return cancelRequested?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(_LoadRequested value)? loadRequested,
+    TResult Function(_RecruitRequested value)? recruitRequested,
+    TResult Function(_RecruitFinished value)? recruitFinished,
+    TResult Function(_CancelRequested value)? cancelRequested,
+    required TResult orElse(),
+  }) {
+    if (cancelRequested != null) {
+      return cancelRequested(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class _CancelRequested implements TroopsEvent {
+  const factory _CancelRequested(final String queueId) = _$CancelRequestedImpl;
+
+  String get queueId;
+
+  /// Create a copy of TroopsEvent
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$CancelRequestedImplCopyWith<_$CancelRequestedImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

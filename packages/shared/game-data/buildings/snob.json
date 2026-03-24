@@ -1,0 +1,14 @@
+{
+  "id": "snob",
+  "name": "Académie",
+  "description": "Permet l'entraînement des nobles. Chaque noble permet de prendre le contrôle d'un village ennemi.",
+  "maxLevel": 3,
+  "order": 13,
+  "prerequisites": { "headquarters": 20, "smith": 20, "market": 10 },
+  "baseStats": {
+    "baseCost": { "wood": 28000, "stone": 30000, "iron": 25000, "food": 0 },
+    "baseBuildTime": 36000,
+    "costMultiplier": 1.0,
+    "timeMultiplier": 1.2
+  }
+}

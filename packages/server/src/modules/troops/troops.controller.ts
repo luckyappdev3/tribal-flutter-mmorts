@@ -30,6 +30,27 @@ export async function troopsRoutes(fastify: FastifyInstance) {
     }
   });
 
+  // DELETE /api/villages/:id/recruit/:queueId
+  // Annule une entrée de file de recrutement et rembourse les ressources
+  fastify.delete('/:id/recruit/:queueId', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id, queueId } = request.params as { id: string; queueId: string };
+    const player          = request.user as { id: string };
+
+    try {
+      const village = await fastify.prisma.village.findUnique({
+        where: { id }, select: { playerId: true },
+      });
+      if (!village || village.playerId !== player.id) {
+        return reply.status(403).send({ message: 'Ce village ne vous appartient pas' });
+      }
+
+      const result = await fastify.troopsService.cancelRecruit(id, queueId);
+      return result;
+    } catch (error: any) {
+      return reply.status(400).send({ error: error.message });
+    }
+  });
+
   // POST /api/villages/:id/recruit
   // Lance un recrutement
   fastify.post('/:id/recruit', async (request: FastifyRequest, reply: FastifyReply) => {

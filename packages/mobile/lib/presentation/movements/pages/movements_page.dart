@@ -47,17 +47,7 @@ class _MovementsView extends StatelessWidget {
         ],
       ),
       body: BlocConsumer<MovementsBloc, MovementsState>(
-        listener: (context, state) {
-          state.maybeWhen(
-            loaded: (villageId, movements, incomingAlert, hasNewReport) {
-              // Popup attaque entrante
-              if (incomingAlert != null) {
-                _showIncomingAlert(context, incomingAlert);
-              }
-            },
-            orElse: () {},
-          );
-        },
+        listener: (context, state) {},
         builder: (context, state) {
           return state.when(
             initial: () => const Center(child: CircularProgressIndicator(color: Colors.amber)),
@@ -70,57 +60,6 @@ class _MovementsView extends StatelessWidget {
     );
   }
 
-  void _showIncomingAlert(BuildContext context, Map<String, dynamic> data) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF2A0000),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.red.withOpacity(0.6)),
-        ),
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber, color: Colors.red, size: 28),
-            SizedBox(width: 8),
-            Text('⚔️ Attaque !', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              data['attackerWon'] == false
-                  ? 'Votre village a repoussé une attaque !'
-                  : 'Votre village a été attaqué !',
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
-            ),
-            const SizedBox(height: 12),
-            if ((data['resourcesLooted'] as Map?)?.isNotEmpty == true)
-              Text(
-                'Ressources pillées : '
-                '🪵${(data['resourcesLooted']?['wood'] ?? 0)} '
-                '🪨${(data['resourcesLooted']?['stone'] ?? 0)} '
-                '⚙️${(data['resourcesLooted']?['iron'] ?? 0)}',
-                style: const TextStyle(color: Colors.amber, fontSize: 13),
-              ),
-            const SizedBox(height: 4),
-            Text(
-              'Points perdus : ${data['pointsLost'] ?? 0}',
-              style: const TextStyle(color: Colors.red, fontSize: 12),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer', style: TextStyle(color: Colors.white54)),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _LoadedBody extends StatelessWidget {

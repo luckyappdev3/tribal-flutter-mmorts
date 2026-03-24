@@ -1,6 +1,6 @@
 GITHUB 
 
-git add . && git commit -m "12h30 22 mars, cavalerie cadenas ne fonctionne pas" && git push
+git add . && git commit -m "ajout de batiment et gamespeed fonctionnelle" && git push
 
 SERVEUR 
 
@@ -14,5 +14,18 @@ cd /Users/yildirim/tribal-flutterV4/mmorts/packages/shared && rm -rf dist && pnp
 cd /Users/yildirim/tribal-flutterV4/mmorts/packages/server && pnpm build && pnpm dev
 
 FLUTTER
-
+cd /Users/yildirim/tribal-flutterV4/mmorts/packages/mobile
 flutter run -d macos
+
+SEED
+cd /Users/yildirim/tribal-flutterV4/mmorts/packages/server && npx prisma db seed 2>&1
+
+CLEAN FLUTTER
+cd /Users/yildirim/tribal-flutterV4/mmorts/packages/mobile && flutter clean && flutter pub get
+
+CLEAN TOUT (repartir de 0)
+cd /Users/yildirim/tribal-flutterV4/mmorts && pnpm install
+cd /Users/yildirim/tribal-flutterV4/mmorts/packages/shared && pnpm build
+cd /Users/yildirim/tribal-flutterV4/mmorts/packages/server && npx prisma db push && npx prisma db seed
+cd /Users/yildirim/tribal-flutterV4/mmorts/packages/server
+rm -rf dist && pnpm build && pnpm dev

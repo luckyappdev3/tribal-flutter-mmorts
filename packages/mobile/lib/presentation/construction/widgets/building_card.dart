@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../data/dto/village_dto.dart';
 
+
 class BuildingCard extends StatelessWidget {
   final BuildingInstanceDto building;
   final BuildQueueDto?      queue;
@@ -28,6 +29,12 @@ class BuildingCard extends StatelessWidget {
     'wall':         Icons.security,
     'stable':       Icons.directions_run,
     'rally_point':  Icons.flag,
+    'garage':       Icons.build,
+    'snob':         Icons.school,
+    'smith':        Icons.handyman,
+    'hiding_spot':  Icons.lock_outline,
+    'statue':       Icons.emoji_events,
+    'market':       Icons.storefront,
   };
 
   static const Map<String, String> _descriptions = {
@@ -41,6 +48,12 @@ class BuildingCard extends StatelessWidget {
     'wall':         '+5% défense par niveau',
     'stable':       'Permet la cavalerie',
     'rally_point':  'Permet les attaques',
+    'garage':       'Construit les engins de siège',
+    'snob':         'Entraîne les nobles',
+    'smith':        'Améliore les capacités des troupes',
+    'hiding_spot':  'Protège les ressources du pillage',
+    'statue':       'Recrute le Paladin',
+    'market':       'Échange de ressources entre joueurs',
   };
 
   static const Map<String, Color> _prodColors = {
@@ -49,11 +62,8 @@ class BuildingCard extends StatelessWidget {
     'iron_mine':   Color(0xFF78909C),
   };
 
-  // Ce bâtiment est-il actuellement en construction (position 0) ?
   bool get _isBeingBuilt => queue?.buildingId == building.buildingId;
-
-  // La file est-elle pleine (tous les slots occupés) ?
-  bool get _queueFull => queueCount >= maxQueueSlots;
+  bool get _queueFull    => queueCount >= maxQueueSlots;
 
   @override
   Widget build(BuildContext context) {
@@ -150,13 +160,18 @@ class BuildingCard extends StatelessWidget {
               const SizedBox(height: 8),
             ],
 
-            // ── Bouton améliorer ──
-            _UpgradeButton(
-              isBeingBuilt: _isBeingBuilt,
-              queueFull:    _queueFull,      // ← CORRIGÉ
-              isMaxLevel:   building.isMaxLevel,
-              onUpgrade:    onUpgrade,
-            ),
+            // ── Verrouillé : affiche les prérequis manquants ──
+            if (building.isLocked) ...[
+              _LockedInfo(missing: building.missingPrerequisites),
+            ] else ...[
+              // ── Bouton améliorer ──
+              _UpgradeButton(
+                isBeingBuilt: _isBeingBuilt,
+                queueFull:    _queueFull,
+                isMaxLevel:   building.isMaxLevel,
+                onUpgrade:    onUpgrade,
+              ),
+            ],
           ],
         ),
       ),
@@ -341,6 +356,44 @@ class _UpgradeButton extends StatelessWidget {
           label,
           style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
         ),
+      ),
+    );
+  }
+}
+
+class _LockedInfo extends StatelessWidget {
+  final List<MissingPrerequisiteDto> missing;
+  const _LockedInfo({required this.missing});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.red.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.lock, color: Colors.red, size: 11),
+              SizedBox(width: 4),
+              Text(
+                'Prérequis manquants',
+                style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          ...missing.map((p) => Text(
+            '• ${p.label}  (actuel : ${p.current})',
+            style: const TextStyle(color: Colors.white38, fontSize: 9),
+          )),
+        ],
       ),
     );
   }

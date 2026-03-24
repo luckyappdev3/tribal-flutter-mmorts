@@ -17,44 +17,87 @@ class TroopDto {
   final String name;
   final int count;
   final int attack;
-  final int defense;
+  final int defenseGeneral;
+  final int defenseCavalry;
+  final int defenseArcher;
   final int speed;
   final int carryCapacity;
-  final int recruitTime;
+  final int recruitTime;          // temps de base (secondes, référence JSON)
+  final int effectiveRecruitTime; // temps réel appliqué (gamespeed + bâtiment)
   final UnitCostDto cost;
-  final int     populationCost;   // ← NOUVEAU
-  final bool    prerequisiteMet;  // ← NOUVEAU
-  final String? prerequisiteMsg;  // ← NOUVEAU
+  final double  effectiveSpeed;  // s/case avec gamespeed appliqué
+  final int     populationCost;
+  final bool    prerequisiteMet;
+  final String? prerequisiteMsg;
 
   static const Map<String, String> descriptions = {
-    'spearman':  'Défense solide, efficace contre la cavalerie',
-    'swordsman': 'Unité polyvalente, bonne défense',
-    'axeman':    'Attaque pure, idéal pour les raids',
-    'cavalry':   'Rapide, grande capacité de transport',
-    'archer':    'Attaque à distance, fragile',
+    'spearman':       'Défense solide, efficace contre la cavalerie',
+    'swordsman':      'Spécialiste anti-infanterie',
+    'axeman':         'Attaque pure, pilier de l\'armée offensive',
+    'archer':         'Défense polyvalente, faible contre archers montés',
+    'scout':          'Espionnage rapide des villages ennemis',
+    'light_cavalry':  'Pillage rapide, forte attaque',
+    'mounted_archer': 'Contre les archers sur les remparts',
+    'heavy_cavalry':  'Élite : attaque et défense excellentes',
+    'ram':            'Détruit les fortifications avant combat',
+    'catapult':       'Réduit les bâtiments ennemis en cendres',
+    'paladin':        'Héros unique, reliques sacrées',
+    'noble':          'Capture les villages ennemis',
+    // Retiré — conservé uniquement pour les anciens rapports de combat
+    'cavalry':        'Unité retirée',
   };
 
   static const Map<String, String> icons = {
-    'spearman':  '🗡️',
-    'swordsman': '⚔️',
-    'axeman':    '🪓',
-    'cavalry':   '🐴',
-    'archer':    '🏹',
+    'spearman':       '🗡️',
+    'swordsman':      '⚔️',
+    'axeman':         '🪓',
+    'archer':         '🏹',
+    'scout':          '🔍',
+    'light_cavalry':  '🐴',
+    'mounted_archer': '🏇',
+    'heavy_cavalry':  '🛡️',
+    'ram':            '🐏',
+    'catapult':       '💣',
+    'paladin':        '⭐',
+    'noble':          '👑',
+    'cavalry':        '🐴',
   };
 
   static const Map<String, String> names = {
-    'spearman':  'Lancier',
-    'swordsman': 'Épéiste',
-    'axeman':    'Hacheur',
-    'cavalry':   'Cavalier',
-    'archer':    'Archer',
+    'spearman':       'Lancier',
+    'swordsman':      'Porteur d\'Épée',
+    'axeman':         'Guerrier à la Hache',
+    'archer':         'Archer',
+    'scout':          'Éclaireur',
+    'light_cavalry':  'Cavalerie Légère',
+    'mounted_archer': 'Archer Monté',
+    'heavy_cavalry':  'Cavalerie Lourde',
+    'ram':            'Bélier',
+    'catapult':       'Catapulte',
+    'paladin':        'Paladin',
+    'noble':          'Noble',
+    'cavalry':        'Cavalier',
   };
 
   String get description => descriptions[unitType] ?? '';
   String get icon        => icons[unitType]        ?? '⚔️';
 
+  // Formate la vitesse effective (s/case) en durée lisible
+  String get formattedSpeed {
+    final s = effectiveSpeed;
+    if (s <= 0) return '?';
+    if (s < 60)   return '${s.toStringAsFixed(s < 10 ? 1 : 0)}s';
+    final mins = (s / 60).floor();
+    final secs = (s % 60).round();
+    if (mins < 60) return secs > 0 ? '${mins}m ${secs}s' : '${mins}m';
+    final h = (mins / 60).floor();
+    final m = mins % 60;
+    return m > 0 ? '${h}h ${m}m' : '${h}h';
+  }
+
+  // Formate le temps effectif (gamespeed + bâtiment déjà appliqués)
   String formattedRecruitTime(int count) {
-    final secs = recruitTime * count;
+    final secs = effectiveRecruitTime * count;
     if (secs < 60)   return '${secs}s';
     if (secs < 3600) { final m = secs ~/ 60; final s = secs % 60; return s > 0 ? '${m}m ${s}s' : '${m}m'; }
     final h = secs ~/ 3600; final m = (secs % 3600) ~/ 60;
@@ -66,43 +109,77 @@ class TroopDto {
     required this.name,
     required this.count,
     required this.attack,
-    required this.defense,
+    required this.defenseGeneral,
+    required this.defenseCavalry,
+    required this.defenseArcher,
     required this.speed,
     required this.carryCapacity,
     required this.recruitTime,
+    required this.effectiveRecruitTime,
     required this.cost,
+    this.effectiveSpeed  = 0,
     this.populationCost  = 1,
     this.prerequisiteMet = true,
     this.prerequisiteMsg,
   });
 
   factory TroopDto.fromJson(Map<String, dynamic> json) => TroopDto(
-        unitType:        json['unitType']        as String,
-        name:            json['name']            as String,
-        count:           json['count']           as int,
-        attack:          json['attack']          as int,
-        defense:         json['defense']         as int,
-        speed:           json['speed']           as int,
-        carryCapacity:   json['carryCapacity']   as int,
-        recruitTime:     json['recruitTime']     as int,
+        unitType:             json['unitType']             as String,
+        name:                 json['name']                 as String,
+        count:                json['count']                as int,
+        attack:               (json['attack']              as num).toInt(),
+        defenseGeneral:       (json['defenseGeneral']      as num).toInt(),
+        defenseCavalry:       (json['defenseCavalry']      as num).toInt(),
+        defenseArcher:        (json['defenseArcher']       as num).toInt(),
+        speed:                (json['speed']               as num).toInt(),
+        carryCapacity:        (json['carryCapacity']       as num).toInt(),
+        recruitTime:          (json['recruitTime']         as num).toInt(),
+        effectiveRecruitTime: (json['effectiveRecruitTime'] as num?)?.toInt()
+                              ?? (json['recruitTime']      as num).toInt(),
         cost:            UnitCostDto.fromJson(json['cost'] as Map<String, dynamic>),
-        populationCost:  (json['populationCost'] as num?)?.toInt()  ?? 1,
+        effectiveSpeed:  (json['effectiveSpeed']  as num?)?.toDouble()
+                         ?? (json['speed']        as num).toDouble(),
+        populationCost:  (json['populationCost']  as num?)?.toInt() ?? 1,
         prerequisiteMet: (json['prerequisiteMet'] as bool?) ?? true,
         prerequisiteMsg: json['prerequisiteMsg']  as String?,
       );
 }
 
 class RecruitQueueDto {
+  final String   id;
+  final String   buildingType;
   final String   unitType;
-  final int      count;
-  final DateTime endsAt;
+  final int      totalCount;
+  final int      trainedCount;
+  final DateTime nextUnitAt;
 
-  const RecruitQueueDto({required this.unitType, required this.count, required this.endsAt});
+  static const Map<String, String> buildingLabels = {
+    'barracks': 'Caserne',
+    'stable':   'Écurie',
+    'garage':   'Atelier',
+    'statue':   'Statue',
+    'snob':     'Académie',
+  };
+
+  String get buildingLabel => buildingLabels[buildingType] ?? buildingType;
+  int    get remaining     => totalCount - trainedCount;
+
+  const RecruitQueueDto({
+    required this.id,
+    required this.buildingType,
+    required this.unitType,
+    required this.totalCount,
+    required this.trainedCount,
+    required this.nextUnitAt,
+  });
 
   factory RecruitQueueDto.fromJson(Map<String, dynamic> json) => RecruitQueueDto(
-        unitType: json['unitType'] as String,
-        count:    json['count']    as int,
-        endsAt:   DateTime.parse(json['endsAt'] as String).toLocal(),
+        id:           json['id']           as String,
+        buildingType: json['buildingType'] as String,
+        unitType:     json['unitType']     as String,
+        totalCount:   (json['totalCount']   as num).toInt(),
+        trainedCount: (json['trainedCount'] as num).toInt(),
+        nextUnitAt:   DateTime.parse(json['nextUnitAt'] as String).toLocal(),
       );
 }
 
@@ -125,19 +202,18 @@ class PopulationDto {
 }
 
 class TroopsResponseDto {
-  final List<TroopDto> troops;
-  final RecruitQueueDto? queue;
-  final PopulationDto?   population; // ← NOUVEAU
+  final List<TroopDto>        troops;
+  final List<RecruitQueueDto> queues;
+  final PopulationDto?        population;
 
-  const TroopsResponseDto({required this.troops, this.queue, this.population});
+  const TroopsResponseDto({required this.troops, this.queues = const [], this.population});
 
   factory TroopsResponseDto.fromJson(Map<String, dynamic> json) {
     final rawTroops = json['troops'] as List<dynamic>? ?? [];
+    final rawQueues = json['queues'] as List<dynamic>? ?? [];
     return TroopsResponseDto(
-      troops: rawTroops.map((t) => TroopDto.fromJson(t as Map<String, dynamic>)).toList(),
-      queue:  json['queue'] != null
-          ? RecruitQueueDto.fromJson(json['queue'] as Map<String, dynamic>)
-          : null,
+      troops:     rawTroops.map((t) => TroopDto.fromJson(t as Map<String, dynamic>)).toList(),
+      queues:     rawQueues.map((q) => RecruitQueueDto.fromJson(q as Map<String, dynamic>)).toList(),
       population: json['population'] != null
           ? PopulationDto.fromJson(json['population'] as Map<String, dynamic>)
           : null,
@@ -292,6 +368,111 @@ class AttackReportDto {
       defenderVillage:     json['defenderVillage'] != null
           ? ReportVillageDto.fromJson(json['defenderVillage'] as Map<String, dynamic>)
           : null,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Rapport d'espionnage
+// ─────────────────────────────────────────────
+class ScoutReportDto {
+  final String id;
+  final String attackerVillageId;
+  final String defenderVillageId;
+
+  final int    scoutsSent;
+  final int    scoutsLost;
+  final int    scoutsSurvived;
+  final double survivorRatio;
+  /// 0 = échec total, 1/2/3 = paliers d'information croissants
+  final int    tier;
+
+  // Palier 1 (tier >= 1)
+  final Map<String, int>? resources;    // wood/stone/iron/food
+  final Map<String, int>? troopsAtHome; // unitType → count
+
+  // Palier 2 (tier >= 2)
+  final Map<String, int>? buildings;   // buildingId → level
+
+  // Palier 3 (tier >= 3)
+  final Map<String, int>? troopsOutside; // unitType → count
+
+  final ReportVillageDto? attackerVillage;
+  final ReportVillageDto? defenderVillage;
+  final DateTime createdAt;
+  final bool     isRead;
+  final bool     isDefenderReport;
+  final int      defenderScoutsKilled;
+
+  const ScoutReportDto({
+    required this.id,
+    required this.attackerVillageId,
+    required this.defenderVillageId,
+    required this.scoutsSent,
+    required this.scoutsLost,
+    required this.scoutsSurvived,
+    required this.survivorRatio,
+    required this.tier,
+    required this.createdAt,
+    this.resources,
+    this.troopsAtHome,
+    this.buildings,
+    this.troopsOutside,
+    this.attackerVillage,
+    this.defenderVillage,
+    this.isRead = false,
+    this.isDefenderReport = false,
+    this.defenderScoutsKilled = 0,
+  });
+
+  ScoutReportDto copyWith({bool? isRead}) => ScoutReportDto(
+    id:                   id,
+    attackerVillageId:    attackerVillageId,
+    defenderVillageId:    defenderVillageId,
+    scoutsSent:           scoutsSent,
+    scoutsLost:           scoutsLost,
+    scoutsSurvived:       scoutsSurvived,
+    survivorRatio:        survivorRatio,
+    tier:                 tier,
+    createdAt:            createdAt,
+    resources:            resources,
+    troopsAtHome:         troopsAtHome,
+    buildings:            buildings,
+    troopsOutside:        troopsOutside,
+    attackerVillage:      attackerVillage,
+    defenderVillage:      defenderVillage,
+    isRead:               isRead ?? this.isRead,
+    isDefenderReport:     isDefenderReport,
+    defenderScoutsKilled: defenderScoutsKilled,
+  );
+
+  factory ScoutReportDto.fromJson(Map<String, dynamic> json) {
+    Map<String, int>? toIntMap(dynamic raw) {
+      if (raw == null) return null;
+      return (raw as Map<String, dynamic>).map((k, v) => MapEntry(k, (v as num).toInt()));
+    }
+    return ScoutReportDto(
+      id:                   json['id']                as String,
+      attackerVillageId:    json['attackerVillageId'] as String,
+      defenderVillageId:    json['defenderVillageId'] as String,
+      scoutsSent:           (json['scoutsSent']      as num).toInt(),
+      scoutsLost:           (json['scoutsLost']      as num).toInt(),
+      scoutsSurvived:       (json['scoutsSurvived']  as num).toInt(),
+      survivorRatio:        (json['survivorRatio']   as num).toDouble(),
+      tier:                 (json['tier']            as num).toInt(),
+      createdAt:            DateTime.parse(json['createdAt'] as String).toLocal(),
+      resources:            toIntMap(json['resources']),
+      troopsAtHome:         toIntMap(json['troopsAtHome']),
+      buildings:            toIntMap(json['buildings']),
+      troopsOutside:        toIntMap(json['troopsOutside']),
+      attackerVillage:      json['attackerVillage'] != null
+          ? ReportVillageDto.fromJson(json['attackerVillage'] as Map<String, dynamic>)
+          : null,
+      defenderVillage:      json['defenderVillage'] != null
+          ? ReportVillageDto.fromJson(json['defenderVillage'] as Map<String, dynamic>)
+          : null,
+      isDefenderReport:     json['isDefenderReport'] as bool? ?? false,
+      defenderScoutsKilled: (json['defenderScoutsKilled'] as num?)?.toInt() ?? 0,
     );
   }
 }

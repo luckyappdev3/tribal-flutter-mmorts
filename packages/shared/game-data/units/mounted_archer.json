@@ -1,0 +1,20 @@
+{
+  "id": "mounted_archer",
+  "name": "Archer Monté",
+  "description": "L'arme fatale pour détruire les archers adverses sur les remparts.",
+  "category": "archer",
+  "order": 7,
+  "cost": { "wood": 250, "stone": 100, "iron": 150 },
+  "attack": 120,
+  "defenseGeneral": 40,
+  "defenseCavalry": 30,
+  "defenseArcher": 50,
+  "speed": 600,
+  "carryCapacity": 50,
+  "recruitTime": 2160,
+  "populationCost": 5,
+  "requiredBuildings": [
+    { "buildingId": "stable", "level": 5 },
+    { "buildingId": "smith", "level": 5 }
+  ]
+}

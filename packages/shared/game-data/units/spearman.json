@@ -1,13 +1,19 @@
 {
   "id": "spearman",
   "name": "Lancier",
-  "description": "Unité défensive de base. Bon marché et efficace contre la cavalerie.",
+  "description": "Unité de base contre la cavalerie. Faible contre les haches.",
+  "category": "infantry",
+  "order": 1,
   "cost": { "wood": 50, "stone": 30, "iron": 10 },
   "attack": 10,
-  "defense": 15,
-  "speed": 1,
+  "defenseGeneral": 15,
+  "defenseCavalry": 45,
+  "defenseArcher": 20,
+  "speed": 1080,
   "carryCapacity": 25,
-  "recruitTime": 1,
+  "recruitTime": 880,
   "populationCost": 1,
-  "requiredBuilding": null
+  "requiredBuildings": [
+    { "buildingId": "barracks", "level": 1 }
+  ]
 }

@@ -1,0 +1,19 @@
+{
+  "id": "scout",
+  "name": "Éclaireur",
+  "description": "Rapide et discret. Renseigne sur les troupes et ressources ennemies.",
+  "category": "cavalry",
+  "order": 5,
+  "cost": { "wood": 50, "stone": 50, "iron": 20 },
+  "attack": 0,
+  "defenseGeneral": 2,
+  "defenseCavalry": 1,
+  "defenseArcher": 2,
+  "speed": 540,
+  "carryCapacity": 0,
+  "recruitTime": 1620,
+  "populationCost": 2,
+  "requiredBuildings": [
+    { "buildingId": "stable", "level": 1 }
+  ]
+}

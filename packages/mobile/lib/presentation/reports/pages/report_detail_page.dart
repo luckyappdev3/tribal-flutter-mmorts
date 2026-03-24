@@ -12,13 +12,28 @@ class ReportDetailPage extends StatelessWidget {
   });
 
   bool get _isAttacker => report.isAttacker(myVillageId);
-  bool get _won        => _isAttacker ? report.attackerWon : !report.attackerWon;
 
   // L'attaquant a-t-il perdu toutes ses troupes ?
   bool get _attackerLostAll {
     final totalSent     = report.unitsSent.values.fold(0, (s, v) => s + v);
     final totalSurvived = report.unitsSurvived.values.fold(0, (s, v) => s + v);
     return totalSurvived == 0 && totalSent > 0;
+  }
+
+  // Le défenseur a-t-il perdu toutes ses troupes ?
+  bool get _defenderLostAll {
+    final before = report.defenderUnitsBefore.values.fold(0, (s, v) => s + v);
+    final after  = report.defenderUnitsAfter.values.fold(0, (s, v) => s + v);
+    return before > 0 && after == 0;
+  }
+
+  // Anéantissement mutuel : les deux camps perdent tout.
+  // Dans ce cas le défenseur gagne (l'attaque a échoué).
+  bool get _mutualDestruction => _attackerLostAll && _defenderLostAll;
+
+  bool get _won {
+    if (_mutualDestruction) return !_isAttacker; // défenseur = victoire
+    return _isAttacker ? report.attackerWon : !report.attackerWon;
   }
 
   // Le défenseur doit-il cacher ses infos à l'attaquant ?
@@ -82,7 +97,7 @@ class ReportDetailPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            _ResultBanner(won: _won, isAttacker: _isAttacker),
+            _ResultBanner(won: _won, isAttacker: _isAttacker, mutualDestruction: _mutualDestruction),
             const SizedBox(height: 16),
 
             _HeaderCard(report: report, isAttacker: _isAttacker),
@@ -123,7 +138,7 @@ class ReportDetailPage extends StatelessWidget {
             _PointsCard(report: report, isAttacker: _isAttacker, won: _won),
             const SizedBox(height: 12),
 
-            _CombatConditionsCard(report: report),
+            _CombatConditionsCard(report: report, isAttacker: _isAttacker),
             const SizedBox(height: 32),
           ],
         ),
@@ -136,14 +151,17 @@ class ReportDetailPage extends StatelessWidget {
 class _ResultBanner extends StatelessWidget {
   final bool won;
   final bool isAttacker;
-  const _ResultBanner({required this.won, required this.isAttacker});
+  final bool mutualDestruction;
+  const _ResultBanner({required this.won, required this.isAttacker, this.mutualDestruction = false});
 
   @override
   Widget build(BuildContext context) {
     final color = won ? Colors.green : Colors.red;
-    final label = won
-        ? (isAttacker ? '⚔️ Victoire — Attaque réussie'   : '🛡️ Victoire — Défense réussie')
-        : (isAttacker ? '💀 Défaite — Attaque repoussée' : '💀 Défaite — Village pillé');
+    final label = mutualDestruction
+        ? (isAttacker ? '💀 Défaite — Attaque repoussée' : '🛡️ Victoire — Anéantissement mutuel')
+        : won
+            ? (isAttacker ? '⚔️ Victoire — Attaque réussie'  : '🛡️ Victoire — Défense réussie')
+            : (isAttacker ? '💀 Défaite — Attaque repoussée' : '💀 Défaite — Village pillé');
 
     return Container(
       width: double.infinity,
@@ -480,7 +498,8 @@ class _PointsCard extends StatelessWidget {
 // ── Conditions de combat (morale + mur) ──
 class _CombatConditionsCard extends StatelessWidget {
   final AttackReportDto report;
-  const _CombatConditionsCard({required this.report});
+  final bool            isAttacker;
+  const _CombatConditionsCard({required this.report, required this.isAttacker});
 
   @override
   Widget build(BuildContext context) {
@@ -534,39 +553,41 @@ class _CombatConditionsCard extends StatelessWidget {
                 style: TextStyle(color: Colors.orange.withOpacity(0.7), fontSize: 10),
               ),
             ),
-          const SizedBox(height: 10),
-          // Mur
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(children: [
-                Icon(
-                  Icons.security,
-                  color: wallOk ? Colors.white38 : Colors.blue[300],
-                  size: 16,
+          if (!isAttacker) ...[
+            const SizedBox(height: 10),
+            // Mur — visible uniquement dans le rapport défensif
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(children: [
+                  Icon(
+                    Icons.security,
+                    color: wallOk ? Colors.white38 : Colors.blue[300],
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  const Text('Bonus mur défenseur',
+                      style: TextStyle(color: Colors.white54, fontSize: 12)),
+                ]),
+                Text(
+                  wallOk ? 'Aucun mur' : '×${wallBonus.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    color: wallOk ? Colors.white38 : Colors.blue[300],
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
                 ),
-                const SizedBox(width: 6),
-                const Text('Bonus mur défenseur',
-                    style: TextStyle(color: Colors.white54, fontSize: 12)),
-              ]),
-              Text(
-                wallOk ? 'Aucun mur' : '×${wallBonus.toStringAsFixed(2)}',
-                style: TextStyle(
-                  color: wallOk ? Colors.white38 : Colors.blue[300],
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-          if (!wallOk)
-            Padding(
-              padding: const EdgeInsets.only(left: 22, top: 2),
-              child: Text(
-                'Le mur a renforcé la défense de ×${wallBonus.toStringAsFixed(2)}',
-                style: TextStyle(color: Colors.blue.withOpacity(0.7), fontSize: 10),
-              ),
+              ],
             ),
+            if (!wallOk)
+              Padding(
+                padding: const EdgeInsets.only(left: 22, top: 2),
+                child: Text(
+                  'Le mur a renforcé la défense de ×${wallBonus.toStringAsFixed(2)}',
+                  style: TextStyle(color: Colors.blue.withOpacity(0.7), fontSize: 10),
+                ),
+              ),
+          ],
         ],
       ),
     );

@@ -96,6 +96,31 @@ class VillageDto {
   }
 }
 
+class MissingPrerequisiteDto {
+  final String buildingId;
+  final int required;
+  final int current;
+
+  MissingPrerequisiteDto({
+    required this.buildingId,
+    required this.required,
+    required this.current,
+  });
+
+  factory MissingPrerequisiteDto.fromJson(Map<String, dynamic> json) {
+    return MissingPrerequisiteDto(
+      buildingId: json['buildingId'] as String,
+      required:   (json['required'] as num).toInt(),
+      current:    (json['current']  as num).toInt(),
+    );
+  }
+
+  String get label {
+    final name = BuildingInstanceDto.displayNames[buildingId] ?? buildingId;
+    return '$name niv.$required';
+  }
+}
+
 class BuildingInstanceDto {
   final String buildingId;
   final int level;
@@ -103,6 +128,8 @@ class BuildingInstanceDto {
   final int? nextLevelTimeSec;
   final double? currentProdPerSec;
   final double? nextProdPerSec;
+  final bool isLocked;
+  final List<MissingPrerequisiteDto> missingPrerequisites;
 
   // ── Noms affichés pour tous les bâtiments du registre ──────
   static const Map<String, String> displayNames = {
@@ -117,6 +144,12 @@ class BuildingInstanceDto {
     'wall':         'Mur d\'enceinte',
     'stable':       'Écuries',
     'rally_point':  'Place d\'armes',
+    'garage':       'Atelier',
+    'snob':         'Académie',
+    'smith':        'Forge',
+    'hiding_spot':  'Cachette',
+    'statue':       'Statue',
+    'market':       'Marché',
   };
 
   // ── Icônes par bâtiment ─────────────────────────────────────
@@ -131,6 +164,12 @@ class BuildingInstanceDto {
     'wall':         '🏰',
     'stable':       '🐴',
     'rally_point':  '🚩',
+    'garage':       '🔧',
+    'snob':         '🎓',
+    'smith':        '⚒️',
+    'hiding_spot':  '🏚️',
+    'statue':       '🗿',
+    'market':       '🛒',
   };
 
   String get displayName => displayNames[buildingId] ?? buildingId;
@@ -168,18 +207,25 @@ class BuildingInstanceDto {
     this.nextLevelTimeSec,
     this.currentProdPerSec,
     this.nextProdPerSec,
+    this.isLocked = false,
+    this.missingPrerequisites = const [],
   });
 
   factory BuildingInstanceDto.fromJson(Map<String, dynamic> json) {
+    final rawMissing = json['missingPrerequisites'] as List<dynamic>? ?? [];
     return BuildingInstanceDto(
-      buildingId:        json['buildingId'] as String,
-      level:             json['level']      as int,
-      nextLevelCost:     json['nextLevelCost'] != null
+      buildingId:           json['buildingId'] as String,
+      level:                json['level']      as int,
+      nextLevelCost:        json['nextLevelCost'] != null
           ? NextLevelCostDto.fromJson(json['nextLevelCost'] as Map<String, dynamic>)
           : null,
-      nextLevelTimeSec:  json['nextLevelTimeSec'] as int?,
-      currentProdPerSec: (json['currentProdPerSec'] as num?)?.toDouble(),
-      nextProdPerSec:    (json['nextProdPerSec']    as num?)?.toDouble(),
+      nextLevelTimeSec:     json['nextLevelTimeSec'] as int?,
+      currentProdPerSec:    (json['currentProdPerSec'] as num?)?.toDouble(),
+      nextProdPerSec:       (json['nextProdPerSec']    as num?)?.toDouble(),
+      isLocked:             json['isLocked'] as bool? ?? false,
+      missingPrerequisites: rawMissing
+          .map((e) => MissingPrerequisiteDto.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 }

@@ -1,0 +1,14 @@
+{
+  "id": "market",
+  "name": "Marché",
+  "description": "Permet l'échange de ressources entre joueurs. Chaque niveau ajoute des marchands disponibles.",
+  "maxLevel": 25,
+  "order": 16,
+  "prerequisites": { "headquarters": 10, "warehouse": 10 },
+  "baseStats": {
+    "baseCost": { "wood": 100, "stone": 100, "iron": 100, "food": 0 },
+    "baseBuildTime": 2000,
+    "costMultiplier": 1.26,
+    "timeMultiplier": 1.2
+  }
+}

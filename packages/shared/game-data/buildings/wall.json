@@ -3,6 +3,8 @@
   "name": "Mur d'enceinte",
   "description": "Renforce la défense de +3.7% par niveau. Niv.20 = défense ×2.07.",
   "maxLevel": 20,
+  "order": 8,
+  "prerequisites": { "barracks": 1 },
   "baseStats": {
     "baseCost": { "wood": 50, "stone": 100, "iron": 20, "food": 0 },
     "baseBuildTime": 3600,

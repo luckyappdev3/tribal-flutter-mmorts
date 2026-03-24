@@ -99,13 +99,16 @@ model Village {
   buildQueue    BuildingQueue?        // ← legacy, conservé pendant la migration
   buildItems    BuildingQueueItem[]   // ← NOUVEAU : multi-slots
   troops        Troop[]
-  recruitQueue  RecruitQueue?
+  recruitQueues RecruitQueue[]
 
   attacksSent     AttackReport[]  @relation("AttackerVillage")
   attacksReceived AttackReport[]  @relation("DefenderVillage")
 
   activeAttacksSent     ActiveAttack[] @relation("ActiveAttackAttacker")
   activeAttacksReceived ActiveAttack[] @relation("ActiveAttackDefender")
+
+  scoutReportsSent     ScoutReport[] @relation("ScoutReportAttacker")
+  scoutReportsReceived ScoutReport[] @relation("ScoutReportDefender")
 
   @@unique([x, y])
 }
@@ -166,18 +169,21 @@ model Troop {
   @@unique([villageId, unitType])
 }
 
-// ── File de recrutement (existant, inchangé) ─────────────────
+// ── Files de recrutement parallèles (une par bâtiment) ───────
 model RecruitQueue {
-  id       String @id @default(uuid())
-  unitType String
-  count    Int
-  trained  Int    @default(0)
+  id           String @id @default(uuid())
+  buildingType String // 'barracks' | 'stable' | 'garage' | 'statue' | 'snob'
+  unitType     String
+  totalCount   Int
+  trainedCount Int    @default(0)
 
-  startsAt DateTime @default(now())
-  endsAt   DateTime
+  startsAt   DateTime @default(now())
+  nextUnitAt DateTime // timestamp de la prochaine unité libérée
 
   village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
-  villageId String  @unique
+  villageId String
+
+  @@index([villageId, buildingType])
 }
 
 // ── Rapports de combat ───────────────────────────────────────
@@ -205,7 +211,7 @@ model AttackReport {
   createdAt DateTime @default(now())
 }
 
-// ── Attaques actives (existant, inchangé) ───────────────────
+// ── Attaques actives ─────────────────────────────────────────
 model ActiveAttack {
   id String @id @default(uuid())
 
@@ -221,5 +227,46 @@ model ActiveAttack {
   departsAt DateTime @default(now())
   arrivesAt DateTime
 
-  status String @default("traveling")
+  status      String @default("traveling")
+  // "attack" = attaque normale | "scout" = mission d'espionnage
+  missionType String @default("attack")
 }
+
+// ── Rapports d'espionnage ────────────────────────────────────
+// Créé après chaque mission d'éclaireurs avec succès (tier >= 1).
+// Les champs optionnels sont null si le palier n'est pas atteint.
+model ScoutReport {
+  id String @id @default(uuid())
+
+  attackerVillage   Village @relation("ScoutReportAttacker", fields: [attackerVillageId], references: [id], onDelete: Cascade)
+  attackerVillageId String
+
+  defenderVillage   Village @relation("ScoutReportDefender", fields: [defenderVillageId], references: [id], onDelete: Cascade)
+  defenderVillageId String
+
+  scoutsSent      Int
+  scoutsLost      Int
+  scoutsSurvived  Int
+  survivorRatio   Float  // 0.0 → 1.0
+  tier            Int    // 0 | 1 | 2 | 3
+
+  // Pertes défenseur (nombre d'éclaireurs adverses tués)
+  defenderScoutsKilled Int @default(0)
+
+  // Palier 1 (tier >= 1) : ressources + troupes stationnées
+  resources    Json?  // { wood, stone, iron, food }
+  troopsAtHome Json?  // Record<unitType, count>
+
+  // Palier 2 (tier >= 2) : niveaux des bâtiments
+  buildings Json?  // Record<buildingId, level>
+
+  // Palier 3 (tier >= 3) : troupes à l'extérieur
+  troopsOutside Json?  // Record<unitType, count>
+
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([attackerVillageId])
+  @@index([defenderVillageId])
+}
+

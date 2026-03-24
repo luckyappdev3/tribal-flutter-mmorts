@@ -14,13 +14,13 @@ export type CombatResult = {
   lootCapacity:   number;
   morale:         number;  // 0.3 → 1.0
   wallBonus:      number;  // 1.0 → 2.07
+  effectiveWallLevel: number; // après réduction par les béliers
 };
 
 // ─────────────────────────────────────────────────────────────
 // MORALE
 // Formule TW : min(1.0, 3 × points_défenseur / points_attaquant)
-// Plancher à 0.3 (jamais en-dessous de 30%)
-// Pas de malus si l'un des deux est à 0 points
+// Plancher à 0.3, pas de malus si l'un des deux est à 0 points
 // ─────────────────────────────────────────────────────────────
 
 export function calculateMorale(
@@ -34,6 +34,18 @@ export function calculateMorale(
 
 // ─────────────────────────────────────────────────────────────
 // RÉSOLUTION DU COMBAT
+//
+// 1) Les Béliers frappent en premier et abaissent virtuellement
+//    le niveau du mur (20 béliers = −1 niveau).
+//
+// 2) Pondération de la défense selon la composition de l'attaque :
+//    Si l'attaque est X% infanterie, Y% cavalerie, Z% archers :
+//      défense_pondérée = DEF_GEN × ratioInf + DEF_CAV × ratioCav + DEF_ARC × ratioArc
+//    (infanterie inclut siège, héros, conquête)
+//
+// 3) Loi des puissances (formule TW officielle) :
+//    - Le gagnant perd : (puissance_perdant / puissance_gagnant)^1.5
+//    - Le perdant perd : 100% de ses troupes
 // ─────────────────────────────────────────────────────────────
 
 export function resolveBattle(
@@ -41,86 +53,123 @@ export function resolveBattle(
   defenders: UnitGroup[],
   options?: {
     wallLevel?:      number;
+    ramCount?:       number;   // béliers dans l'armée attaquante
     attackerPoints?: number;
     defenderPoints?: number;
   },
 ): CombatResult {
-  // Bonus mur TW : 1.037^wallLevel
-  const wallBonus = calcWallBonus(options?.wallLevel ?? 0);
 
-  // Morale
+  // ── 1. Réduction du mur par les béliers ─────────────────────
+  const baseWallLevel = options?.wallLevel ?? 0;
+  const wallDamage    = Math.floor((options?.ramCount ?? 0) * 0.05); // 20 béliers = −1 niveau
+  const effectiveWallLevel = Math.max(0, baseWallLevel - wallDamage);
+  const wallBonus = calcWallBonus(effectiveWallLevel);
+
+  // ── 2. Morale ────────────────────────────────────────────────
   const morale = calculateMorale(
     options?.attackerPoints ?? 1,
     options?.defenderPoints ?? 1,
   );
 
-  // Puissance totale avec modificateurs
-  const atkPower = attackers.reduce((s, u) => s + u.count * u.attack,   0) * morale;
-  const defPower = defenders.reduce((s, u) => s + u.count * u.defense,  0) * wallBonus;
+  // ── 3. Composition de l'attaque (pondération défense) ────────
+  // Catégories : infantry+siege+hero+conquest → ratio infra
+  //              cavalry                       → ratio cav
+  //              archer                        → ratio arc
+  const cavCategories = new Set(['cavalry']);
+  const arcCategories = new Set(['archer']);
+
+  let infantryPow = 0;
+  let cavalryPow  = 0;
+  let archerPow   = 0;
+
+  for (const u of attackers) {
+    const power = u.count * u.attack;
+    if (cavCategories.has(u.category))      cavalryPow  += power;
+    else if (arcCategories.has(u.category)) archerPow   += power;
+    else                                     infantryPow += power;
+  }
+
+  const totalAtkPow = infantryPow + cavalryPow + archerPow;
+
+  let ratioInf = 1 / 3;
+  let ratioCav = 1 / 3;
+  let ratioArc = 1 / 3;
+
+  if (totalAtkPow > 0) {
+    ratioInf = infantryPow / totalAtkPow;
+    ratioCav = cavalryPow  / totalAtkPow;
+    ratioArc = archerPow   / totalAtkPow;
+  }
+
+  // ── 4. Puissance totale ──────────────────────────────────────
+  const atkPower = totalAtkPow * morale;
+
+  const defPower = defenders.reduce((s, u) => {
+    const weightedDef = u.defenseGeneral  * ratioInf
+                      + u.defenseCavalry  * ratioCav
+                      + u.defenseArcher   * ratioArc;
+    return s + u.count * weightedDef;
+  }, 0) * wallBonus;
 
   const attackerWon = atkPower > defPower;
 
-  // ── Calcul des pertes (formule TW) ──────────────────────────
-  // ratio = puissance_perdant / puissance_gagnant
-  // pertes_perdant% = ratio^(ratio+1) — pertes importantes si très inférieur
-  // pertes_gagnant% = ratio^(1/(ratio+1)) — pertes légères si très supérieur
+  // ── 5. Calcul des pertes ─────────────────────────────────────
+  // Gagnant perd : (puissance_perdant / puissance_gagnant)^1.5
+  // Perdant perd : 100%
 
   const attackerLosses: Record<string, number> = {};
   const defenderLosses: Record<string, number> = {};
 
   if (atkPower === 0 && defPower === 0) {
     // Aucune troupe des deux côtés
+    for (const u of attackers) attackerLosses[u.unitType] = 0;
+    for (const u of defenders) defenderLosses[u.unitType] = 0;
   } else if (defPower === 0) {
-    // Défenseur sans troupes : zéro pertes attaquant
+    // Défenseur sans troupes : 0 pertes attaquant, défenseur détruit
     for (const u of attackers) attackerLosses[u.unitType] = 0;
     for (const u of defenders) defenderLosses[u.unitType] = u.count;
   } else if (atkPower === 0) {
-    // Attaquant sans troupes
+    // Attaquant sans troupes : attaquant détruit, 0 pertes défenseur
     for (const u of attackers) attackerLosses[u.unitType] = u.count;
     for (const u of defenders) defenderLosses[u.unitType] = 0;
   } else {
-    const ratio = attackerWon
-      ? defPower  / atkPower   // ratio < 1 si attaquant gagne
-      : atkPower  / defPower;  // ratio < 1 si défenseur gagne
-
-    const loserPct  = Math.pow(ratio, ratio + 1);
-    const winnerPct = Math.pow(ratio, 1 / (ratio + 1));
+    const winnerPow = Math.max(atkPower, defPower);
+    const loserPow  = Math.min(atkPower, defPower);
+    const winnerPct = Math.pow(loserPow / winnerPow, 1.5); // < 1
 
     if (attackerWon) {
-      // Attaquant gagne → défenseur perd plus
-      for (const u of defenders) {
-        defenderLosses[u.unitType] = Math.ceil(u.count * loserPct);
-      }
+      // Perdant = défenseur (100%)
+      for (const u of defenders) defenderLosses[u.unitType] = u.count;
+      // Gagnant = attaquant (winnerPct%)
       for (const u of attackers) {
-        attackerLosses[u.unitType] = Math.ceil(u.count * winnerPct);
+        attackerLosses[u.unitType] = Math.min(u.count, Math.ceil(u.count * winnerPct));
       }
     } else {
-      // Défenseur gagne → attaquant perd plus
-      for (const u of attackers) {
-        attackerLosses[u.unitType] = Math.ceil(u.count * loserPct);
-      }
+      // Perdant = attaquant (100%)
+      for (const u of attackers) attackerLosses[u.unitType] = u.count;
+      // Gagnant = défenseur (winnerPct%)
       for (const u of defenders) {
-        defenderLosses[u.unitType] = Math.ceil(u.count * winnerPct);
+        defenderLosses[u.unitType] = Math.min(u.count, Math.ceil(u.count * winnerPct));
       }
-    }
-
-    // Clamp : pas plus de pertes que de troupes
-    for (const u of attackers) {
-      attackerLosses[u.unitType] = Math.min(attackerLosses[u.unitType] ?? 0, u.count);
-    }
-    for (const u of defenders) {
-      defenderLosses[u.unitType] = Math.min(defenderLosses[u.unitType] ?? 0, u.count);
     }
   }
 
-  // ── Capacité de pillage des survivants ──────────────────────
+  // ── 6. Capacité de pillage des survivants ───────────────────
   const lootCapacity = attackers.reduce((s, u) => {
     const lost     = attackerLosses[u.unitType] ?? 0;
     const survived = Math.max(0, u.count - lost);
     return s + survived * u.carryCapacity;
   }, 0);
 
-  return { attackerWon, attackerLosses, defenderLosses, lootCapacity, morale, wallBonus };
+  return {
+    attackerWon,
+    attackerLosses,
+    defenderLosses,
+    lootCapacity,
+    morale,
+    wallBonus,
+    effectiveWallLevel,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -131,28 +180,178 @@ export function calculateLoot(
   resources: { wood: number; stone: number; iron: number },
   capacity:  number,
 ): { wood: number; stone: number; iron: number } {
-  const total = resources.wood + resources.stone + resources.iron;
-  if (total === 0 || capacity === 0) return { wood: 0, stone: 0, iron: 0 };
+  // Floor resources first so the result is always integers (avoids
+  // truncation issues when the caller parses float DB values back to int).
+  type ResKey = 'wood' | 'stone' | 'iron';
+  const avail: Record<ResKey, number> = {
+    wood:  Math.floor(resources.wood),
+    stone: Math.floor(resources.stone),
+    iron:  Math.floor(resources.iron),
+  };
+  const intCapacity = Math.floor(capacity);
+  const total = avail.wood + avail.stone + avail.iron;
+  if (total === 0 || intCapacity === 0) return { wood: 0, stone: 0, iron: 0 };
+  if (total <= intCapacity) return { ...avail };
 
-  if (total <= capacity) return { ...resources };
+  // Distribute equally (33% each). If a resource has less than its share,
+  // take all of it and redistribute the leftover capacity to the others.
+  // Use exact integer allocation so the full capacity is always reached.
+  const result: Record<ResKey, number> = { wood: 0, stone: 0, iron: 0 };
+  const active = new Set<ResKey>(['wood', 'stone', 'iron']);
+  let remaining = intCapacity;
 
-  const ratio = capacity / total;
+  while (remaining > 0 && active.size > 0) {
+    const share = remaining / active.size;
+    let anyExhausted = false;
+
+    for (const key of active) {
+      if (avail[key] <= share) {
+        result[key] += avail[key];
+        remaining   -= avail[key];
+        avail[key]   = 0;
+        active.delete(key);
+        anyExhausted = true;
+      }
+    }
+
+    if (!anyExhausted) {
+      // All remaining resources have more than their equal share.
+      // Distribute remaining capacity as evenly as possible (no Math.floor waste).
+      const perType = Math.floor(remaining / active.size);
+      let leftover  = remaining - perType * active.size;
+      for (const key of active) {
+        result[key] += perType + (leftover > 0 ? 1 : 0);
+        if (leftover > 0) leftover--;
+      }
+      remaining = 0;
+    }
+  }
+
+  return result;
+}
+
+// ─────────────────────────────────────────────────────────────
+// ESPIONNAGE (Éclaireurs)
+//
+// Règles :
+//   - Seuls les éclaireurs s'affrontent. Les autres unités présentes
+//     dans le village défenseur n'interviennent pas.
+//
+// Formule des pertes attaquant (courbe de puissance) :
+//     tauxPertes = min(1.0,  2 × (scoutsDef / scoutsAtt)²)
+//
+//   Intuition mathématique :
+//   - Le facteur 2 signifie qu'il faut être ≥ √(1/2) ≈ 0.707× plus
+//     nombreux que le défenseur pour survivre (seuil tauxPertes < 1).
+//   - L'exposant ² crée une courbe non-linéaire : dépasser légèrement
+//     le défenseur suffit à réduire drastiquement les pertes, mais être
+//     en sous-nombre les fait exploser (pente raide).
+//   Exemples :
+//   - 10 att vs 0 def   → 0% pertes  (infiltration parfaite)
+//   - 10 att vs 5 def   → 50% pertes (ratio 0.5 → 2×0.25 = 0.5)
+//   - 10 att vs 7 def   → 98% pertes (ratio 0.7 → 2×0.49 ≈ 0.98)
+//   - 10 att vs 8 def   → 100% pertes→ échec total
+//
+// Pertes défenseur (formule symétrique) :
+//     tauxPertesDef = min(1.0,  2 × (scoutsAtt / scoutsDef)²)
+//
+// Paliers d'information (ratio = scoutsSurvived / scoutsSent) :
+//   > 0%  (tier 1) → ressources + troupes stationnées
+//   > 50% (tier 2) → + niveaux des bâtiments
+//   > 70% (tier 3) → + troupes à l'extérieur du village
+//   = 0   (tier 0) → échec total, aucun rapport
+//
+// Détection du défenseur :
+//   - Le défenseur est notifié si ses scouts ont tué ≥ 1 éclaireur
+//     ennemi, ou si l'attaque a été totalement repoussée (tier 0).
+//   - En cas d'échec total, le défenseur voit "attaque bloquée"
+//     mais NE voit PAS la composition de l'ennemi.
+// ─────────────────────────────────────────────────────────────
+
+export type ScoutTier = 0 | 1 | 2 | 3;
+
+export type ScoutResult = {
+  scoutsSent:           number;
+  scoutsLost:           number;
+  scoutsSurvived:       number;
+  /** Ratio survivants / envoyés, entre 0.0 et 1.0 */
+  survivorRatio:        number;
+  /** Palier d'information : 0 = échec, 1/2/3 = succès croissant */
+  tier:                 ScoutTier;
+  /** Scouts défenseurs éliminés lors du combat */
+  defenderScoutsKilled: number;
+  /** true si le défenseur doit recevoir une notification */
+  defenderDetected:     boolean;
+};
+
+export function resolveScout(
+  scoutsAtt: number,
+  scoutsDef: number,
+): ScoutResult {
+
+  // ── Cas dégénéré : aucun éclaireur envoyé ───────────────────
+  if (scoutsAtt <= 0) {
+    return {
+      scoutsSent: 0, scoutsLost: 0, scoutsSurvived: 0,
+      survivorRatio: 0, tier: 0,
+      defenderScoutsKilled: 0, defenderDetected: false,
+    };
+  }
+
+  // ── 1. Pertes attaquant ──────────────────────────────────────
+  // tauxPertes = min(1.0,  2 × (scoutsDef / scoutsAtt)²)
+  // Si le défenseur n'a pas de scouts → infiltration parfaite, 0 pertes.
+  const lossRate = scoutsDef <= 0
+    ? 0
+    : Math.min(1.0, 2 * Math.pow(scoutsDef / scoutsAtt, 2));
+
+  const scoutsLost     = Math.min(scoutsAtt, Math.ceil(scoutsAtt * lossRate));
+  const scoutsSurvived = scoutsAtt - scoutsLost;
+  const survivorRatio  = scoutsSurvived / scoutsAtt; // 0.0 → 1.0
+
+  // ── 2. Palier d'information ──────────────────────────────────
+  let tier: ScoutTier;
+  if (scoutsSurvived === 0)      tier = 0;
+  else if (survivorRatio > 0.70) tier = 3;
+  else if (survivorRatio > 0.50) tier = 2;
+  else                            tier = 1;
+
+  // ── 3. Pertes défenseur (formule symétrique) ─────────────────
+  // tauxPertesDef = min(1.0,  2 × (scoutsAtt / scoutsDef)²)
+  let defenderScoutsKilled = 0;
+  if (scoutsDef > 0) {
+    const defLossRate    = Math.min(1.0, 2 * Math.pow(scoutsAtt / scoutsDef, 2));
+    defenderScoutsKilled = Math.min(scoutsDef, Math.ceil(scoutsDef * defLossRate));
+  }
+
+  // ── 4. Détection ─────────────────────────────────────────────
+  // Le défenseur est notifié si :
+  //   a) Ses scouts ont éliminé au moins un ennemi (combat réel)
+  //   b) L'attaque a été totalement repoussée (tier 0) — il voit
+  //      "X éclaireurs repoussés" mais PAS les troupes adverses.
+  const defenderDetected = defenderScoutsKilled > 0 || tier === 0;
+
   return {
-    wood:  Math.floor(resources.wood  * ratio),
-    stone: Math.floor(resources.stone * ratio),
-    iron:  Math.floor(resources.iron  * ratio),
+    scoutsSent: scoutsAtt,
+    scoutsLost,
+    scoutsSurvived,
+    survivorRatio,
+    tier,
+    defenderScoutsKilled,
+    defenderDetected,
   };
 }
 
 // ─────────────────────────────────────────────────────────────
 // TEMPS DE TRAJET
 // vitesse en secondes/case → plus petit = plus rapide
+// La vitesse de l'armée = vitesse de l'unité la plus lente
 // ─────────────────────────────────────────────────────────────
 
 export function calculateTravelTime(
   x1: number, y1: number,
   x2: number, y2: number,
-  unitSpeed: number,   // secondes par case
+  unitSpeed: number,   // secondes par case (la plus lente)
   gameSpeed: number,   // multiplicateur monde (1 = normal)
 ): number {
   const distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));

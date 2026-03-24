@@ -34,11 +34,39 @@ class TroopsApi {
     return response.data as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> cancelRecruit(String villageId, String queueId) async {
+    final response = await _client.dio.delete('/villages/$villageId/recruit/$queueId');
+    return response.data as Map<String, dynamic>;
+  }
+
   Future<List<AttackReportDto>> getReports(String villageId) async {
     final response = await _client.dio.get('/villages/$villageId/reports');
     final data = response.data as List<dynamic>;
     return data
         .map((r) => AttackReportDto.fromJson(r as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<List<ScoutReportDto>> getScoutReports(String villageId) async {
+    final response = await _client.dio.get('/villages/$villageId/scout-reports');
+    final data = response.data as List<dynamic>;
+    return data
+        .map((r) => ScoutReportDto.fromJson(r as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> sendScout(
+    String attackerVillageId,
+    String defenderVillageId,
+    int scoutCount,
+  ) async {
+    final response = await _client.dio.post(
+      '/villages/$attackerVillageId/scout',
+      data: {
+        'defenderVillageId': defenderVillageId,
+        'scoutCount': scoutCount,
+      },
+    );
+    return response.data as Map<String, dynamic>;
   }
 }

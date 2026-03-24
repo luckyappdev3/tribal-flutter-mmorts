@@ -149,15 +149,17 @@ class _MovementTileState extends State<MovementTile> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  units.entries.map((e) => '${_unitIcon(e.key)}${e.value}').join('  '),
-                  style: const TextStyle(color: Colors.white54, fontSize: 11),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$totalUnits unité${totalUnits > 1 ? 's' : ''}',
-                  style: const TextStyle(color: Colors.white38, fontSize: 10),
-                ),
+                if (isOutgoing) ...[
+                  Text(
+                    units.entries.map((e) => '${_unitIcon(e.key)}${e.value}').join('  '),
+                    style: const TextStyle(color: Colors.white54, fontSize: 11),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$totalUnits unité${totalUnits > 1 ? 's' : ''}',
+                    style: const TextStyle(color: Colors.white38, fontSize: 10),
+                  ),
+                ],
               ],
             ),
           ),

@@ -1,13 +1,20 @@
 {
   "id": "archer",
   "name": "Archer",
-  "description": "Attaque à distance équilibrée. Fragile mais polyvalent.",
-  "cost": { "wood": 100, "stone": 30, "iron": 0 },
+  "description": "Excellente unité défensive polyvalente, sauf contre les archers montés.",
+  "category": "archer",
+  "order": 4,
+  "cost": { "wood": 100, "stone": 30, "iron": 60 },
   "attack": 15,
-  "defense": 50,
-  "speed": 2,
+  "defenseGeneral": 50,
+  "defenseCavalry": 40,
+  "defenseArcher": 5,
+  "speed": 1080,
   "carryCapacity": 10,
-  "recruitTime": 36,
+  "recruitTime": 1620,
   "populationCost": 1,
-  "requiredBuilding": null
+  "requiredBuildings": [
+    { "buildingId": "barracks", "level": 5 },
+    { "buildingId": "smith", "level": 5 }
+  ]
 }

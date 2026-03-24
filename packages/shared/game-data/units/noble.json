@@ -1,0 +1,22 @@
+{
+  "id": "noble",
+  "name": "Noble",
+  "description": "L'unité la plus coûteuse. Sa mission est de capturer les villages ennemis.",
+  "category": "conquest",
+  "order": 12,
+  "cost": { "wood": 40000, "stone": 50000, "iron": 50000 },
+  "attack": 0,
+  "defenseGeneral": 100,
+  "defenseCavalry": 50,
+  "defenseArcher": 100,
+  "speed": 2100,
+  "carryCapacity": 0,
+  "recruitTime": 35700,
+  "populationCost": 100,
+  "requiredBuildings": [
+    { "buildingId": "headquarters", "level": 20 },
+    { "buildingId": "smith", "level": 20 },
+    { "buildingId": "market", "level": 10 },
+    { "buildingId": "snob", "level": 1 }
+  ]
+}

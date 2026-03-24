@@ -1,0 +1,14 @@
+{
+  "id": "smith",
+  "name": "Forge",
+  "description": "Permet la recherche et l'amélioration des capacités des troupes.",
+  "maxLevel": 20,
+  "order": 10,
+  "prerequisites": { "headquarters": 5, "barracks": 1 },
+  "baseStats": {
+    "baseCost": { "wood": 220, "stone": 180, "iron": 240, "food": 0 },
+    "baseBuildTime": 4000,
+    "costMultiplier": 1.26,
+    "timeMultiplier": 1.2
+  }
+}

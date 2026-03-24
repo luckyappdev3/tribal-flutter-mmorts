@@ -3,6 +3,7 @@
   "name": "Ferme",
   "description": "Détermine votre population maximale. Niv.1 = 240 pop, Niv.30 = 24 000 pop.",
   "maxLevel": 30,
+  "order": 5,
   "baseStats": {
     "baseCost": { "wood": 45, "stone": 40, "iron": 30, "food": 0 },
     "baseBuildTime": 1000,

@@ -5,6 +5,7 @@ import '../bloc/reports_event.dart';
 import '../bloc/reports_state.dart';
 import '../../troops/dto/troops_dto.dart';
 import 'report_detail_page.dart';
+import 'scout_report_detail_page.dart';
 
 class ReportsPage extends StatelessWidget {
   const ReportsPage({super.key});
@@ -26,7 +27,7 @@ class _ReportsView extends StatelessWidget {
         title: BlocBuilder<ReportsBloc, ReportsState>(
           builder: (context, state) {
             final unread = state.maybeWhen(
-              loaded: (_, __, u) => u,
+              loaded: (_, __, ___, u) => u,
               orElse: () => 0,
             );
             return Row(
@@ -58,7 +59,7 @@ class _ReportsView extends StatelessWidget {
           BlocBuilder<ReportsBloc, ReportsState>(
             builder: (context, state) {
               final hasUnread = state.maybeWhen(
-                loaded: (_, __, u) => u > 0,
+                loaded: (_, __, ___, u) => u > 0,
                 orElse: () => false,
               );
               if (!hasUnread) return const SizedBox.shrink();
@@ -76,18 +77,23 @@ class _ReportsView extends StatelessWidget {
             initial: () => const Center(child: CircularProgressIndicator(color: Colors.amber)),
             loading: () => const Center(child: CircularProgressIndicator(color: Colors.amber)),
             error:   (msg) => Center(child: Text(msg, style: const TextStyle(color: Colors.red))),
-            loaded:  (villageId, reports, _) {
-              if (reports.isEmpty) {
+            loaded:  (villageId, reports, scoutReports, _) {
+              // Fusionner et trier par date décroissante
+              final allItems = <_ReportEntry>[
+                for (final r in reports)      _ReportEntry.attack(r),
+                for (final r in scoutReports) _ReportEntry.scout(r),
+              ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+              if (allItems.isEmpty) {
                 return Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: const [
                       Icon(Icons.article_outlined, size: 64, color: Colors.white12),
                       SizedBox(height: 16),
-                      Text('Aucun rapport de combat',
-                          style: TextStyle(color: Colors.white38, fontSize: 16)),
+                      Text('Aucun rapport', style: TextStyle(color: Colors.white38, fontSize: 16)),
                       SizedBox(height: 8),
-                      Text('Lancez une attaque depuis la carte',
+                      Text('Lancez une attaque ou un espionnage depuis la carte',
                           style: TextStyle(color: Colors.white24, fontSize: 13)),
                     ],
                   ),
@@ -96,25 +102,40 @@ class _ReportsView extends StatelessWidget {
 
               return ListView.separated(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: reports.length,
+                itemCount: allItems.length,
                 separatorBuilder: (_, __) =>
                     const Divider(height: 1, color: Colors.white12, indent: 16, endIndent: 16),
-                itemBuilder: (context, index) => _ReportListItem(
-                  report:    reports[index],
-                  villageId: villageId,
-                  onTap: () {
-                    context.read<ReportsBloc>().add(ReportsEvent.markRead(reports[index].id));
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
+                itemBuilder: (context, index) {
+                  final entry = allItems[index];
+                  if (entry.isScout) {
+                    return _ScoutReportListItem(
+                      report:    entry.scout!,
+                      villageId: villageId,
+                      onTap: () {
+                        context.read<ReportsBloc>().add(ReportsEvent.markRead(entry.scout!.id));
+                        Navigator.push(context, MaterialPageRoute(
+                          builder: (_) => ScoutReportDetailPage(
+                            report:      entry.scout!,
+                            myVillageId: villageId,
+                          ),
+                        ));
+                      },
+                    );
+                  }
+                  return _ReportListItem(
+                    report:    entry.attack!,
+                    villageId: villageId,
+                    onTap: () {
+                      context.read<ReportsBloc>().add(ReportsEvent.markRead(entry.attack!.id));
+                      Navigator.push(context, MaterialPageRoute(
                         builder: (_) => ReportDetailPage(
-                          report:      reports[index],
+                          report:      entry.attack!,
                           myVillageId: villageId,
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      ));
+                    },
+                  );
+                },
               );
             },
           );
@@ -279,6 +300,148 @@ class _ReportListItem extends StatelessWidget {
             ),
 
             // ── Date + chevron ──
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(_formatDate(report.createdAt),
+                    style: const TextStyle(color: Colors.white24, fontSize: 10)),
+                const SizedBox(height: 4),
+                const Icon(Icons.chevron_right, color: Colors.white12, size: 16),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Union locale : entrée de liste (attaque ou scout) ──
+class _ReportEntry {
+  final AttackReportDto? attack;
+  final ScoutReportDto?  scout;
+
+  const _ReportEntry.attack(this.attack) : scout = null;
+  const _ReportEntry.scout(this.scout)   : attack = null;
+
+  bool get isScout  => scout  != null;
+  DateTime get createdAt => isScout ? scout!.createdAt : attack!.createdAt;
+}
+
+// ── Item rapport scout ──
+class _ScoutReportListItem extends StatelessWidget {
+  final ScoutReportDto report;
+  final String         villageId;
+  final VoidCallback   onTap;
+
+  const _ScoutReportListItem({
+    required this.report,
+    required this.villageId,
+    required this.onTap,
+  });
+
+  bool get _isDefender => report.isDefenderReport;
+
+  Color get _tierColor {
+    if (_isDefender)       return Colors.orange;
+    if (report.tier == 0)  return Colors.red;
+    if (report.tier >= 3)  return Colors.amber;
+    return Colors.orange;
+  }
+
+  String get _tierLabel {
+    if (_isDefender)       return 'Espionné';
+    if (report.tier == 0)  return 'Échec';
+    if (report.tier >= 3)  return 'Palier 3';
+    if (report.tier == 2)  return 'Palier 2';
+    return 'Palier 1';
+  }
+
+  String _formatDate(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1)  return 'À l\'instant';
+    if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes}min';
+    if (diff.inHours   < 24) return 'Il y a ${diff.inHours}h';
+    return '${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')} '
+           '${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _tierColor;
+
+    // Côté attaquant : on montre le village cible
+    // Côté défenseur : on montre le village espion (attaquant)
+    final opponentName = _isDefender
+        ? (report.attackerVillage?.name ?? report.attackerVillageId.substring(0, 8))
+        : (report.defenderVillage?.name ?? report.defenderVillageId.substring(0, 8));
+    final opponentPlayer = _isDefender
+        ? (report.attackerVillage?.playerName ?? '—')
+        : (report.defenderVillage?.playerName ?? '—');
+    final typeLabel = _isDefender ? 'Village espionné' : 'Espionnage';
+
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        color: report.isRead ? Colors.transparent : const Color(0xFF001A10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Barre lu/non-lu
+            Container(
+              width: 3, height: 52,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: report.isRead ? Colors.transparent : color,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Icône
+            Container(
+              width: 38, height: 38,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                _isDefender ? Icons.visibility : Icons.search,
+                color: color, size: 18,
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Infos
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Text(typeLabel, style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(_tierLabel,
+                          style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+                    ),
+                  ]),
+                  const SizedBox(height: 3),
+                  Text(opponentName,
+                      style: TextStyle(
+                        color:      report.isRead ? Colors.white70 : Colors.white,
+                        fontWeight: report.isRead ? FontWeight.normal : FontWeight.bold,
+                        fontSize:   13,
+                      ),
+                      overflow: TextOverflow.ellipsis),
+                  Text(opponentPlayer,
+                      style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                ],
+              ),
+            ),
+            // Date + chevron
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [

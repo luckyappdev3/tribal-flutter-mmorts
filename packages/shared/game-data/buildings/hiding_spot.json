@@ -1,0 +1,13 @@
+{
+  "id": "hiding_spot",
+  "name": "Cachette",
+  "description": "Protège une partie de vos ressources contre le pillage. Chaque niveau augmente la quantité cachée.",
+  "maxLevel": 10,
+  "order": 7,
+  "baseStats": {
+    "baseCost": { "wood": 50, "stone": 60, "iron": 50, "food": 0 },
+    "baseBuildTime": 1200,
+    "costMultiplier": 1.5,
+    "timeMultiplier": 1.2
+  }
+}

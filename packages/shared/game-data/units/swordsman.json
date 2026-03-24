@@ -1,13 +1,20 @@
 {
   "id": "swordsman",
-  "name": "Épéiste",
-  "description": "Unité polyvalente avec bonne défense.",
+  "name": "Porteur d'Épée",
+  "description": "Spécialiste anti-infanterie. Indispensable pour protéger le village des haches.",
+  "category": "infantry",
+  "order": 2,
   "cost": { "wood": 30, "stone": 30, "iron": 70 },
   "attack": 25,
-  "defense": 50,
-  "speed": 1,
+  "defenseGeneral": 50,
+  "defenseCavalry": 15,
+  "defenseArcher": 40,
+  "speed": 1320,
   "carryCapacity": 15,
-  "recruitTime": 20,
+  "recruitTime": 1200,
   "populationCost": 1,
-  "requiredBuilding": null
+  "requiredBuildings": [
+    { "buildingId": "barracks", "level": 1 },
+    { "buildingId": "smith", "level": 1 }
+  ]
 }

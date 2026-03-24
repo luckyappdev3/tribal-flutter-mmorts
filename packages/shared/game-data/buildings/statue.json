@@ -1,0 +1,13 @@
+{
+  "id": "statue",
+  "name": "Statue",
+  "description": "Permet le recrutement du Paladin, un héros unique qui booste votre village.",
+  "maxLevel": 1,
+  "order": 14,
+  "baseStats": {
+    "baseCost": { "wood": 220, "stone": 220, "iron": 220, "food": 0 },
+    "baseBuildTime": 1600,
+    "costMultiplier": 1.0,
+    "timeMultiplier": 1.0
+  }
+}

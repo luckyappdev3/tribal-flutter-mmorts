@@ -3,6 +3,7 @@
   "name": "Quartier Général",
   "description": "Le cœur de votre village. Chaque niveau réduit le temps de construction des autres bâtiments de 5%.",
   "maxLevel": 30,
+  "order": 1,
   "baseStats": {
     "baseCost": { "wood": 90, "stone": 80, "iron": 70, "food": 0 },
     "baseBuildTime": 900,

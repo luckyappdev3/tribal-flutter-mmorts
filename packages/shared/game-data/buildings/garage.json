@@ -1,0 +1,14 @@
+{
+  "id": "garage",
+  "name": "Atelier",
+  "description": "Permet la construction d'engins de siège. Chaque niveau améliore les capacités offensives.",
+  "maxLevel": 15,
+  "order": 12,
+  "prerequisites": { "headquarters": 10, "smith": 10 },
+  "baseStats": {
+    "baseCost": { "wood": 300, "stone": 400, "iron": 200, "food": 0 },
+    "baseBuildTime": 3000,
+    "costMultiplier": 1.26,
+    "timeMultiplier": 1.2
+  }
+}

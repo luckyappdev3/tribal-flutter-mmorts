@@ -109,6 +109,131 @@ export class CombatService {
     };
   }
 
+  async sendScout(
+    attackerVillageId: string,
+    defenderVillageId: string,
+    scoutCount: number,
+  ) {
+    if (attackerVillageId === defenderVillageId) {
+      throw new Error('Vous ne pouvez pas espionner votre propre village.');
+    }
+    if (scoutCount <= 0) {
+      throw new Error('Vous devez envoyer au moins un éclaireur.');
+    }
+
+    const [attacker, defender] = await Promise.all([
+      this.prisma.village.findUnique({
+        where:   { id: attackerVillageId },
+        include: { troops: true },
+      }),
+      this.prisma.village.findUnique({
+        where:  { id: defenderVillageId },
+        select: { id: true, x: true, y: true, name: true },
+      }),
+    ]);
+
+    if (!attacker) throw new Error('Village attaquant introuvable.');
+    if (!defender) throw new Error('Village cible introuvable.');
+
+    const rallyPoint = await this.prisma.buildingInstance.findUnique({
+      where: { villageId_buildingId: { villageId: attackerVillageId, buildingId: 'rally_point' } },
+    });
+    if (!rallyPoint || rallyPoint.level < 1) {
+      throw new Error('Vous devez construire une Place d\'armes pour envoyer des éclaireurs.');
+    }
+
+    const troopMap = Object.fromEntries(attacker.troops.map(t => [t.unitType, t.count]));
+    const available = troopMap['scout'] ?? 0;
+    if (available < scoutCount) {
+      throw new Error(`Pas assez d'éclaireurs (${available} dispo, ${scoutCount} demandés).`);
+    }
+
+    await this.prisma.troop.update({
+      where: { villageId_unitType: { villageId: attackerVillageId, unitType: 'scout' } },
+      data:  { count: { decrement: scoutCount } },
+    });
+
+    const scoutDef = this.gameData.getUnitDef('scout');
+    const villageWithWorld = await this.prisma.village.findUnique({
+      where: { id: attackerVillageId },
+      include: { world: { select: { gameSpeed: true } } },
+    });
+    const gameSpeed = (villageWithWorld as any)?.world?.gameSpeed ?? 1.0;
+
+    const travelSec = calculateTravelTime(
+      attacker.x, attacker.y,
+      defender.x, defender.y,
+      scoutDef.speed,
+      gameSpeed,
+    );
+    const travelMs  = travelSec * 1000;
+    const arrivesAt = new Date(Date.now() + travelMs);
+
+    const activeAttack = await this.prisma.activeAttack.create({
+      data: {
+        attackerVillageId,
+        defenderVillageId,
+        units:       { scout: scoutCount },
+        arrivesAt,
+        status:      'traveling',
+        missionType: 'scout',
+      },
+    });
+
+    await this.attackQueue.addJob(
+      {
+        attackerVillageId,
+        defenderVillageId,
+        units:          { scout: scoutCount },
+        activeAttackId: activeAttack.id,
+        travelMs,
+        missionType:    'scout',
+      } as any,
+      travelMs,
+    );
+
+    return {
+      activeAttackId:    activeAttack.id,
+      attackerVillageId,
+      defenderVillageId,
+      defenderName:      defender.name,
+      scoutCount,
+      travelSec,
+      arrivesAt,
+    };
+  }
+
+  async getScoutReports(villageId: string) {
+    const reports = await this.prisma.scoutReport.findMany({
+      where: {
+        OR: [
+          { attackerVillageId: villageId },
+          { defenderVillageId: villageId },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      take:    100,
+      include: {
+        attackerVillage: {
+          select: { id: true, name: true, x: true, y: true,
+            player: { select: { id: true, username: true } } },
+        },
+        defenderVillage: {
+          select: { id: true, name: true, x: true, y: true,
+            player: { select: { id: true, username: true } } },
+        },
+      },
+    });
+
+    // Ajouter un flag isDefenderReport calculé côté serveur
+    return reports.map(r => ({
+      ...r,
+      isDefenderReport: r.defenderVillageId === villageId,
+      // Masquer le nombre de scouts envoyés dans le rapport défenseur
+      scoutsSent:     r.defenderVillageId === villageId ? 0 : r.scoutsSent,
+    }));
+  }
+
   async getReports(villageId: string) {
     const reports = await this.prisma.attackReport.findMany({
       where: {

@@ -1,0 +1,20 @@
+{
+  "id": "heavy_cavalry",
+  "name": "Cavalerie Lourde",
+  "description": "L'unité ultime. Très résistante, elle peut servir en attaque comme en renfort rapide.",
+  "category": "cavalry",
+  "order": 8,
+  "cost": { "wood": 200, "stone": 150, "iron": 600 },
+  "attack": 150,
+  "defenseGeneral": 200,
+  "defenseCavalry": 80,
+  "defenseArcher": 180,
+  "speed": 660,
+  "carryCapacity": 50,
+  "recruitTime": 2160,
+  "populationCost": 6,
+  "requiredBuildings": [
+    { "buildingId": "stable", "level": 10 },
+    { "buildingId": "smith", "level": 15 }
+  ]
+}

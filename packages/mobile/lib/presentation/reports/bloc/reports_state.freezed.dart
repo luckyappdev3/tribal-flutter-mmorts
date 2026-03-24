@@ -20,8 +20,8 @@ mixin _$ReportsState {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(
-            String villageId, List<AttackReportDto> reports, int unreadCount)
+    required TResult Function(String villageId, List<AttackReportDto> reports,
+            List<ScoutReportDto> scoutReports, int unreadCount)
         loaded,
     required TResult Function(String message) error,
   }) =>
@@ -30,8 +30,8 @@ mixin _$ReportsState {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(
-            String villageId, List<AttackReportDto> reports, int unreadCount)?
+    TResult? Function(String villageId, List<AttackReportDto> reports,
+            List<ScoutReportDto> scoutReports, int unreadCount)?
         loaded,
     TResult? Function(String message)? error,
   }) =>
@@ -40,8 +40,8 @@ mixin _$ReportsState {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(
-            String villageId, List<AttackReportDto> reports, int unreadCount)?
+    TResult Function(String villageId, List<AttackReportDto> reports,
+            List<ScoutReportDto> scoutReports, int unreadCount)?
         loaded,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -138,8 +138,8 @@ class _$InitialImpl implements _Initial {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(
-            String villageId, List<AttackReportDto> reports, int unreadCount)
+    required TResult Function(String villageId, List<AttackReportDto> reports,
+            List<ScoutReportDto> scoutReports, int unreadCount)
         loaded,
     required TResult Function(String message) error,
   }) {
@@ -151,8 +151,8 @@ class _$InitialImpl implements _Initial {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(
-            String villageId, List<AttackReportDto> reports, int unreadCount)?
+    TResult? Function(String villageId, List<AttackReportDto> reports,
+            List<ScoutReportDto> scoutReports, int unreadCount)?
         loaded,
     TResult? Function(String message)? error,
   }) {
@@ -164,8 +164,8 @@ class _$InitialImpl implements _Initial {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(
-            String villageId, List<AttackReportDto> reports, int unreadCount)?
+    TResult Function(String villageId, List<AttackReportDto> reports,
+            List<ScoutReportDto> scoutReports, int unreadCount)?
         loaded,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -261,8 +261,8 @@ class _$LoadingImpl implements _Loading {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(
-            String villageId, List<AttackReportDto> reports, int unreadCount)
+    required TResult Function(String villageId, List<AttackReportDto> reports,
+            List<ScoutReportDto> scoutReports, int unreadCount)
         loaded,
     required TResult Function(String message) error,
   }) {
@@ -274,8 +274,8 @@ class _$LoadingImpl implements _Loading {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(
-            String villageId, List<AttackReportDto> reports, int unreadCount)?
+    TResult? Function(String villageId, List<AttackReportDto> reports,
+            List<ScoutReportDto> scoutReports, int unreadCount)?
         loaded,
     TResult? Function(String message)? error,
   }) {
@@ -287,8 +287,8 @@ class _$LoadingImpl implements _Loading {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(
-            String villageId, List<AttackReportDto> reports, int unreadCount)?
+    TResult Function(String villageId, List<AttackReportDto> reports,
+            List<ScoutReportDto> scoutReports, int unreadCount)?
         loaded,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -347,7 +347,11 @@ abstract class _$$LoadedImplCopyWith<$Res> {
           _$LoadedImpl value, $Res Function(_$LoadedImpl) then) =
       __$$LoadedImplCopyWithImpl<$Res>;
   @useResult
-  $Res call({String villageId, List<AttackReportDto> reports, int unreadCount});
+  $Res call(
+      {String villageId,
+      List<AttackReportDto> reports,
+      List<ScoutReportDto> scoutReports,
+      int unreadCount});
 }
 
 /// @nodoc
@@ -365,6 +369,7 @@ class __$$LoadedImplCopyWithImpl<$Res>
   $Res call({
     Object? villageId = null,
     Object? reports = null,
+    Object? scoutReports = null,
     Object? unreadCount = null,
   }) {
     return _then(_$LoadedImpl(
@@ -376,6 +381,10 @@ class __$$LoadedImplCopyWithImpl<$Res>
           ? _value._reports
           : reports // ignore: cast_nullable_to_non_nullable
               as List<AttackReportDto>,
+      scoutReports: null == scoutReports
+          ? _value._scoutReports
+          : scoutReports // ignore: cast_nullable_to_non_nullable
+              as List<ScoutReportDto>,
       unreadCount: null == unreadCount
           ? _value.unreadCount
           : unreadCount // ignore: cast_nullable_to_non_nullable
@@ -390,8 +399,10 @@ class _$LoadedImpl implements _Loaded {
   const _$LoadedImpl(
       {required this.villageId,
       required final List<AttackReportDto> reports,
+      required final List<ScoutReportDto> scoutReports,
       this.unreadCount = 0})
-      : _reports = reports;
+      : _reports = reports,
+        _scoutReports = scoutReports;
 
   @override
   final String villageId;
@@ -403,13 +414,21 @@ class _$LoadedImpl implements _Loaded {
     return EqualUnmodifiableListView(_reports);
   }
 
+  final List<ScoutReportDto> _scoutReports;
+  @override
+  List<ScoutReportDto> get scoutReports {
+    if (_scoutReports is EqualUnmodifiableListView) return _scoutReports;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_scoutReports);
+  }
+
   @override
   @JsonKey()
   final int unreadCount;
 
   @override
   String toString() {
-    return 'ReportsState.loaded(villageId: $villageId, reports: $reports, unreadCount: $unreadCount)';
+    return 'ReportsState.loaded(villageId: $villageId, reports: $reports, scoutReports: $scoutReports, unreadCount: $unreadCount)';
   }
 
   @override
@@ -420,13 +439,19 @@ class _$LoadedImpl implements _Loaded {
             (identical(other.villageId, villageId) ||
                 other.villageId == villageId) &&
             const DeepCollectionEquality().equals(other._reports, _reports) &&
+            const DeepCollectionEquality()
+                .equals(other._scoutReports, _scoutReports) &&
             (identical(other.unreadCount, unreadCount) ||
                 other.unreadCount == unreadCount));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, villageId,
-      const DeepCollectionEquality().hash(_reports), unreadCount);
+  int get hashCode => Object.hash(
+      runtimeType,
+      villageId,
+      const DeepCollectionEquality().hash(_reports),
+      const DeepCollectionEquality().hash(_scoutReports),
+      unreadCount);
 
   /// Create a copy of ReportsState
   /// with the given fields replaced by the non-null parameter values.
@@ -441,12 +466,12 @@ class _$LoadedImpl implements _Loaded {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(
-            String villageId, List<AttackReportDto> reports, int unreadCount)
+    required TResult Function(String villageId, List<AttackReportDto> reports,
+            List<ScoutReportDto> scoutReports, int unreadCount)
         loaded,
     required TResult Function(String message) error,
   }) {
-    return loaded(villageId, reports, unreadCount);
+    return loaded(villageId, reports, scoutReports, unreadCount);
   }
 
   @override
@@ -454,12 +479,12 @@ class _$LoadedImpl implements _Loaded {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(
-            String villageId, List<AttackReportDto> reports, int unreadCount)?
+    TResult? Function(String villageId, List<AttackReportDto> reports,
+            List<ScoutReportDto> scoutReports, int unreadCount)?
         loaded,
     TResult? Function(String message)? error,
   }) {
-    return loaded?.call(villageId, reports, unreadCount);
+    return loaded?.call(villageId, reports, scoutReports, unreadCount);
   }
 
   @override
@@ -467,14 +492,14 @@ class _$LoadedImpl implements _Loaded {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(
-            String villageId, List<AttackReportDto> reports, int unreadCount)?
+    TResult Function(String villageId, List<AttackReportDto> reports,
+            List<ScoutReportDto> scoutReports, int unreadCount)?
         loaded,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
     if (loaded != null) {
-      return loaded(villageId, reports, unreadCount);
+      return loaded(villageId, reports, scoutReports, unreadCount);
     }
     return orElse();
   }
@@ -521,10 +546,12 @@ abstract class _Loaded implements ReportsState {
   const factory _Loaded(
       {required final String villageId,
       required final List<AttackReportDto> reports,
+      required final List<ScoutReportDto> scoutReports,
       final int unreadCount}) = _$LoadedImpl;
 
   String get villageId;
   List<AttackReportDto> get reports;
+  List<ScoutReportDto> get scoutReports;
   int get unreadCount;
 
   /// Create a copy of ReportsState
@@ -604,8 +631,8 @@ class _$ErrorImpl implements _Error {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(
-            String villageId, List<AttackReportDto> reports, int unreadCount)
+    required TResult Function(String villageId, List<AttackReportDto> reports,
+            List<ScoutReportDto> scoutReports, int unreadCount)
         loaded,
     required TResult Function(String message) error,
   }) {
@@ -617,8 +644,8 @@ class _$ErrorImpl implements _Error {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(
-            String villageId, List<AttackReportDto> reports, int unreadCount)?
+    TResult? Function(String villageId, List<AttackReportDto> reports,
+            List<ScoutReportDto> scoutReports, int unreadCount)?
         loaded,
     TResult? Function(String message)? error,
   }) {
@@ -630,8 +657,8 @@ class _$ErrorImpl implements _Error {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(
-            String villageId, List<AttackReportDto> reports, int unreadCount)?
+    TResult Function(String villageId, List<AttackReportDto> reports,
+            List<ScoutReportDto> scoutReports, int unreadCount)?
         loaded,
     TResult Function(String message)? error,
     required TResult orElse(),

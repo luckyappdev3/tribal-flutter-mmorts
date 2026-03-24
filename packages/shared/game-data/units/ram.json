@@ -1,0 +1,20 @@
+{
+  "id": "ram",
+  "name": "Bélier",
+  "description": "Détruit les fortifications avant le combat pour faciliter le passage des troupes.",
+  "category": "siege",
+  "order": 9,
+  "cost": { "wood": 300, "stone": 200, "iron": 200 },
+  "attack": 2,
+  "defenseGeneral": 20,
+  "defenseCavalry": 50,
+  "defenseArcher": 20,
+  "speed": 1800,
+  "carryCapacity": 0,
+  "recruitTime": 4200,
+  "populationCost": 5,
+  "requiredBuildings": [
+    { "buildingId": "garage", "level": 1 },
+    { "buildingId": "smith", "level": 10 }
+  ]
+}

@@ -2,9 +2,11 @@ import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
 
 export interface RecruitJobData {
-  villageId: string;
-  unitType:  string;
-  count:     number;
+  villageId:    string;
+  unitType:     string;
+  count:        number;        // totalCount, utilisé pour les logs
+  queueId:      string;        // ID de l'entrée RecruitQueue
+  buildingType: string;        // 'barracks' | 'stable' | 'garage' | 'statue' | 'snob'
 }
 
 export class RecruitQueue {
@@ -19,7 +21,7 @@ export class RecruitQueue {
 
   async addJob(data: RecruitJobData, delayMs: number) {
     return await this.queue.add('finish-recruit', data, {
-      delay:           delayMs,
+      delay:            delayMs,
       removeOnComplete: true,
       attempts:         3,
       backoff: { type: 'exponential', delay: 1000 },

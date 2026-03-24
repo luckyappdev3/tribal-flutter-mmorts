@@ -3,6 +3,7 @@
   "name": "Mine de Fer",
   "description": "Extrait le fer du sous-sol. Production : 30/h au niveau 1 jusqu'à ~2000/h au niveau 30.",
   "maxLevel": 30,
+  "order": 4,
   "baseStats": {
     "baseCost": { "wood": 75, "stone": 65, "iron": 70, "food": 0 },
     "baseBuildTime": 900,

@@ -46,6 +46,26 @@ export class ConstructionService {
       where: { villageId_buildingId: { villageId, buildingId } },
     });
     const currentLevel = buildingInstance?.level ?? 0;
+
+    // ── Vérification des prérequis (seulement pour le niveau 1) ─
+    if (currentLevel === 0) {
+      const buildingDef = this.gameData.getBuildingDef(buildingId);
+      const prereqs     = buildingDef.prerequisites ?? {};
+      const prereqEntries = Object.entries(prereqs);
+      if (prereqEntries.length > 0) {
+        const instances = await this.prisma.buildingInstance.findMany({
+          where: { villageId },
+        });
+        const levelMap = new Map(instances.map(b => [b.buildingId, b.level]));
+        const missing = prereqEntries.filter(([bid, req]) => (levelMap.get(bid) ?? 0) < (req as number));
+        if (missing.length > 0) {
+          const details = missing
+            .map(([bid, req]) => `${bid} niv.${req}`)
+            .join(', ');
+          throw new Error(`Prérequis non remplis : ${details}`);
+        }
+      }
+    }
     const targetLevel  = currentLevel + 1;
     const buildingDef  = this.gameData.getBuildingDef(buildingId);
     const costs        = calculateCostForLevel(buildingDef, targetLevel);
