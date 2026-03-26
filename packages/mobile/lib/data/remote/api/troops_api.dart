@@ -36,15 +36,54 @@ class TroopsApi {
   Future<Map<String, dynamic>> sendAttack(
     String attackerVillageId,
     String defenderVillageId,
-    Map<String, int> units,
-  ) async {
+    Map<String, int> units, {
+    String? catapultTarget,
+  }) async {
     final response = await _client.dio.post(
       '/villages/$attackerVillageId/attack',
       data: {
         'defenderVillageId': defenderVillageId,
         'units': units,
+        if (catapultTarget != null) 'catapultTarget': catapultTarget,
       },
     );
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> sendSupport(
+    String fromVillageId,
+    String targetVillageId,
+    Map<String, int> units,
+  ) async {
+    try {
+      final response = await _client.dio.post(
+        '/villages/$fromVillageId/support',
+        data: {'targetVillageId': targetVillageId, 'units': units},
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg  = (data is Map ? (data['error'] ?? data['message']) : null) ?? '$e';
+      throw Exception(msg);
+    }
+  }
+
+  Future<Map<String, dynamic>> recallSupport(
+      String fromVillageId, String supportId) async {
+    try {
+      final response = await _client.dio
+          .delete('/villages/$fromVillageId/support/$supportId');
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg  = (data is Map ? (data['error'] ?? data['message']) : null) ?? '$e';
+      throw Exception(msg);
+    }
+  }
+
+  Future<Map<String, dynamic>> getSupports(String villageId) async {
+    final response =
+        await _client.dio.get('/villages/$villageId/supports');
     return response.data as Map<String, dynamic>;
   }
 
@@ -55,6 +94,14 @@ class TroopsApi {
 
   Future<List<CombatReportDto>> getCombatReports(String villageId) async {
     final response = await _client.dio.get('/villages/$villageId/combat-reports');
+    final data = response.data as List<dynamic>;
+    return data
+        .map((r) => CombatReportDto.fromJson(r as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<CombatReportDto>> getMyPlayerCombatReports() async {
+    final response = await _client.dio.get('/villages/me/combat-reports');
     final data = response.data as List<dynamic>;
     return data
         .map((r) => CombatReportDto.fromJson(r as Map<String, dynamic>))

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -50,27 +51,69 @@ final appRouter = GoRouter(
   ],
 );
 
-class _ScaffoldWithNavBar extends StatelessWidget {
+class _ScaffoldWithNavBar extends StatefulWidget {
   final StatefulNavigationShell shell;
   const _ScaffoldWithNavBar({required this.shell});
 
   @override
+  State<_ScaffoldWithNavBar> createState() => _ScaffoldWithNavBarState();
+}
+
+class _ScaffoldWithNavBarState extends State<_ScaffoldWithNavBar> {
+  late final GlobalResourcesCubit _cubit;
+  StreamSubscription? _loyaltySub;
+
+  @override
+  void initState() {
+    super.initState();
+    _cubit = GlobalResourcesCubit();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loyaltySub = _cubit.loyaltyWarnings.listen((w) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.orange[900],
+            content: Row(children: [
+              const Icon(Icons.warning_amber, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Expanded(child: Text(
+                '⚜️ ${w.villageName} — Loyauté critique : ${w.loyalty}/100',
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+              )),
+            ]),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _loyaltySub?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return BlocProvider<GlobalResourcesCubit>(
-      create: (_) => GlobalResourcesCubit(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: _cubit),
+        BlocProvider(create: (_) => MovementsBloc()),
+      ],
       child: Scaffold(
         backgroundColor: const Color(0xFF1A1A1A),
         body: Column(
           children: [
             SafeArea(bottom: false, child: const GlobalTopBar()),
-            Expanded(child: shell),
+            Expanded(child: widget.shell),
           ],
         ),
         bottomNavigationBar: _BottomNav(
-          currentIndex: shell.currentIndex,
+          currentIndex: widget.shell.currentIndex,
           onTap: (i) {
             TabRefreshService.instance.notifyTabSelected(i);
-            shell.goBranch(i, initialLocation: i == shell.currentIndex);
+            widget.shell.goBranch(i, initialLocation: i == widget.shell.currentIndex);
           },
         ),
       ),

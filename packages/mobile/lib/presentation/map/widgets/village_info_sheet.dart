@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../bloc/map_state.dart';
+import '../../attack/pages/support_page.dart';
 
 class VillageInfoSheet extends StatelessWidget {
   final VillageMarker village;
@@ -130,7 +132,46 @@ class VillageInfoSheet extends StatelessWidget {
                     ],
                   ),
           ),
+          // ── Barre de loyauté (visible uniquement pour ses propres villages) ──
+          if (_isOwn && village.loyaltyPoints != null) ...[
+            const SizedBox(height: 4),
+            _LoyaltyBar(loyalty: village.loyaltyPoints!),
+          ],
           const SizedBox(height: 20),
+
+          // ── Bouton Renforcer (village allié différent du village courant) ──
+          if (_isOwn) ...[
+            Builder(builder: (ctx) {
+              final currentId = Hive.box('village').get('current_village_id') as String?;
+              if (currentId == village.id) return const SizedBox.shrink();
+              return SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green[800],
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SupportPage(
+                          targetVillageId:   village.id,
+                          targetVillageName: village.name,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.shield),
+                  label: const Text('RENFORCER',
+                      style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
+                ),
+              );
+            }),
+          ],
 
           // ── Bouton Attaquer (villages ennemis et abandonnés) ──
           if (!_isOwn)
@@ -163,6 +204,52 @@ class VillageInfoSheet extends StatelessWidget {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Barre de loyauté ─────────────────────────────────────────────
+class _LoyaltyBar extends StatelessWidget {
+  final int loyalty;
+  const _LoyaltyBar({required this.loyalty});
+
+  Color get _color {
+    if (loyalty > 60) return Colors.green;
+    if (loyalty > 30) return Colors.orange;
+    return Colors.red;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black26,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('⚜️ Loyauté', style: TextStyle(color: Colors.white54, fontSize: 12)),
+              Text('$loyalty / 100',
+                  style: TextStyle(color: _color, fontSize: 12, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: loyalty / 100,
+              backgroundColor: Colors.white12,
+              color: _color,
+              minHeight: 6,
+            ),
+          ),
         ],
       ),
     );

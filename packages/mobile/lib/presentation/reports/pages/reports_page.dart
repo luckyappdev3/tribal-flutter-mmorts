@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../bloc/reports_bloc.dart';
 import '../bloc/reports_event.dart';
 import '../bloc/reports_state.dart';
@@ -11,12 +12,30 @@ class ReportsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _ReportsView();
+    final String? playerId = Hive.box('auth').get('player_id') as String?;
+    if (playerId == null) {
+      return const Scaffold(
+        body: Center(child: Text('Non connecté', style: TextStyle(color: Colors.white))),
+      );
+    }
+    return BlocProvider(
+      key: ValueKey(playerId),
+      create: (_) => ReportsBloc()..add(ReportsEvent.loadRequested(playerId)),
+      child: _ReportsView(playerId: playerId),
+    );
   }
 }
 
-class _ReportsView extends StatelessWidget {
-  const _ReportsView();
+class _ReportsView extends StatefulWidget {
+  final String playerId;
+  const _ReportsView({required this.playerId});
+
+  @override
+  State<_ReportsView> createState() => _ReportsViewState();
+}
+
+class _ReportsViewState extends State<_ReportsView> {
+  bool _conquestOnly = false;
 
   @override
   Widget build(BuildContext context) {
@@ -28,59 +47,90 @@ class _ReportsView extends StatelessWidget {
             initial: () => const Center(child: CircularProgressIndicator(color: Colors.amber)),
             loading: () => const Center(child: CircularProgressIndicator(color: Colors.amber)),
             error:   (msg) => Center(child: Text(msg, style: const TextStyle(color: Colors.red))),
-            loaded:  (villageId, reports, _) {
-              if (reports.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Icon(Icons.article_outlined, size: 64, color: Colors.white12),
-                      SizedBox(height: 16),
-                      Text('Aucun rapport', style: TextStyle(color: Colors.white38, fontSize: 16)),
-                      SizedBox(height: 8),
-                      Text('Lancez une attaque ou un espionnage depuis la carte',
-                          style: TextStyle(color: Colors.white24, fontSize: 13)),
-                    ],
-                  ),
-                );
-              }
+            loaded:  (_, allReports, __) {
+              final reports = _conquestOnly
+                  ? allReports.where((r) => r.isConquest).toList()
+                  : allReports;
 
-              final hasUnread = reports.any((r) => !r.isRead);
-              return ListView.separated(
-                padding: const EdgeInsets.only(top: 4, bottom: 8),
-                itemCount: reports.length + (hasUnread ? 1 : 0),
-                separatorBuilder: (_, __) =>
-                    const Divider(height: 1, color: Colors.white12, indent: 16, endIndent: 16),
-                itemBuilder: (context, index) {
-                  if (hasUnread && index == 0) {
-                    return Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
-                          onPressed: () => context.read<ReportsBloc>().add(const ReportsEvent.markAllRead()),
-                          icon: const Icon(Icons.done_all, size: 14, color: Colors.amber),
-                          label: const Text('Tout lire', style: TextStyle(color: Colors.amber, fontSize: 12)),
-                          style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+              return Column(
+                children: [
+                  // ── Filtre conquêtes ──
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                    child: Row(
+                      children: [
+                        FilterChip(
+                          label: const Text('👑 Conquêtes'),
+                          selected: _conquestOnly,
+                          onSelected: (v) => setState(() => _conquestOnly = v),
+                          selectedColor: Colors.amber.withOpacity(0.2),
+                          checkmarkColor: Colors.amber,
+                          labelStyle: TextStyle(
+                            color: _conquestOnly ? Colors.amber : Colors.white54,
+                            fontSize: 12,
+                          ),
+                          side: BorderSide(
+                            color: _conquestOnly ? Colors.amber.withOpacity(0.6) : Colors.white12,
+                          ),
+                          backgroundColor: Colors.transparent,
                         ),
-                      ),
-                    );
-                  }
-                  final report = reports[hasUnread ? index - 1 : index];
-                  return _CombatReportListItem(
-                    report:    report,
-                    villageId: villageId,
-                    onTap: () {
-                      context.read<ReportsBloc>().add(ReportsEvent.markRead(report.id));
-                      Navigator.push(context, MaterialPageRoute(
-                        builder: (_) => CombatReportDetailPage(
-                          report:      report,
-                          myVillageId: villageId,
-                        ),
-                      ));
-                    },
-                  );
-                },
+                        const Spacer(),
+                        if (allReports.any((r) => !r.isRead))
+                          TextButton.icon(
+                            onPressed: () => context.read<ReportsBloc>().add(const ReportsEvent.markAllRead()),
+                            icon: const Icon(Icons.done_all, size: 14, color: Colors.amber),
+                            label: const Text('Tout lire', style: TextStyle(color: Colors.amber, fontSize: 12)),
+                            style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // ── Liste ──
+                  Expanded(
+                    child: reports.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(_conquestOnly ? Icons.emoji_events_outlined : Icons.article_outlined,
+                                    size: 64, color: Colors.white12),
+                                const SizedBox(height: 16),
+                                Text(
+                                  _conquestOnly ? 'Aucune conquête' : 'Aucun rapport',
+                                  style: const TextStyle(color: Colors.white38, fontSize: 16),
+                                ),
+                                if (!_conquestOnly) ...[
+                                  const SizedBox(height: 8),
+                                  const Text('Lancez une attaque ou un espionnage depuis la carte',
+                                      style: TextStyle(color: Colors.white24, fontSize: 13)),
+                                ],
+                              ],
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.only(top: 4, bottom: 8),
+                            itemCount: reports.length,
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1, color: Colors.white12, indent: 16, endIndent: 16),
+                            itemBuilder: (context, index) {
+                              final report = reports[index];
+                              return _CombatReportListItem(
+                                report:   report,
+                                playerId: widget.playerId,
+                                onTap: () {
+                                  context.read<ReportsBloc>().add(ReportsEvent.markRead(report.id));
+                                  Navigator.push(context, MaterialPageRoute(
+                                    builder: (_) => CombatReportDetailPage(
+                                      report:     report,
+                                      myPlayerId: widget.playerId,
+                                    ),
+                                  ));
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
               );
             },
           );
@@ -92,16 +142,16 @@ class _ReportsView extends StatelessWidget {
 
 class _CombatReportListItem extends StatelessWidget {
   final CombatReportDto report;
-  final String          villageId;
+  final String          playerId;
   final VoidCallback    onTap;
 
   const _CombatReportListItem({
     required this.report,
-    required this.villageId,
+    required this.playerId,
     required this.onTap,
   });
 
-  bool get _isAttacker => report.isAttacker(villageId);
+  bool get _isAttacker => report.isAttackerByPlayer(playerId);
 
   // ── Titre de l'adversaire ──
   String get _opponentName {
@@ -132,6 +182,12 @@ class _CombatReportListItem extends StatelessWidget {
   // ── Badge(s) principal(aux) ──
   List<_Badge> get _badges {
     final badges = <_Badge>[];
+
+    // Badge conquête
+    if (report.isConquest) {
+      badges.add(_Badge(_isAttacker ? '👑 Conquête' : '💀 Conquis', _isAttacker ? Colors.amber : Colors.red));
+      return badges;
+    }
 
     // Badge combat
     if (report.hasCombat && report.attackerWon != null) {
@@ -189,6 +245,9 @@ class _CombatReportListItem extends StatelessWidget {
 
   // ── Libellé du type ──
   String get _typeLabel {
+    if (report.isConquest) {
+      return _isAttacker ? '👑 Village conquis' : '💀 Village perdu';
+    }
     if (report.type == 'combined') {
       return _isAttacker ? 'Attaque + espionnage' : 'Attaque reçue';
     }

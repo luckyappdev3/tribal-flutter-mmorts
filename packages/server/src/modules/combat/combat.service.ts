@@ -14,6 +14,7 @@ export class CombatService {
     attackerVillageId: string,
     defenderVillageId: string,
     units: Record<string, number>,
+    catapultTarget?: string,
   ) {
     if (attackerVillageId === defenderVillageId) {
       throw new Error('Vous ne pouvez pas attaquer votre propre village.');
@@ -83,6 +84,12 @@ export class CombatService {
     const travelMs  = travelSec * 1000;
     const arrivesAt = new Date(Date.now() + travelMs);
 
+    // Valider la cible de catapulte (interdit : hiding_spot)
+    const FORBIDDEN_CAT_TARGETS = new Set(['hiding_spot']);
+    if (catapultTarget && FORBIDDEN_CAT_TARGETS.has(catapultTarget)) {
+      throw new Error('La Cachette ne peut pas être ciblée par les catapultes.');
+    }
+
     const activeAttack = await this.prisma.activeAttack.create({
       data: {
         attackerVillageId,
@@ -90,11 +97,12 @@ export class CombatService {
         units,
         arrivesAt,
         status: 'traveling',
+        ...(catapultTarget ? { catapultTarget } : {}),
       },
     });
 
     await this.attackQueue.addJob(
-      { attackerVillageId, defenderVillageId, units, activeAttackId: activeAttack.id, travelMs } as any,
+      { attackerVillageId, defenderVillageId, units, activeAttackId: activeAttack.id, travelMs, catapultTarget } as any,
       travelMs,
     );
 
@@ -203,6 +211,39 @@ export class CombatService {
     };
   }
 
+  // ── Rappel : retourner une armée en cours de trajet ──────────
+  async recall(attackId: string, attackerVillageId: string): Promise<void> {
+    const attack = await this.prisma.activeAttack.findUnique({
+      where:  { id: attackId },
+      select: { id: true, attackerVillageId: true, defenderVillageId: true, units: true, arrivesAt: true, status: true },
+    });
+    if (!attack || attack.status !== 'traveling') return; // déjà en retour ou résolu
+    if (attack.attackerVillageId !== attackerVillageId) return;
+
+    const remainingMs = Math.max(1000, attack.arrivesAt.getTime() - Date.now());
+    const returnArrivesAt = new Date(Date.now() + remainingMs);
+
+    const units = attack.units as Record<string, number>;
+
+    await this.prisma.activeAttack.update({
+      where: { id: attackId },
+      data:  { status: 'returning', survivors: units as any, arrivesAt: returnArrivesAt },
+    });
+
+    await this.attackQueue.addJob(
+      {
+        attackerVillageId: attack.attackerVillageId,
+        defenderVillageId: attack.defenderVillageId,
+        units:             units as any,
+        activeAttackId:    attack.id,
+        returning:         true,
+        travelMs:          remainingMs,
+        survivors:         units,
+      } as any,
+      remainingMs,
+    );
+  }
+
   async getCombatReports(villageId: string) {
     const reports = await this.prisma.combatReport.findMany({
       where: {
@@ -237,6 +278,45 @@ export class CombatService {
         ...r,
         isDefenderReport,
         // Masquer les scouts envoyés dans le rapport côté défenseur
+        scoutsSent: isDefenderReport && r.type !== 'attack' ? 0 : r.scoutsSent,
+      };
+    });
+  }
+
+  async getPlayerCombatReports(playerId: string) {
+    const include = {
+      attackerVillage: {
+        select: {
+          id: true, name: true, x: true, y: true,
+          isAbandoned: true, abandonedLevel: true,
+          player: { select: { id: true, username: true } },
+        },
+      },
+      defenderVillage: {
+        select: {
+          id: true, name: true, x: true, y: true,
+          isAbandoned: true, abandonedLevel: true,
+          player: { select: { id: true, username: true } },
+        },
+      },
+    };
+    const reports = await this.prisma.combatReport.findMany({
+      where: {
+        OR: [
+          { attackerPlayerId: playerId },
+          { defenderPlayerId: playerId },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      take:    100,
+      include,
+    });
+
+    return reports.map(r => {
+      const isDefenderReport = r.defenderPlayerId === playerId;
+      return {
+        ...r,
+        isDefenderReport,
         scoutsSent: isDefenderReport && r.type !== 'attack' ? 0 : r.scoutsSent,
       };
     });

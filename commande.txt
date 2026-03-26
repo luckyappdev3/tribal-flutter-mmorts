@@ -1,6 +1,6 @@
 GITHUB 
 
-cd /Users/yildirim/tribal-flutterV4/mmorts && git add . && git commit -m "scout fonctionnelle" && git push
+cd /Users/yildirim/tribal-flutterV4/mmorts && git add . && git commit -m "scout ok pop ok rapport scout ok 24 mars 22H30" && git push
 
 SERVEUR 
 
@@ -11,6 +11,9 @@ FLUTTER
 cd /Users/yildirim/tribal-flutterV4/mmorts/packages/mobile && flutter clean && flutter pub get
 cd /Users/yildirim/tribal-flutterV4/mmorts/packages/mobile
 flutter run -d macos
+
+d /Users/yildirim/tribal-flutterV4/mmorts/packages/mobile
+flutter run -d chrome
 
 
 CLEAN TOUT (repartir de 0)

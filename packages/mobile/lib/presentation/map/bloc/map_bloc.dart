@@ -10,8 +10,8 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   final MapApi _mapApi = getIt<MapApi>();
   StreamSubscription? _tabSub;
 
-  int _lastX = 500;
-  int _lastY = 500;
+  int _lastX = 20;
+  int _lastY = 20;
 
   MapBloc() : super(const MapState.initial()) {
     on<MapEvent>(_onEvent);

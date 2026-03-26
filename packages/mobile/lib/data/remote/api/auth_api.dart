@@ -6,12 +6,13 @@ class AuthApi {
   AuthApi(this._client);
 
   Future<Map<String, dynamic>> register(
-      String username, String email, String password) async {
+      String username, String email, String password, int botDifficulty) async {
     try {
       final response = await _client.dio.post('/auth/register', data: {
-        'username': username,
-        'email':    email,
-        'password': password,
+        'username':      username,
+        'email':         email,
+        'password':      password,
+        'botDifficulty': botDifficulty,
       });
       final data = response.data;
       await _saveSession(data);

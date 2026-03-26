@@ -54,8 +54,10 @@ model Player {
   worlds         PlayerWorld[]
   createdAt      DateTime  @default(now())
   totalPoints    Int       @default(0)
-  attackPoints   Int       @default(0)  // ← NOUVEAU : kills offensifs
-  defensePoints  Int       @default(0)  // ← NOUVEAU : kills défensifs
+  attackPoints   Int       @default(0)  // kills offensifs
+  defensePoints  Int       @default(0)  // kills défensifs
+  botDifficulty  Int?                   // niveau choisi par le joueur (1–10), null si non défini
+  isBot          Boolean   @default(false) // true si ce player est contrôlé par un bot
 }
 
 // ── Village ──────────────────────────────────────────────────
@@ -86,6 +88,11 @@ model Village {
   isAbandoned    Boolean @default(false)
   abandonedLevel Int     @default(1)
 
+  // ── Bot IA ───────────────────────────────────────────────
+  isBot          Boolean @default(false) // true si ce village est contrôlé par un bot
+  botDifficulty  Int?                    // niveau du bot (1–10)
+  botPlayerId    String?                 // id du joueur humain qui a "généré" ce bot
+
   shieldUntil DateTime?
   lastTick    DateTime  @default(now())
 
@@ -104,8 +111,11 @@ model Village {
   combatReportsSent     CombatReport[] @relation("CombatReportAttacker")
   combatReportsReceived CombatReport[] @relation("CombatReportDefender")
 
-  activeAttacksSent     ActiveAttack[] @relation("ActiveAttackAttacker")
-  activeAttacksReceived ActiveAttack[] @relation("ActiveAttackDefender")
+  activeAttacksSent     ActiveAttack[]  @relation("ActiveAttackAttacker")
+  activeAttacksReceived ActiveAttack[]  @relation("ActiveAttackDefender")
+
+  supportSent           ActiveSupport[] @relation("SupportFrom")
+  supportReceived       ActiveSupport[] @relation("SupportTo")
 
   @@unique([x, y])
 }
@@ -205,6 +215,16 @@ model CombatReport {
   pointsGained        Int?
   pointsLost          Int?
   attackerWon         Boolean?
+  // Dégâts de siège permanents — { wall: { from: 5, to: 3 }, barracks: { from: 4, to: 3 } }
+  buildingDamages     Json?
+
+  // Données de conquête noble (null si pas de noble)
+  loyaltyBefore    Int?
+  loyaltyAfter     Int?
+
+  // IDs joueurs au moment du rapport (immuables même après conquête)
+  attackerPlayerId String?
+  defenderPlayerId String?
 
   // Données d'espionnage (null si aucun scout)
   scoutsSent           Int?
@@ -240,9 +260,29 @@ model ActiveAttack {
   departsAt DateTime @default(now())
   arrivesAt DateTime
 
-  status      String @default("traveling")
+  status         String  @default("traveling")
   // "attack" = attaque normale | "scout" = mission d'espionnage
-  missionType String @default("attack")
+  missionType    String  @default("attack")
+  catapultTarget String? // bâtiment ciblé par les catapultes (ex: 'barracks')
+}
+
+// ── Supports (renforts entre villages alliés) ─────────────────
+model ActiveSupport {
+  id    String @id @default(uuid())
+
+  fromVillage   Village @relation("SupportFrom", fields: [fromVillageId], references: [id], onDelete: Cascade)
+  fromVillageId String
+
+  toVillage   Village @relation("SupportTo", fields: [toVillageId], references: [id], onDelete: Cascade)
+  toVillageId String
+
+  units      Json
+  status     String   @default("traveling") // 'traveling' | 'stationed' | 'returning'
+  departedAt DateTime @default(now())
+  arrivesAt  DateTime
+
+  @@index([toVillageId, status])
+  @@index([fromVillageId])
 }
 
 

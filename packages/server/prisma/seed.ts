@@ -133,7 +133,7 @@ async function main() {
   console.log('--- 🌱 Début du Seeding ---\n');
 
   // ── Nettoyage complet ──────────────────────────────────────
-  await prisma.attackReport.deleteMany();
+  await prisma.combatReport.deleteMany();
   await prisma.activeAttack.deleteMany();
   await prisma.buildingQueueItem.deleteMany();
   await prisma.buildingQueue.deleteMany();
@@ -179,19 +179,19 @@ async function main() {
 
   // ── Création des villages ──────────────────────────────────
   const villageA = await createMaxVillageForPlayerA(
-    'Village de A', 500, 500, playerA.id, world.id,
+    'Village de A', 20, 20, playerA.id, world.id,
   );
 
   const villageB = await createVillageWithBuildings(
-    'Village de B', 510, 510, playerB.id, world.id,
+    'Village de B', 22, 21, playerB.id, world.id,
   );
 
   const villageE = await createVillageWithBuildings(
-    'Village principal', 490, 495, playerE.id, world.id,
+    'Village principal', 18, 20, playerE.id, world.id,
   );
 
   const villageH = await createVillageWithBuildings(
-    'Village de H', 502, 500, playerH.id, world.id,
+    'Village de H', 21, 20, playerH.id, world.id,
   );
 
   // Bâtiments supplémentaires pour H : écurie niv 1 + place d'armes niv 1

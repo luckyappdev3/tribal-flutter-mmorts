@@ -6,7 +6,8 @@ export async function authRoutes(fastify: FastifyInstance) {
   // POST /api/auth/register
   fastify.post('/register', async (request, reply) => {
     try {
-      const player = await authService.register(request.body);
+      const { username, email, password, botDifficulty } = request.body as any;
+      const player = await authService.register({ username, email, password, botDifficulty });
       const token  = authService.generateToken(player);
       const village = player.villages[0];
 
@@ -14,8 +15,8 @@ export async function authRoutes(fastify: FastifyInstance) {
         token,
         player:    { id: player.id, username: player.username },
         villageId: village?.id,
-        villageX:  village?.x ?? 500,
-        villageY:  village?.y ?? 500,
+        villageX:  village?.x ?? 20,
+        villageY:  village?.y ?? 20,
       });
     } catch (error: any) {
       return reply.status(400).send({ message: error.message });
@@ -39,8 +40,8 @@ export async function authRoutes(fastify: FastifyInstance) {
         token,
         player:    { id: player.id, username: player.username },
         villageId: village?.id,
-        villageX:  village?.x ?? 500, // ← coordonnées pour centrer la carte
-        villageY:  village?.y ?? 500,
+        villageX:  village?.x ?? 20,
+        villageY:  village?.y ?? 20,
       };
     } catch (error: any) {
       return reply.status(401).send({ message: 'Identifiants invalides' });

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/di/injection.dart';
 import '../../../data/remote/api/village_api.dart';
@@ -47,6 +48,12 @@ class VillageBloc extends Bloc<VillageEvent, VillageState> {
           _socketService.joinVillage(villageId);
           _startInterpolation();
           _startResync(villageId);
+        } on DioException catch (e) {
+          if (e.response?.statusCode == 403) {
+            emit(const VillageState.error('VILLAGE_CONQUERED'));
+          } else {
+            emit(VillageState.error('Impossible de charger le village : $e'));
+          }
         } catch (e) {
           emit(VillageState.error('Impossible de charger le village : $e'));
         }

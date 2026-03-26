@@ -4,11 +4,6 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/utils/app_snack_bar.dart';
 import '../../../../data/remote/api/auth_api.dart';
 import '../../../../data/remote/websocket/socket_service.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../presentation/movements/bloc/movements_bloc.dart';
-import '../../../../presentation/movements/bloc/movements_event.dart';
-import '../../../../presentation/reports/bloc/reports_bloc.dart';
-import '../../../../presentation/reports/bloc/reports_event.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -41,8 +36,6 @@ class _LoginPageState extends State<LoginPage> {
 
           if (mounted) {
       // Déclencher le chargement des blocs globaux avec le villageId
-      context.read<MovementsBloc>().add(MovementsEvent.loadRequested(villageId));
-      context.read<ReportsBloc>().add(ReportsEvent.loadRequested(villageId));
       context.go('/');
     }
     } catch (e) {

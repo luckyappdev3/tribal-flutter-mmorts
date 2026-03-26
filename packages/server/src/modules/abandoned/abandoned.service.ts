@@ -2,8 +2,8 @@ import { PrismaClient } from '@prisma/client';
 import { calcMaxStorage } from '@mmorts/shared';
 
 const ABANDONED_COUNT    = 200;
-const MAP_MIN = 480;
-const MAP_MAX = 520;
+const MAP_MIN = 0;
+const MAP_MAX = 40;
 
 // Ressources initiales proportionnelles au niveau
 function initialResources(level: number) {

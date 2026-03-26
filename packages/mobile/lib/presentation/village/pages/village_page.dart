@@ -5,6 +5,9 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../bloc/village_bloc.dart';
 import '../bloc/village_event.dart';
 import '../bloc/village_state.dart';
+import '../../../core/di/injection.dart';
+import '../../../core/resources/global_resources_cubit.dart';
+import '../../../data/remote/api/village_api.dart';
 import '../../../core/router/route_names.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -26,6 +29,8 @@ class VillagePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Rebuild quand le village change
+    context.watch<GlobalResourcesCubit>();
     final villageBox = Hive.box('village');
     final String? villageId = villageBox.get('current_village_id');
 
@@ -54,6 +59,7 @@ class VillagePage extends StatelessWidget {
     }
 
     return BlocProvider(
+      key: ValueKey(villageId),
       create: (_) => VillageBloc()..add(VillageEvent.loadRequested(villageId)),
       child: const _VillageView(),
     );
@@ -235,36 +241,114 @@ class _ActionButton extends StatelessWidget {
 
 // ── Écran d'erreur ──────────────────────────────────────────────
 
-class _ErrorView extends StatelessWidget {
+class _ErrorView extends StatefulWidget {
   const _ErrorView({required this.message});
   final String message;
 
   @override
+  State<_ErrorView> createState() => _ErrorViewState();
+}
+
+class _ErrorViewState extends State<_ErrorView> {
+  bool _spawning = false;
+
+  Future<void> _spawnVillage() async {
+    setState(() => _spawning = true);
+    try {
+      final api  = getIt<VillageApi>();
+      final data = await api.spawnVillage();
+      final newId   = data['id']   as String;
+      final newName = data['name'] as String;
+      final newX    = (data['x']   as num).toInt();
+      final newY    = (data['y']   as num).toInt();
+
+      final box = Hive.box('village');
+      await box.put('current_village_id',   newId);
+      await box.put('current_village_name', newName);
+      await box.put('village_x', newX);
+      await box.put('village_y', newY);
+
+      if (mounted) {
+        context.read<GlobalResourcesCubit>().switchVillage(newId, newName);
+        context.read<VillageBloc>().add(VillageEvent.loadRequested(newId));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur : $e'), backgroundColor: Colors.red),
+        );
+        setState(() => _spawning = false);
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isConquered = widget.message == 'VILLAGE_CONQUERED';
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, color: Colors.red, size: 48),
-            const SizedBox(height: 16),
-            Text(message,
-                style: const TextStyle(color: Colors.red),
-                textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                final id = Hive.box('village')
-                    .get('current_village_id') as String?;
-                if (id != null) {
-                  context
-                      .read<VillageBloc>()
-                      .add(VillageEvent.loadRequested(id));
-                }
-              },
-              child: const Text('Réessayer'),
+            Icon(
+              isConquered ? Icons.flag : Icons.error_outline,
+              color: isConquered ? Colors.amber : Colors.red,
+              size: 64,
             ),
+            const SizedBox(height: 16),
+            Text(
+              isConquered
+                  ? '💀 Votre village a été conquis !'
+                  : widget.message,
+              style: TextStyle(
+                color: isConquered ? Colors.white : Colors.red,
+                fontSize: isConquered ? 18 : 14,
+                fontWeight: isConquered ? FontWeight.bold : FontWeight.normal,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (isConquered) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'Vous pouvez fonder un nouveau village pour reprendre la conquête.',
+                style: TextStyle(color: Colors.white54, fontSize: 13),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            const SizedBox(height: 24),
+            if (isConquered)
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber[800],
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: _spawning ? null : _spawnVillage,
+                  icon: _spawning
+                      ? const SizedBox(
+                          width: 18, height: 18,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : const Icon(Icons.add_home),
+                  label: Text(_spawning ? 'Création...' : 'Fonder un nouveau village'),
+                ),
+              )
+            else
+              ElevatedButton(
+                onPressed: () {
+                  final id = Hive.box('village').get('current_village_id') as String?;
+                  if (id != null) {
+                    context.read<VillageBloc>().add(VillageEvent.loadRequested(id));
+                  }
+                },
+                child: const Text('Réessayer'),
+              ),
           ],
         ),
       ),

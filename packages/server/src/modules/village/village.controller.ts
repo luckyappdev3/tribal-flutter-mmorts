@@ -29,6 +29,55 @@ export async function villageRoutes(fastify: FastifyInstance) {
     }
   });
 
+  // ── GET /villages/my — liste tous les villages du joueur connecté ──
+  fastify.get('/my', async (request: FastifyRequest, reply: FastifyReply) => {
+    const player = request.user as { id: string };
+    const villages = await fastify.prisma.village.findMany({
+      where:   { playerId: player.id },
+      select:  { id: true, name: true, x: true, y: true, loyaltyPoints: true },
+      orderBy: { name: 'asc' },
+    });
+    return villages;
+  });
+
+  // ── POST /villages/spawn — recrée un village de départ (après conquête) ──
+  fastify.post('/spawn', async (request: FastifyRequest, reply: FastifyReply) => {
+    const player = request.user as { id: string; username: string };
+
+    // Trouver une position libre
+    const existing = await fastify.prisma.village.findMany({ select: { x: true, y: true } });
+    const taken = new Set(existing.map((v: { x: number; y: number }) => `${v.x},${v.y}`));
+    let x: number, y: number;
+    do {
+      x = Math.floor(Math.random() * 41);
+      y = Math.floor(Math.random() * 41);
+    } while (taken.has(`${x},${y}`));
+
+    const world = await fastify.prisma.gameWorld.findFirst({ select: { id: true } });
+
+    const village = await fastify.prisma.village.create({
+      data: {
+        name:    `Village de ${player.username}`,
+        x, y,
+        ...(world ? { worldId: world.id } : {}),
+        playerId: player.id,
+        buildings: {
+          create: [
+            { buildingId: 'headquarters', level: 1 },
+            { buildingId: 'timber_camp',  level: 1 },
+            { buildingId: 'quarry',       level: 1 },
+            { buildingId: 'iron_mine',    level: 1 },
+            { buildingId: 'warehouse',    level: 1 },
+            { buildingId: 'barracks',     level: 1 },
+          ],
+        },
+      },
+      select: { id: true, name: true, x: true, y: true },
+    });
+
+    return village;
+  });
+
   fastify.get('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const player = request.user as { id: string };
@@ -92,7 +141,7 @@ export async function villageRoutes(fastify: FastifyInstance) {
         return reply.status(403).send({ message: 'Accès refusé' });
       }
 
-      const [instances, queueItems, gameSpeed, troops, activeAttacks, recruitQueues] = await Promise.all([
+      const [instances, queueItems, gameSpeed, troops, activeAttacks, recruitQueues, activeSupports] = await Promise.all([
         fastify.prisma.buildingInstance.findMany({ where: { villageId: id } }),
         fastify.prisma.buildingQueueItem.findMany({
           where:   { villageId: id },
@@ -105,6 +154,10 @@ export async function villageRoutes(fastify: FastifyInstance) {
           select: { units: true, survivors: true, status: true },
         }),
         fastify.prisma.recruitQueue.findMany({ where: { villageId: id } }),
+        (fastify.prisma as any).activeSupport.findMany({
+          where:  { fromVillageId: id },
+          select: { units: true },
+        }),
       ]);
 
       const activeItem = queueItems.find(i => i.position === 0) ?? null;
@@ -207,7 +260,15 @@ export async function villageRoutes(fastify: FastifyInstance) {
           return sum + pending * (def.populationCost ?? 1);
         } catch { return sum; }
       }, 0);
-      const popUsed = buildingPopUsed + troopsPopUsed + attackPopUsed + recruitPopUsed;
+      const supportPopUsed = (activeSupports as any[]).reduce((sum: number, s: any) => {
+        if (!s.units || typeof s.units !== 'object') return sum;
+        return sum + Object.entries(s.units as Record<string, number>).reduce((acc, [unitType, count]) => {
+          if (!count) return acc;
+          try { return acc + count * (fastify.gameData.getUnitDef(unitType).populationCost ?? 1); }
+          catch { return acc; }
+        }, 0);
+      }, 0);
+      const popUsed = buildingPopUsed + troopsPopUsed + attackPopUsed + supportPopUsed + recruitPopUsed;
 
       return {
         buildings:  enrichedBuildings,

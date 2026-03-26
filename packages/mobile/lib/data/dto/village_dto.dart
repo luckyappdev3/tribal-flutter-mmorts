@@ -1,3 +1,27 @@
+class MyVillageItemDto {
+  final String id;
+  final String name;
+  final int    x;
+  final int    y;
+  final int    loyaltyPoints;
+
+  const MyVillageItemDto({
+    required this.id,
+    required this.name,
+    required this.x,
+    required this.y,
+    required this.loyaltyPoints,
+  });
+
+  factory MyVillageItemDto.fromJson(Map<String, dynamic> json) => MyVillageItemDto(
+    id:            json['id']             as String,
+    name:          json['name']           as String,
+    x:             (json['x']             as num).toInt(),
+    y:             (json['y']             as num).toInt(),
+    loyaltyPoints: (json['loyaltyPoints'] as num?)?.toInt() ?? 100,
+  );
+}
+
 class BuildQueueDto {
   final String buildingId;
   final int targetLevel;

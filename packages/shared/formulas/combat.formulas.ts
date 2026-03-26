@@ -59,10 +59,15 @@ export function resolveBattle(
   },
 ): CombatResult {
 
-  // ── 1. Réduction du mur par les béliers ─────────────────────
+  // ── 1. Réduction du mur par les béliers (pré-combat) ────────
+  // Formule : max(floor(niveau/2), niveau - floor(béliers/20))
+  // Les béliers frappent qu'ils survivent ou non (pré-phase).
   const baseWallLevel = options?.wallLevel ?? 0;
-  const wallDamage    = Math.floor((options?.ramCount ?? 0) * 0.05); // 20 béliers = −1 niveau
-  const effectiveWallLevel = Math.max(0, baseWallLevel - wallDamage);
+  const wallDamageByRams = Math.floor((options?.ramCount ?? 0) / 20);
+  const effectiveWallLevel = Math.max(
+    Math.floor(baseWallLevel / 2),
+    Math.max(0, baseWallLevel - wallDamageByRams),
+  );
   const wallBonus = calcWallBonus(effectiveWallLevel);
 
   // ── 2. Morale ────────────────────────────────────────────────
@@ -140,16 +145,16 @@ export function resolveBattle(
     if (attackerWon) {
       // Perdant = défenseur (100%)
       for (const u of defenders) defenderLosses[u.unitType] = u.count;
-      // Gagnant = attaquant (winnerPct%)
+      // Gagnant = attaquant (winnerPct%) — TW utilise round, pas ceil
       for (const u of attackers) {
-        attackerLosses[u.unitType] = Math.min(u.count, Math.ceil(u.count * winnerPct));
+        attackerLosses[u.unitType] = Math.min(u.count, Math.round(u.count * winnerPct));
       }
     } else {
       // Perdant = attaquant (100%)
       for (const u of attackers) attackerLosses[u.unitType] = u.count;
-      // Gagnant = défenseur (winnerPct%)
+      // Gagnant = défenseur (winnerPct%) — TW utilise round, pas ceil
       for (const u of defenders) {
-        defenderLosses[u.unitType] = Math.min(u.count, Math.ceil(u.count * winnerPct));
+        defenderLosses[u.unitType] = Math.min(u.count, Math.round(u.count * winnerPct));
       }
     }
   }
@@ -340,6 +345,123 @@ export function resolveScout(
     defenderScoutsKilled,
     defenderDetected,
   };
+}
+
+// ─────────────────────────────────────────────────────────────
+// DÉGÂTS DE SIÈGE PERMANENTS — Logique Tribal Wars officielle
+//
+// Appliqués après le combat uniquement si l'attaquant a gagné.
+//
+// ── Béliers → mur (formule simple, survivants) ──────────────
+//   25 béliers survivants = −1 niveau de mur
+//   levels_destroyed = floor(survivors * 2 / 50)
+//
+// ── Catapultes → bâtiment / mur (formule progressive) ───────
+//   Résistance bâtiment par niveau n : floor(2 × 1.09^n) + 2
+//     niv 1=4, niv 5=5, niv 10=7, niv 20=13
+//   Résistance mur par niveau n : ceil(50 × 1.09^n)
+//     niv 1=55, niv 5=77, niv 10=119, niv 20=282
+//
+//   Catapultes effectives (tirent avant de mourir) :
+//     effective = initial × (1 − (lostCats/initial)^1.5)
+//
+//   Destruction itérative niveau par niveau jusqu'à
+//   épuisement des points de dégâts.
+//
+// ── Règles spéciales ─────────────────────────────────────────
+//   hiding_spot  : immunisé (non ciblable par les catapultes)
+//   rally_point  : détruit (→ 0) si au moins 1 cat effective
+//   wall (cats)  : multiplicateur ×0.5 (moins efficace que béliers)
+// ─────────────────────────────────────────────────────────────
+
+export type SiegeDamageEntry = { from: number; to: number };
+export type SiegeDamages     = Record<string, SiegeDamageEntry>;
+
+// Résistance d'un niveau de bâtiment standard
+function bldgLevelResistance(level: number): number {
+  return Math.floor(2 * Math.pow(1.09, level)) + 2;
+}
+
+// Résistance d'un niveau de mur (pour catapultes)
+function wallLevelResistance(level: number): number {
+  return Math.ceil(50 * Math.pow(1.09, level));
+}
+
+// Détruit itérativement les niveaux jusqu'à épuisement des dégâts
+function iterativeDestruct(
+  effectiveDamage: number,
+  currentLevel:    number,
+  resistanceFn:    (level: number) => number,
+): number {
+  let level  = currentLevel;
+  let damage = effectiveDamage;
+  while (level > 0 && damage > 0) {
+    const cost = resistanceFn(level);
+    if (damage >= cost) { damage -= cost; level--; }
+    else break;
+  }
+  return level;
+}
+
+export function computeSiegeDamages(
+  survivingRams:   number,
+  initialCats:     number,
+  lostCats:        number,        // cats perdues dans le combat
+  catapultTarget:  string | null | undefined,
+  buildingLevels:  Record<string, number>,
+): SiegeDamages {
+  const damages: SiegeDamages = {};
+
+  // ── Béliers → mur ───────────────────────────────────────────
+  // 25 béliers survivants = −1 niveau (survivants seulement)
+  if (survivingRams > 0) {
+    const wallLevel = buildingLevels['wall'] ?? 0;
+    if (wallLevel > 0) {
+      const levelsDestroyed = Math.floor(survivingRams * 2 / 50);
+      if (levelsDestroyed > 0) {
+        damages['wall'] = { from: wallLevel, to: Math.max(0, wallLevel - levelsDestroyed) };
+      }
+    }
+  }
+
+  // ── Catapultes → cible ──────────────────────────────────────
+  if (initialCats > 0 && catapultTarget) {
+    // Catapultes effectives : tirent avant de mourir
+    const lossRatio    = initialCats > 0 ? lostCats / initialCats : 0;
+    const effectiveCats = initialCats * (1 - Math.pow(Math.min(1, lossRatio), 1.5));
+
+    if (catapultTarget === 'hiding_spot') {
+      // Immunisé — aucun dégât
+    } else if (catapultTarget === 'rally_point') {
+      // Règle spéciale : 1 cat effective suffit à détruire le niveau 1
+      const bldgLevel = buildingLevels['rally_point'] ?? 0;
+      if (bldgLevel > 0 && effectiveCats >= 1) {
+        damages['rally_point'] = { from: bldgLevel, to: 0 };
+      }
+    } else if (catapultTarget === 'wall') {
+      // Mur : ×0.5 efficacité + résistance progressive wall
+      const currentWall = damages['wall']?.to ?? (buildingLevels['wall'] ?? 0);
+      if (currentWall > 0) {
+        const effectiveDmg = effectiveCats * 0.5;
+        const newLevel     = iterativeDestruct(effectiveDmg, currentWall, wallLevelResistance);
+        if (newLevel < currentWall) {
+          const fromLevel = damages['wall']?.from ?? currentWall;
+          damages['wall'] = { from: fromLevel, to: newLevel };
+        }
+      }
+    } else {
+      // Bâtiment standard : résistance progressive par niveau
+      const bldgLevel = buildingLevels[catapultTarget] ?? 0;
+      if (bldgLevel > 0) {
+        const newLevel = iterativeDestruct(effectiveCats, bldgLevel, bldgLevelResistance);
+        if (newLevel < bldgLevel) {
+          damages[catapultTarget] = { from: bldgLevel, to: newLevel };
+        }
+      }
+    }
+  }
+
+  return damages;
 }
 
 // ─────────────────────────────────────────────────────────────

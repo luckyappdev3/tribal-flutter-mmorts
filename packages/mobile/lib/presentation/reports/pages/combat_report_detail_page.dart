@@ -3,15 +3,15 @@ import '../../troops/dto/troops_dto.dart';
 
 class CombatReportDetailPage extends StatelessWidget {
   final CombatReportDto report;
-  final String          myVillageId;
+  final String          myPlayerId;
 
   const CombatReportDetailPage({
     super.key,
     required this.report,
-    required this.myVillageId,
+    required this.myPlayerId,
   });
 
-  bool get _isAttacker => report.isAttacker(myVillageId);
+  bool get _isAttacker => report.isAttackerByPlayer(myPlayerId);
 
   bool get _attackerLostAll {
     final sent     = report.unitsSent?.values.fold(0, (s, v) => s + v) ?? 0;
@@ -86,12 +86,15 @@ class CombatReportDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isCombined = report.type == 'combined';
+    final isCombined  = report.type == 'combined';
     final isScoutOnly = report.type == 'scout';
+    final isConquest  = report.isConquest;
 
     String appBarTitle;
     if (isScoutOnly) {
       appBarTitle = report.isDefenderReport ? 'Village espionné' : 'Rapport d\'espionnage';
+    } else if (isConquest) {
+      appBarTitle = _isAttacker ? '👑 Village conquis !' : '💀 Village perdu';
     } else if (isCombined) {
       appBarTitle = _isAttacker ? 'Attaque + espionnage' : 'Rapport de défense';
     } else {
@@ -121,6 +124,7 @@ class CombatReportDetailPage extends StatelessWidget {
                 won:               _won,
                 isAttacker:        _isAttacker,
                 mutualDestruction: _mutualDestruction,
+                isConquest:        isConquest,
               ),
               const SizedBox(height: 16),
               _HeaderCard(report: report, isAttacker: _isAttacker, formatDate: _formatDate),
@@ -155,6 +159,21 @@ class CombatReportDetailPage extends StatelessWidget {
               _PointsCard(report: report, isAttacker: _isAttacker, won: _won),
               const SizedBox(height: 12),
               _CombatConditionsCard(report: report, isAttacker: _isAttacker),
+              if (report.hasSiegeDamage) ...[
+                const SizedBox(height: 12),
+                _SiegeDamagesCard(damages: report.buildingDamages!),
+              ],
+              if (report.hasNoble) ...[
+                const SizedBox(height: 12),
+                _LoyaltyCard(
+                  loyaltyBefore: report.loyaltyBefore!,
+                  loyaltyAfter:  report.loyaltyAfter!,
+                  isConquest:    isConquest,
+                  isAttacker:    _isAttacker,
+                  defenderName:  report.defenderVillage?.name ?? '',
+                  attackerName:  report.attackerVillage?.playerName ?? '',
+                ),
+              ],
             ],
 
             // ── Séparateur si combiné (attaquant) ────────────────
@@ -190,9 +209,13 @@ class CombatReportDetailPage extends StatelessWidget {
                 ] else
                   _LockedSection(label: 'Ressources & Troupes stationnées', requiredTier: 1),
                 const SizedBox(height: 12),
-                if (report.tier! >= 2)
-                  _BuildingsCard(buildings: report.buildings ?? {}, buildingLabel: _buildingLabel)
-                else
+                if (report.tier! >= 2) ...[
+                  _BuildingsCard(buildings: report.buildings ?? {}, buildingLabel: _buildingLabel),
+                  if (report.loyaltyBefore != null) ...[
+                    const SizedBox(height: 12),
+                    _ScoutLoyaltyCard(loyalty: report.loyaltyBefore!),
+                  ],
+                ] else
                   _LockedSection(label: 'Bâtiments', requiredTier: 2),
                 const SizedBox(height: 12),
                 if (report.tier! >= 3)
@@ -256,17 +279,31 @@ class _Card extends StatelessWidget {
 // ─── Combat ───────────────────────────────────────────────────────────────────
 
 class _CombatResultBanner extends StatelessWidget {
-  final bool won, isAttacker, mutualDestruction;
-  const _CombatResultBanner({required this.won, required this.isAttacker, this.mutualDestruction = false});
+  final bool won, isAttacker, mutualDestruction, isConquest;
+  const _CombatResultBanner({
+    required this.won,
+    required this.isAttacker,
+    this.mutualDestruction = false,
+    this.isConquest = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final color = won ? Colors.green : Colors.red;
-    final label = mutualDestruction
-        ? (isAttacker ? '💀 Défaite — Anéantissement mutuel' : '🛡️ Victoire — Anéantissement mutuel')
-        : won
-            ? (isAttacker ? '⚔️ Victoire — Attaque réussie'  : '🛡️ Victoire — Défense réussie')
-            : (isAttacker ? '💀 Défaite — Attaque repoussée' : '💀 Défaite — Village pillé');
+    final Color color;
+    final String label;
+    if (isConquest) {
+      color = isAttacker ? const Color(0xFFFFD700) : Colors.red[700]!;
+      label = isAttacker ? '👑 Village conquis !' : '💀 Votre village a été conquis';
+    } else if (mutualDestruction) {
+      color = Colors.red;
+      label = isAttacker ? '💀 Défaite — Anéantissement mutuel' : '🛡️ Victoire — Anéantissement mutuel';
+    } else if (won) {
+      color = Colors.green;
+      label = isAttacker ? '⚔️ Victoire — Attaque réussie' : '🛡️ Victoire — Défense réussie';
+    } else {
+      color = Colors.red;
+      label = isAttacker ? '💀 Défaite — Attaque repoussée' : '💀 Défaite — Village pillé';
+    }
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
@@ -562,6 +599,193 @@ class _CombatConditionsCard extends StatelessWidget {
       ],
     ]));
   }
+}
+
+// ─── Dégâts de siège ─────────────────────────────────────────────────────────
+
+class _SiegeDamagesCard extends StatelessWidget {
+  final Map<String, Map<String, int>> damages;
+  const _SiegeDamagesCard({required this.damages});
+
+  static const Map<String, String> _buildingNames = {
+    'headquarters': 'Siège social', 'barracks': 'Caserne',   'stable': 'Écuries',
+    'garage':       'Garage',       'rally_point': 'Place d\'armes', 'smith': 'Forge',
+    'wall':         'Mur',          'farm': 'Ferme',          'warehouse': 'Entrepôt',
+    'timber_camp':  'Camp de bois', 'quarry': 'Carrière',    'iron_mine': 'Mine de fer',
+    'market':       'Marché',       'statue': 'Statue',       'snob': 'Académie',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('🏚️ Dégâts de siège',
+          style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold, fontSize: 13)),
+      const SizedBox(height: 10),
+      ...damages.entries.map((e) {
+        final name  = _buildingNames[e.key] ?? e.key;
+        final from  = e.value['from'] ?? 0;
+        final to    = e.value['to']   ?? 0;
+        final delta = from - to;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(children: [
+            const Icon(Icons.arrow_downward, color: Colors.deepOrange, size: 14),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(name,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            ),
+            Text('Niv. $from → $to',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: Colors.deepOrange.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text('−$delta',
+                  style: const TextStyle(color: Colors.deepOrange, fontSize: 11, fontWeight: FontWeight.bold)),
+            ),
+          ]),
+        );
+      }),
+    ]));
+  }
+}
+
+// ─── Loyauté & Conquête ───────────────────────────────────────────────────────
+
+class _LoyaltyCard extends StatelessWidget {
+  final int    loyaltyBefore;
+  final int    loyaltyAfter;
+  final bool   isConquest;
+  final bool   isAttacker;
+  final String defenderName;
+  final String attackerName;
+
+  const _LoyaltyCard({
+    required this.loyaltyBefore,
+    required this.loyaltyAfter,
+    required this.isConquest,
+    required this.isAttacker,
+    required this.defenderName,
+    required this.attackerName,
+  });
+
+  Color get _barColor {
+    if (isConquest)       return const Color(0xFFFFD700);
+    if (loyaltyAfter > 60) return Colors.green;
+    if (loyaltyAfter > 30) return Colors.orange;
+    return Colors.red;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduction = loyaltyBefore - loyaltyAfter;
+    return _Card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // ── Titre ──
+      Row(children: [
+        const Text('⚜️ Loyauté',
+            style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 13)),
+        const Spacer(),
+        Text('$loyaltyBefore → $loyaltyAfter / 100',
+            style: TextStyle(color: _barColor, fontWeight: FontWeight.bold, fontSize: 13)),
+      ]),
+      const SizedBox(height: 8),
+      // ── Barre progression ──
+      ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: Stack(children: [
+          // fond gris = valeur before
+          LinearProgressIndicator(
+            value: loyaltyBefore / 100,
+            backgroundColor: Colors.white12,
+            color: Colors.white24,
+            minHeight: 8,
+          ),
+          // barre colorée = valeur after
+          LinearProgressIndicator(
+            value: loyaltyAfter / 100,
+            backgroundColor: Colors.transparent,
+            color: _barColor,
+            minHeight: 8,
+          ),
+        ]),
+      ),
+      const SizedBox(height: 8),
+      // ── Réduction ──
+      Row(children: [
+        const Icon(Icons.arrow_downward, color: Colors.red, size: 14),
+        const SizedBox(width: 4),
+        Text('Réduction : −$reduction pts par le(s) noble(s)',
+            style: const TextStyle(color: Colors.white54, fontSize: 11)),
+      ]),
+      // ── Message conquête ──
+      if (isConquest) ...[
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFD700).withOpacity(0.10),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.4)),
+          ),
+          child: Text(
+            isAttacker
+                ? '👑 Vous avez conquis le village "$defenderName" !'
+                : '💀 Votre village a été conquis par $attackerName.',
+            style: TextStyle(
+              color: isAttacker ? const Color(0xFFFFD700) : Colors.red[300],
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ],
+    ]));
+  }
+}
+
+// ─── Scout loyalty ────────────────────────────────────────────────────────────
+
+class _ScoutLoyaltyCard extends StatelessWidget {
+  final int loyalty;
+  const _ScoutLoyaltyCard({required this.loyalty});
+
+  Color get _barColor {
+    if (loyalty > 60) return Colors.green;
+    if (loyalty > 30) return Colors.orange;
+    return Colors.red;
+  }
+
+  @override
+  Widget build(BuildContext context) => _Card(child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text('⚜️ Loyauté du village',
+              style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 13)),
+          Text('$loyalty / 100',
+              style: TextStyle(color: _barColor, fontWeight: FontWeight.bold, fontSize: 13)),
+        ],
+      ),
+      const SizedBox(height: 8),
+      ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: LinearProgressIndicator(
+          value: loyalty / 100,
+          backgroundColor: Colors.white12,
+          color: _barColor,
+          minHeight: 8,
+        ),
+      ),
+    ],
+  ));
 }
 
 // ─── Scout ────────────────────────────────────────────────────────────────────

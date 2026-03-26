@@ -58,6 +58,22 @@ export class TroopsService {
     return used;
   }
 
+  // ── Troupes en renfort (supports envoyés) ─────────────────
+  private calcActiveSupportPop(supports: { units: any }[]): number {
+    let used = 0;
+    for (const s of supports) {
+      if (!s.units || typeof s.units !== 'object') continue;
+      for (const [unitType, count] of Object.entries(s.units as Record<string, number>)) {
+        if (!count) continue;
+        try {
+          const def = this.gameData.getUnitDef(unitType);
+          used += count * (def.populationCost ?? 1);
+        } catch { continue; }
+      }
+    }
+    return used;
+  }
+
   // ── Troupes en cours de recrutement (file) ────────────────
   private calcRecruitQueuePop(queues: { unitType: string; totalCount: number; trainedCount: number }[]): number {
     let used = 0;
@@ -74,7 +90,7 @@ export class TroopsService {
 
   // ── Liste des troupes + files actives ────────────────────────
   async getTroops(villageId: string) {
-    const [troops, queues, buildings, village, activeAttacks] = await Promise.all([
+    const [troops, queues, buildings, village, activeAttacks, activeSupports] = await Promise.all([
       this.prisma.troop.findMany({ where: { villageId } }),
       this.prisma.recruitQueue.findMany({
         where:   { villageId },
@@ -87,6 +103,10 @@ export class TroopsService {
       this.prisma.activeAttack.findMany({
         where: { attackerVillageId: villageId, status: { in: ['traveling', 'returning'] } },
         select: { units: true, survivors: true, status: true },
+      }),
+      (this.prisma as any).activeSupport.findMany({
+        where:  { fromVillageId: villageId },
+        select: { units: true },
       }),
     ]);
 
@@ -102,6 +122,7 @@ export class TroopsService {
     );
     const usedPop = this.calcUsedPopulation(troops) + buildingPopUsed
       + this.calcActiveAttackPop(activeAttacks)
+      + this.calcActiveSupportPop(activeSupports)
       + this.calcRecruitQueuePop(queues);
 
     return {

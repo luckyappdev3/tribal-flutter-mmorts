@@ -103,8 +103,8 @@ class ReportsBloc extends Bloc<ReportsEvent, ReportsState> {
     );
   }
 
-  Future<List<CombatReportDto>> _fetchAll(String villageId) async {
-    final reports = await _api.getCombatReports(villageId);
+  Future<List<CombatReportDto>> _fetchAll(String _) async {
+    final reports = await _api.getMyPlayerCombatReports();
     return reports.map((r) => r.copyWith(isRead: _readIds.contains(r.id))).toList();
   }
 

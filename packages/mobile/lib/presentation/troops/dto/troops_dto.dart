@@ -229,6 +229,7 @@ class ReportVillageDto {
   final String  name;
   final int     x;
   final int     y;
+  final String  playerId;
   final String  playerName;
   final bool    isAbandoned;
   final int     abandonedLevel;
@@ -238,6 +239,7 @@ class ReportVillageDto {
     required this.name,
     required this.x,
     required this.y,
+    required this.playerId,
     required this.playerName,
     required this.isAbandoned,
     required this.abandonedLevel,
@@ -250,6 +252,7 @@ class ReportVillageDto {
       name:           json['name']           as String,
       x:              json['x']              as int,
       y:              json['y']              as int,
+      playerId:       player?['id']          as String? ?? '',
       playerName:     player?['username']    as String? ?? 'Abandonné',
       isAbandoned:    json['isAbandoned']    as bool?   ?? false,
       abandonedLevel: json['abandonedLevel'] as int?    ?? 1,
@@ -295,13 +298,24 @@ class CombatReportDto {
   final Map<String, int>? buildings;
   final Map<String, int>? troopsOutside;
 
+  // Dégâts de siège permanents — { 'wall': {'from': 5, 'to': 3}, 'barracks': {'from': 4, 'to': 3} }
+  final Map<String, Map<String, int>>? buildingDamages;
+
+  // Données noble / conquête
+  final int? loyaltyBefore;
+  final int? loyaltyAfter;
+
   final ReportVillageDto? attackerVillage;
   final ReportVillageDto? defenderVillage;
 
-  bool get hasCombat => attackerWon != null;
-  bool get hasScout  => tier != null;
+  bool get hasCombat      => attackerWon != null;
+  bool get hasScout       => tier != null;
+  bool get hasSiegeDamage => buildingDamages != null && buildingDamages!.isNotEmpty;
+  bool get hasNoble       => loyaltyBefore != null && loyaltyAfter != null;
+  bool get isConquest     => type == 'conquest';
 
-  bool isAttacker(String villageId) => attackerVillageId == villageId;
+  bool isAttacker(String villageId)         => attackerVillageId == villageId;
+  bool isAttackerByPlayer(String playerId)  => attackerVillage?.playerId == playerId;
 
   int get totalLooted =>
       (resourcesLooted?['wood']  ?? 0) +
@@ -336,6 +350,9 @@ class CombatReportDto {
     this.troopsAtHome,
     this.buildings,
     this.troopsOutside,
+    this.buildingDamages,
+    this.loyaltyBefore,
+    this.loyaltyAfter,
     this.attackerVillage,
     this.defenderVillage,
   });
@@ -368,6 +385,9 @@ class CombatReportDto {
     troopsAtHome:         troopsAtHome,
     buildings:            buildings,
     troopsOutside:        troopsOutside,
+    buildingDamages:      buildingDamages,
+    loyaltyBefore:        loyaltyBefore,
+    loyaltyAfter:         loyaltyAfter,
     attackerVillage:      attackerVillage,
     defenderVillage:      defenderVillage,
   );
@@ -404,6 +424,15 @@ class CombatReportDto {
       troopsAtHome:         toOptMap(json['troopsAtHome']),
       buildings:            toOptMap(json['buildings']),
       troopsOutside:        toOptMap(json['troopsOutside']),
+      loyaltyBefore:        (json['loyaltyBefore'] as num?)?.toInt(),
+      loyaltyAfter:         (json['loyaltyAfter']  as num?)?.toInt(),
+      buildingDamages:      json['buildingDamages'] != null
+          ? (json['buildingDamages'] as Map<String, dynamic>).map(
+              (k, v) => MapEntry(k, (v as Map<String, dynamic>).map(
+                (k2, v2) => MapEntry(k2, (v2 as num).toInt()),
+              )),
+            )
+          : null,
       attackerVillage:      json['attackerVillage'] != null
           ? ReportVillageDto.fromJson(json['attackerVillage'] as Map<String, dynamic>)
           : null,
@@ -414,3 +443,39 @@ class CombatReportDto {
   }
 }
 
+
+class ActiveSupportDto {
+  final String             id;
+  final String             fromVillageId;
+  final String             toVillageId;
+  final String             fromVillageName;
+  final String             toVillageName;
+  final Map<String, int>   units;
+  final String             status; // traveling | stationed | returning
+  final DateTime           arrivesAt;
+
+  const ActiveSupportDto({
+    required this.id,
+    required this.fromVillageId,
+    required this.toVillageId,
+    required this.fromVillageName,
+    required this.toVillageName,
+    required this.units,
+    required this.status,
+    required this.arrivesAt,
+  });
+
+  factory ActiveSupportDto.fromJson(Map<String, dynamic> json, {required bool isSent}) {
+    return ActiveSupportDto(
+      id:              json["id"]            as String,
+      fromVillageId:   json["fromVillageId"] as String,
+      toVillageId:     json["toVillageId"]   as String,
+      fromVillageName: (json["fromVillage"]  as Map<String, dynamic>?)?["name"] as String? ?? "?",
+      toVillageName:   (json["toVillage"]    as Map<String, dynamic>?)?["name"] as String? ?? "?",
+      units:           (json["units"] as Map<String, dynamic>).map(
+                         (k, v) => MapEntry(k, (v as num).toInt())),
+      status:          json["status"]    as String,
+      arrivesAt:       DateTime.parse(json["arrivesAt"] as String).toLocal(),
+    );
+  }
+}

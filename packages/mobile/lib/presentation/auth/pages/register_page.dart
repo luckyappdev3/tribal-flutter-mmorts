@@ -16,7 +16,8 @@ class _RegisterPageState extends State<RegisterPage> {
   final _usernameController = TextEditingController();
   final _emailController    = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isLoading = false;
+  bool _isLoading   = false;
+  int  _botDifficulty = 5;
 
   Future<void> _handleRegister() async {
     final username = _usernameController.text.trim();
@@ -36,7 +37,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
     try {
       final authApi = getIt<AuthApi>();
-      final result  = await authApi.register(username, email, password);
+      final result  = await authApi.register(username, email, password, _botDifficulty);
 
       // Initialisation du socket après inscription
       final token     = result['token'] as String;
@@ -120,6 +121,12 @@ class _RegisterPageState extends State<RegisterPage> {
                 icon: Icons.lock,
                 obscureText: true,
               ),
+              const SizedBox(height: 24),
+
+              _DifficultyPicker(
+                value:    _botDifficulty,
+                onChanged: (v) => setState(() => _botDifficulty = v),
+              ),
               const SizedBox(height: 32),
 
               SizedBox(
@@ -163,6 +170,79 @@ class _RegisterPageState extends State<RegisterPage> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+}
+
+// ── Sélecteur de niveau de difficulté (1–10) ─────────────────
+
+class _DifficultyPicker extends StatelessWidget {
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  const _DifficultyPicker({required this.value, required this.onChanged});
+
+  String get _description {
+    if (value <= 3) return 'Les bots feront des erreurs et construiront lentement.';
+    if (value <= 7) return 'Les bots joueront correctement, comme un joueur ordinaire.';
+    return 'Les bots seront quasi-parfaits et très réactifs.';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Niveau des adversaires',
+          style: TextStyle(color: Colors.white70, fontSize: 13),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: List.generate(10, (i) {
+            final lvl      = i + 1;
+            final selected = lvl == value;
+            return GestureDetector(
+              onTap: () => onChanged(lvl),
+              child: Container(
+                width: 28, height: 28,
+                decoration: BoxDecoration(
+                  color:        selected ? Colors.amber[800] : const Color(0xFF2A2A2A),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: selected ? Colors.amber : Colors.white24,
+                    width: selected ? 1.5 : 1.0,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    '$lvl',
+                    style: TextStyle(
+                      color:      selected ? Colors.white : Colors.white54,
+                      fontSize:   11,
+                      fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: const [
+            Text('Débutant', style: TextStyle(color: Colors.white38, fontSize: 10)),
+            Text('Expert',   style: TextStyle(color: Colors.white38, fontSize: 10)),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _description,
+          style: const TextStyle(color: Colors.white54, fontSize: 11),
+        ),
+      ],
+    );
   }
 }
 

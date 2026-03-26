@@ -2,15 +2,17 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'map_state.freezed.dart';
 
 class VillageMarker {
-  final String id;
-  final String name;
-  final int    x;
-  final int    y;
-  final bool   isAbandoned;
-  final int    abandonedLevel;
-  final String playerId;
-  final String playerName;
-  final int    totalPoints;
+  final String  id;
+  final String  name;
+  final int     x;
+  final int     y;
+  final bool    isAbandoned;
+  final int     abandonedLevel;
+  final String  playerId;
+  final String  playerName;
+  final int     totalPoints;
+  final int?    loyaltyPoints;       // null = non espionné
+  final bool    isRecentlyConquered;
 
   bool get isEmpty => !isAbandoned && playerId.isEmpty;
 
@@ -24,20 +26,24 @@ class VillageMarker {
     required this.playerId,
     required this.playerName,
     required this.totalPoints,
+    this.loyaltyPoints,
+    this.isRecentlyConquered = false,
   });
 
   factory VillageMarker.fromJson(Map<String, dynamic> json) {
     final player = json['player'] as Map<String, dynamic>? ?? {};
     return VillageMarker(
-      id:             json['id']             as String,
-      name:           json['name']           as String,
-      x:              json['x']              as int,
-      y:              json['y']              as int,
-      isAbandoned:    json['isAbandoned']    as bool?  ?? false,
-      abandonedLevel: json['abandonedLevel'] as int?   ?? 1,
-      playerId:       player['id']           as String? ?? '',
-      playerName:     player['username']     as String? ?? '?',
-      totalPoints:    player['totalPoints']  as int?    ?? 0,
+      id:                  json['id']                  as String,
+      name:                json['name']                as String,
+      x:                   json['x']                   as int,
+      y:                   json['y']                   as int,
+      isAbandoned:         json['isAbandoned']         as bool?   ?? false,
+      abandonedLevel:      json['abandonedLevel']      as int?    ?? 1,
+      playerId:            player['id']                as String? ?? '',
+      playerName:          player['username']          as String? ?? '?',
+      totalPoints:         player['totalPoints']       as int?    ?? 0,
+      loyaltyPoints:       (json['loyaltyPoints']      as num?)?.toInt(),
+      isRecentlyConquered: json['isRecentlyConquered'] as bool?   ?? false,
     );
   }
 }

@@ -10,6 +10,8 @@ export interface AttackJobData {
   returning?:        boolean;  // true quand les troupes rentrent à la base
   survivors?:        Record<string, number>; // unités survivantes au retour
   missionType?:      'attack' | 'scout';     // type de mission (défaut : 'attack')
+  catapultTarget?:   string;   // bâtiment ciblé par les catapultes (ex: 'barracks')
+  loot?:             { wood: number; stone: number; iron: number }; // pillage transporté au retour
 }
 
 export class AttackQueue {

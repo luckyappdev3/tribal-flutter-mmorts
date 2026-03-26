@@ -6,6 +6,14 @@ class VillageApi {
 
   VillageApi(this._client);
 
+  Future<List<MyVillageItemDto>> getMyVillages() async {
+    final response = await _client.dio.get('/villages/my');
+    final data = response.data as List<dynamic>;
+    return data
+        .map((e) => MyVillageItemDto.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<VillageDto> getVillage(String villageId) async {
     final response = await _client.dio.get('/villages/$villageId');
     return VillageDto.fromJson(response.data as Map<String, dynamic>);
@@ -14,6 +22,11 @@ class VillageApi {
   Future<VillageBuildingsDto> getBuildings(String villageId) async {
     final response = await _client.dio.get('/villages/$villageId/buildings');
     return VillageBuildingsDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<Map<String, dynamic>> spawnVillage() async {
+    final response = await _client.dio.post('/villages/spawn', data: {});
+    return response.data as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> upgrade(String villageId, String buildingId) async {

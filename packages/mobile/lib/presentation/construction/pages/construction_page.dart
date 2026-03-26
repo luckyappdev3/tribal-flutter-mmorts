@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import '../../../core/resources/global_resources_cubit.dart';
 import '../../../core/utils/app_snack_bar.dart';
 import '../bloc/construction_bloc.dart';
 import '../bloc/construction_event.dart';
@@ -13,6 +14,8 @@ class ConstructionPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Rebuilds quand le village change → recrée le BLoC avec le bon villageId
+    context.watch<GlobalResourcesCubit>();
     final String? villageId = Hive.box('village').get('current_village_id');
 
     if (villageId == null) {
@@ -24,6 +27,7 @@ class ConstructionPage extends StatelessWidget {
     }
 
     return BlocProvider(
+      key: ValueKey(villageId),
       create: (_) => ConstructionBloc()
         ..add(ConstructionEvent.loadRequested(villageId)),
       child: const _ConstructionView(),

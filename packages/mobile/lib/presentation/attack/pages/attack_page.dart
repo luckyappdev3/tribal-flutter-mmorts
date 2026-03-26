@@ -24,11 +24,30 @@ class AttackPage extends StatefulWidget {
 class _AttackPageState extends State<AttackPage> {
   final TroopsApi _troopsApi = getIt<TroopsApi>();
 
-  List<TroopDto>       _troops       = [];
-  Map<String, int>     _selected     = {}; // unitType → count à envoyer
-  bool                 _loading      = true;
-  bool                 _sending      = false;
+  List<TroopDto>       _troops         = [];
+  Map<String, int>     _selected       = {}; // unitType → count à envoyer
+  String?              _catapultTarget;      // bâtiment ciblé par les catapultes
+  bool                 _loading        = true;
+  bool                 _sending        = false;
   String?              _error;
+
+  static const List<(String, String)> _catapultTargets = [
+    ('headquarters', 'Siège social'),
+    ('barracks',     'Caserne'),
+    ('stable',       'Écuries'),
+    ('garage',       'Garage'),
+    ('rally_point',  'Place d\'armes'),
+    ('smith',        'Forge'),
+    ('wall',         'Mur'),
+    ('farm',         'Ferme'),
+    ('warehouse',    'Entrepôt'),
+    ('timber_camp',  'Camp de bois'),
+    ('quarry',       'Carrière'),
+    ('iron_mine',    'Mine de fer'),
+    ('market',       'Marché'),
+    ('statue',       'Statue'),
+    ('snob',         'Académie'),
+  ];
 
   @override
   void initState() {
@@ -72,6 +91,7 @@ class _AttackPageState extends State<AttackPage> {
     try {
       final result = await _troopsApi.sendAttack(
         villageId, widget.defenderVillageId, units,
+        catapultTarget: (_selected['catapult'] ?? 0) > 0 ? _catapultTarget : null,
       );
       if (mounted) {
         final secs = result['travelSec'] as int? ?? 0;
@@ -137,15 +157,45 @@ class _AttackPageState extends State<AttackPage> {
                                 final troop = _troops[index];
                                 final sending = _selected[troop.unitType] ?? 0;
                                 return _UnitSelector(
-                                  troop:    troop,
-                                  sending:  sending,
-                                  onChanged: (val) => setState(
+                                  troop:       troop,
+                                  sending:     sending,
+                                  maxSendable: troop.unitType == 'noble' ? 1 : troop.count,
+                                  onChanged:   (val) => setState(
                                     () => _selected[troop.unitType] = val,
                                   ),
                                 );
                               },
                             ),
                     ),
+
+                    // ── Cible catapulte (si catapultes sélectionnées) ──
+                    if ((_selected['catapult'] ?? 0) > 0)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF222222),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.orange.withOpacity(0.4)),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              dropdownColor: const Color(0xFF2A2A2A),
+                              isExpanded: true,
+                              value: _catapultTarget,
+                              hint: const Text('💣 Cible des catapultes',
+                                  style: TextStyle(color: Colors.orange, fontSize: 13)),
+                              items: _catapultTargets.map((t) => DropdownMenuItem(
+                                value: t.$1,
+                                child: Text(t.$2,
+                                    style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                              )).toList(),
+                              onChanged: (v) => setState(() => _catapultTarget = v),
+                            ),
+                          ),
+                        ),
+                      ),
 
                     // ── Bouton attaquer ──
                     Padding(
@@ -182,11 +232,13 @@ class _AttackPageState extends State<AttackPage> {
 class _UnitSelector extends StatelessWidget {
   final TroopDto troop;
   final int      sending;
+  final int      maxSendable;
   final void Function(int) onChanged;
 
   const _UnitSelector({
     required this.troop,
     required this.sending,
+    required this.maxSendable,
     required this.onChanged,
   });
 
@@ -233,14 +285,14 @@ class _UnitSelector extends StatelessWidget {
             ),
           ),
           IconButton(
-            onPressed: sending < troop.count ? () => onChanged(sending + 1) : null,
+            onPressed: sending < maxSendable ? () => onChanged(sending + 1) : null,
             icon: const Icon(Icons.add_circle, color: Colors.green),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
           ),
           // Bouton "Tout envoyer"
           TextButton(
-            onPressed: () => onChanged(troop.count),
+            onPressed: () => onChanged(maxSendable),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               minimumSize: const Size(40, 32),
