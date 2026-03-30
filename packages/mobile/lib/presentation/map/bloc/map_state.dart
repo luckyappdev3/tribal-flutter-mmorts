@@ -13,6 +13,7 @@ class VillageMarker {
   final int     totalPoints;
   final int?    loyaltyPoints;       // null = non espionné
   final bool    isRecentlyConquered;
+  final bool    isBot;               // Phase 10
 
   bool get isEmpty => !isAbandoned && playerId.isEmpty;
 
@@ -28,6 +29,7 @@ class VillageMarker {
     required this.totalPoints,
     this.loyaltyPoints,
     this.isRecentlyConquered = false,
+    this.isBot = false,
   });
 
   factory VillageMarker.fromJson(Map<String, dynamic> json) {
@@ -44,6 +46,7 @@ class VillageMarker {
       totalPoints:         player['totalPoints']       as int?    ?? 0,
       loyaltyPoints:       (json['loyaltyPoints']      as num?)?.toInt(),
       isRecentlyConquered: json['isRecentlyConquered'] as bool?   ?? false,
+      isBot:               json['isBot']               as bool?   ?? false,
     );
   }
 }

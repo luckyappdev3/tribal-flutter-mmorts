@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { GameDataRegistry } from '../../engine/game-data-registry';
 import { RecruitQueue } from '../../engine/queue/queues/recruit.queue';
 import { calcMaxPopulation, calcTotalPopUsed } from '@mmorts/shared';
+import { getVillageGameSpeed } from '../game/game-speed.utils';
 
 export class TroopsService {
   constructor(
@@ -113,7 +114,7 @@ export class TroopsService {
     const allUnits = this.gameData.getAllUnits();
     const troopMap = Object.fromEntries(troops.map(t => [t.unitType, t.count]));
     const buildMap = Object.fromEntries(buildings.map(b => [b.buildingId, b.level]));
-    const gameSpeed = (village as any)?.world?.gameSpeed ?? 1.0;
+    const gameSpeed = await this._getGameSpeed(villageId);
 
     const farmLevel       = buildMap['farm'] ?? 1;
     const maxPop          = calcMaxPopulation(farmLevel);
@@ -249,7 +250,7 @@ export class TroopsService {
     const village   = await this.prisma.village.findUnique({
       where: { id: villageId }, include: { world: { select: { gameSpeed: true } } },
     });
-    const gameSpeed = (village as any)?.world?.gameSpeed ?? 1.0;
+    const gameSpeed = await this._getGameSpeed(villageId);
 
     // 7. Durée de la première unité
     const firstUnitMs = this.calcRecruitTimeMs(unitDef.recruitTime, building.level, gameSpeed);
@@ -337,7 +338,7 @@ export class TroopsService {
             where: { id: villageId }, include: { world: { select: { gameSpeed: true } } },
           }),
         ]);
-        const gameSpeed = (village as any)?.world?.gameSpeed ?? 1.0;
+        const gameSpeed = await this._getGameSpeed(villageId);
         const nextDef   = this.gameData.getUnitDef(nextEntry.unitType);
         const nextMs    = this.calcRecruitTimeMs(nextDef.recruitTime, building?.level ?? 1, gameSpeed);
         await this.prisma.recruitQueue.update({
@@ -352,5 +353,9 @@ export class TroopsService {
     }
 
     return { refund, cancelledUnitType: entry.unitType, remainingRefunded: remaining };
+  }
+
+  private async _getGameSpeed(villageId: string): Promise<number> {
+    return await getVillageGameSpeed(this.prisma, villageId);
   }
 }

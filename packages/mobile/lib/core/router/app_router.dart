@@ -2,9 +2,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive/hive.dart';
 import '../../core/services/tab_refresh_service.dart';
+import '../../data/remote/websocket/socket_service.dart';
+import '../../core/di/injection.dart';
 import '../../presentation/auth/pages/login_page.dart';
 import '../../presentation/auth/pages/register_page.dart';
+import '../../presentation/lobby/pages/lobby_page.dart';
+import '../../presentation/game-over/pages/game_over_page.dart';
 import '../../presentation/village/pages/village_page.dart';
 import '../../presentation/construction/pages/construction_page.dart';
 import '../../presentation/map/pages/map_page.dart';
@@ -23,6 +28,20 @@ final appRouter = GoRouter(
   routes: [
     GoRoute(path: '/login',    name: RouteNames.login,    builder: (_, __) => const LoginPage()),
     GoRoute(path: '/register', name: RouteNames.register, builder: (_, __) => const RegisterPage()),
+    GoRoute(path: '/lobby',    name: RouteNames.lobby,    builder: (_, __) => const LobbyPage()),
+    GoRoute(
+      path: '/game-over',
+      name: RouteNames.gameOver,
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        return GameOverPage(
+          isVictory:  extra['isVictory']  as bool? ?? false,
+          winnerId:   extra['winnerId']   as String? ?? '',
+          winnerName: extra['winnerName'] as String? ?? '?',
+          duration:   extra['duration']   as int? ?? 0,
+        );
+      },
+    ),
     GoRoute(
       path: '/attack',
       name: RouteNames.attack,
@@ -85,6 +104,31 @@ class _ScaffoldWithNavBarState extends State<_ScaffoldWithNavBar> {
           ),
         );
       });
+
+      // Écouter fin de partie (Phase 11)
+      try {
+        final socketService = getIt<SocketService>();
+        socketService.instance.on('game:over', (data) {
+          if (!mounted) return;
+          final winnerId = data['winnerId'] as String?;
+          final currentPlayerId = Hive.box('auth').get('player_id') as String?;
+          final isVictory = winnerId == currentPlayerId;
+          final winnerName = winnerId == currentPlayerId ? 'Vous' : '?';
+          final duration = 0; // TODO: stocker startTime
+
+          context.go(
+            '/game-over',
+            extra: {
+              'isVictory':  isVictory,
+              'winnerId':   winnerId ?? '',
+              'winnerName': winnerName,
+              'duration':   duration,
+            },
+          );
+        });
+      } catch (e) {
+        print('⚠️ Erreur setup game:over listener: $e');
+      }
     });
   }
 

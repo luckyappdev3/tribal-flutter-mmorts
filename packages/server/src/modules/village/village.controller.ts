@@ -8,15 +8,12 @@ import {
   calcBuildingPopCost,
   calcTotalPopUsed,
 } from '@mmorts/shared';
+import { getVillageGameSpeed } from '../game/game-speed.utils';
 
 const PRODUCTION_BUILDINGS = ['timber_camp', 'quarry', 'iron_mine'];
 
 async function getGameSpeed(fastify: FastifyInstance, villageId: string): Promise<number> {
-  const v = await fastify.prisma.village.findUnique({
-    where:   { id: villageId },
-    include: { world: { select: { gameSpeed: true } } },
-  });
-  return (v as any)?.world?.gameSpeed ?? 1.0;
+  return await getVillageGameSpeed(fastify.prisma, villageId);
 }
 
 export async function villageRoutes(fastify: FastifyInstance) {
@@ -32,8 +29,23 @@ export async function villageRoutes(fastify: FastifyInstance) {
   // ── GET /villages/my — liste tous les villages du joueur connecté ──
   fastify.get('/my', async (request: FastifyRequest, reply: FastifyReply) => {
     const player = request.user as { id: string };
+
+    // Déterminer si le joueur est dans une Game active
+    const activeGame = await fastify.prisma.game.findFirst({
+      where: {
+        playerId: player.id,
+        status: { in: ['running', 'finished'] },
+      },
+      select: { id: true },
+    });
+
     const villages = await fastify.prisma.village.findMany({
-      where:   { playerId: player.id },
+      where: {
+        playerId: player.id,
+        // Phase 8 : si le joueur est dans une Game, afficher seulement les villages de cette Game
+        // Sinon : afficher les villages du GameWorld classique (gameId=null)
+        ...(activeGame ? { gameId: activeGame.id } : { gameId: null }),
+      },
       select:  { id: true, name: true, x: true, y: true, loyaltyPoints: true },
       orderBy: { name: 'asc' },
     });
@@ -121,6 +133,7 @@ export async function villageRoutes(fastify: FastifyInstance) {
         productionRates,
         buildQueue,
         maxStorage: calcMaxStorage(getLevel('warehouse')),
+        gameSpeed,  // ← Inclure gameSpeed pour que l'app affiche les vraies vitesses
       };
     } catch (error) {
       return reply.status(404).send({ message: 'Village non trouvé' });

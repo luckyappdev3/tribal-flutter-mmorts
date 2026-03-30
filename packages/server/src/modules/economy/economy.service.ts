@@ -1,11 +1,12 @@
 import { prisma } from '../../infra/db/prisma.client';
 import { calcResourceProduction, calcMaxStorage } from '@mmorts/shared';
+import { getVillageGameSpeed } from '../game/game-speed.utils';
 
 export class EconomyService {
   async processVillageTick(villageId: string) {
     const village = await prisma.village.findUnique({
       where:   { id: villageId },
-      include: { buildings: true, world: { select: { gameSpeed: true } } },
+      include: { buildings: true },
     });
 
     if (!village) return null;
@@ -16,7 +17,7 @@ export class EconomyService {
     if (elapsedMs <= 0) return village;
 
     // gameSpeed accélère la production du même facteur que la construction
-    const gameSpeed = (village as any).world?.gameSpeed ?? 1.0;
+    const gameSpeed = await getVillageGameSpeed(prisma, villageId);
 
     const getLevel = (bid: string) =>
       village.buildings.find(b => b.buildingId === bid)?.level || 0;

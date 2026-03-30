@@ -60,6 +60,9 @@ export interface GameSnapshot {
   conquestTargetId:    string | null; // village joueur visé pour la conquête (14.2)
   alliedVillages:      AlliedVillageInfo[]; // villages alliés (21.1)
 
+  // 28.2 — Style comportemental (utilisé pour booster les mines adaptées au style)
+  botStyle?: BotStyle;
+
   // Calibrage (15.1 & 15.2)
   attackRecklessness:   number;  // multiplicateur du seuil d'attaque (1.0 = normal, 0.3 = téméraire)
   noEarlyPlayerAttack:  boolean; // true → bot niveau ≤ 3 ne peut pas attaquer les joueurs avant 5 min
@@ -81,6 +84,7 @@ export interface BotBuilding {
   currentLevel:         number;
   nextLevel:            number;
   cost:                 { wood: number; stone: number; iron: number };
+  populationCost?:      number;
   buildTimeSeconds:     number;   // déjà divisé par gameSpeed
   productionGainPerHour: number;  // 0 si pas de production
   defenseBonus:         number;   // 0 si pas de bonus défensif
@@ -100,6 +104,7 @@ export interface BotUnit {
   defenseArcher:       number;
   speedSecondsPerTile: number; // déjà divisé par gameSpeed
   cost:                { wood: number; stone: number; iron: number };
+  populationCost:      number;
   recruitTimeSeconds:  number; // par unité, déjà divisé par gameSpeed
   carryCapacity:       number;
   isUnlocked:          boolean;
@@ -162,6 +167,7 @@ export interface ScoredAction {
   units?:        Record<string, number>; // pour 'attack' et 'noble_train' (nobles)
   count?:        number;                 // pour 'recruit'
   cleanerUnits?: Record<string, number>; // pour 'noble_train' : troupes off envoyées en cleaner
+  catapultTarget?: string;               // bâtiment ciblé (ex: 'farm', 'wall')
 }
 
 // ── Profil de difficulté (calculé depuis le niveau 1–10) ─────

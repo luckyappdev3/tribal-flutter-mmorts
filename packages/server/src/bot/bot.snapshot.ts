@@ -81,6 +81,7 @@ export async function getSnapshot(
   scoutMemory:  Map<string, number> = new Map(), // targetId → timestamp de l'espionnage
 ): Promise<GameSnapshot> {
 
+  console.log(`[getSnapshot] villageId = ${villageId}`);
   // ── 1. Charger le village et ses relations ────────────────
   const village = await prisma.village.findUniqueOrThrow({
     where: { id: villageId },
@@ -208,12 +209,18 @@ export async function getSnapshot(
         ? calcWallBonus(nextLevel) - calcWallBonus(currentLevel)
         : 0;
 
+    // 28.4 — Calculer le coût en population du prochain niveau
+    const popAtNext = calcTotalPopUsed([{ buildingId: def.id, level: nextLevel }]);
+    const popAtCurr = calcTotalPopUsed([{ buildingId: def.id, level: currentLevel }]);
+    const buildingPopCost = Math.max(0, popAtNext - popAtCurr);
+
     availableBuildings.push({
       id:                    def.id,
       name:                  def.name,
       currentLevel,
       nextLevel,
       cost:                  { wood: rawCost.wood, stone: rawCost.stone, iron: rawCost.iron },
+      populationCost:        buildingPopCost,
       buildTimeSeconds:      buildTimeSec,
       productionGainPerHour,
       defenseBonus,
@@ -257,6 +264,7 @@ export async function getSnapshot(
       cost:                { wood: def.cost.wood, stone: def.cost.stone, iron: def.cost.iron },
       recruitTimeSeconds:  recruitTimeSec,
       carryCapacity:       def.carryCapacity,
+      populationCost:      def.populationCost ?? 1,
       isUnlocked:          unlocked,
     });
   }

@@ -30,6 +30,9 @@ import { combatRoutes }    from './modules/combat/combat.controller';
 import { movementsRoutes } from './modules/combat/movements.controller';
 import { rankingRoutes }   from './modules/ranking/ranking.controller';
 import { botAdminRoutes }  from './bot/bot.controller';
+import { gameRoutes }      from './modules/game/game.controller';
+import { GameService }     from './modules/game/game.service';
+import { GameEndService }  from './modules/game/game-end.service';
 
 import { initBuildWorker }      from './workers/build.worker';
 import { initRecruitWorker }    from './workers/recruit.worker';
@@ -52,6 +55,9 @@ declare module 'fastify' {
     abandonedService:    AbandonedVillageService;
     buildQueue:          BuildingQueue;
     botService:          BotService;
+    gameService:         GameService;
+    gameEndService:      GameEndService;
+    authenticate:        (request: any, reply: any) => Promise<void>;
   }
 }
 
@@ -85,7 +91,9 @@ async function bootstrap() {
       troops:       troopsService,
       combat:       combatService,
     });
-    const authService         = new AuthService(prisma, fastify, botService);
+    const authService         = new AuthService(prisma, fastify);
+    const gameService         = new GameService(prisma, botService);
+    const gameEndService      = new GameEndService(prisma);
 
     fastify.decorate('prisma',              prisma);
     fastify.decorate('gameData',            gameDataRegistry);
@@ -99,6 +107,23 @@ async function bootstrap() {
     fastify.decorate('abandonedService',    abandonedService);
     fastify.decorate('buildQueue',          buildQueue);
     fastify.decorate('botService',          botService);
+    fastify.decorate('gameService',         gameService);
+    fastify.decorate('gameEndService',      gameEndService);
+    fastify.decorate('authenticate', async (request: any, reply: any) => {
+      try {
+        await request.jwtVerify();
+        // Vérifier que le joueur existe toujours en base
+        const playerId = (request.user as any)?.id;
+        if (playerId) {
+          const exists = await prisma.player.findUnique({ where: { id: playerId }, select: { id: true } });
+          if (!exists) {
+            return reply.code(401).send({ message: 'Session expirée, reconnectez-vous' });
+          }
+        }
+      } catch {
+        reply.code(401).send({ message: 'Non authentifié' });
+      }
+    });
 
     // Spawn des villages abandonnés au démarrage
     await abandonedService.seedAbandoned();
@@ -134,6 +159,7 @@ async function bootstrap() {
     await fastify.register(movementsRoutes, { prefix: '/api/villages' });
     await fastify.register(rankingRoutes,   { prefix: '/api/ranking' });
     await fastify.register(botAdminRoutes,  { prefix: '/admin/bots' });
+    await fastify.register(gameRoutes,      { prefix: '/api/games' });
 
     initBuildWorker(fastify);
     initRecruitWorker(fastify, gameDataRegistry, recruitQueue);

@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 // ─────────────────────────────────────────────────────────────
 //  Configuration du monde
 // ─────────────────────────────────────────────────────────────
-const GAME_SPEED    = 200.0;  // ← Modifier ici pour changer la vitesse globale
+const GAME_SPEED    = 2000.0;  // ← Modifier ici pour changer la vitesse globale
                               //   1.0 = vitesse officielle TW
                               //   10.0 = x10 plus rapide (recommandé pour le dev)
                               //   100.0 = ultra-rapide pour les tests
@@ -15,6 +15,21 @@ const GAME_SPEED    = 200.0;  // ← Modifier ici pour changer la vitesse global
 //  Ressources de départ
 // ─────────────────────────────────────────────────────────────
 const STARTING_RESOURCES = { wood: 500, stone: 500, iron: 500 };
+
+// ─────────────────────────────────────────────────────────────
+//  Bâtiments bot (miroir de STARTER_BUILDINGS dans bot.service.ts)
+// ─────────────────────────────────────────────────────────────
+const BOT_BUILDINGS = [
+  { buildingId: 'headquarters', level: 5 },
+  { buildingId: 'timber_camp',  level: 1 },
+  { buildingId: 'quarry',       level: 1 },
+  { buildingId: 'iron_mine',    level: 1 },
+  { buildingId: 'warehouse',    level: 1 },
+  { buildingId: 'barracks',     level: 1 },
+  { buildingId: 'smith',        level: 2 },
+  { buildingId: 'rally_point',  level: 1 },
+  { buildingId: 'stable',       level: 1 },
+];
 
 // ─────────────────────────────────────────────────────────────
 //  Bâtiments de départ (tous les villages commencent avec ça)
@@ -133,18 +148,29 @@ async function main() {
   console.log('--- 🌱 Début du Seeding ---\n');
 
   // ── Nettoyage complet ──────────────────────────────────────
+  // Supprimer toutes les données de jeu (Phase 8+)
   await prisma.combatReport.deleteMany();
   await prisma.activeAttack.deleteMany();
+  await prisma.activeSupport.deleteMany();
   await prisma.buildingQueueItem.deleteMany();
   await prisma.buildingQueue.deleteMany();
   await prisma.recruitQueue.deleteMany();
   await prisma.troop.deleteMany();
   await prisma.buildingInstance.deleteMany();
+
+  // Supprimer tous les villages (y compris ceux liés aux Game)
   await prisma.village.deleteMany();
+
+  // Supprimer toutes les Game et leurs références
+  await prisma.game.deleteMany();
+
+  // Supprimer tous les joueurs
   await prisma.player.deleteMany();
+
+  // Supprimer tous les mondes
   await prisma.gameWorld.deleteMany();
 
-  console.log('✅ Base de données nettoyée\n');
+  console.log('✅ Base de données nettoyée (worldId + gameId)\n');
 
   // ── Création du Monde ──────────────────────────────────────
   const world = await prisma.gameWorld.create({
@@ -194,6 +220,37 @@ async function main() {
     'Village de H', 21, 20, playerH.id, world.id,
   );
 
+  // ── Création du bot (niv 6, ~10 cases du Village A) ───────
+  // Village A = (20, 20) → bot en (30, 20) = 10 cases à l'est
+  const botPlayer = await prisma.player.create({
+    data: {
+      username: 'Bot_seed',
+      email:    'bot_seed@bot.internal',
+      password: 'unused',
+      isBot:    true,
+    },
+  });
+
+  const villageBot = await prisma.village.create({
+    data: {
+      name:          'Village Bot',
+      x:             30,
+      y:             20,
+      playerId:      botPlayer.id,
+      worldId:       world.id,
+      isBot:         true,
+      botDifficulty: 9,
+      botPlayerId:   botPlayer.id,
+      // champs directs lus par le snapshot builder
+      stableLevel:     1,
+      rallyPointLevel: 1,
+    },
+  });
+
+  await prisma.buildingInstance.createMany({
+    data: BOT_BUILDINGS.map(b => ({ ...b, villageId: villageBot.id })),
+  });
+
   // Bâtiments supplémentaires pour H : écurie niv 1 + place d'armes niv 1
   // (prérequis écurie : headquarters 10, barracks 5, smith 5)
   await prisma.buildingInstance.createMany({
@@ -218,7 +275,8 @@ async function main() {
   console.log(`   - ${villageA.name} (${villageA.x}, ${villageA.y})`);
   console.log(`   - ${villageB.name} (${villageB.x}, ${villageB.y})`);
   console.log(`   - ${villageE.name} (${villageE.x}, ${villageE.y})`);
-  console.log(`   - ${villageH.name} (${villageH.x}, ${villageH.y})\n`);
+  console.log(`   - ${villageH.name} (${villageH.x}, ${villageH.y})`);
+  console.log(`   - ${villageBot.name} (${villageBot.x}, ${villageBot.y}) [🤖 Bot niv 6 — ~${Math.round(Math.sqrt((villageBot.x - villageA.x)**2 + (villageBot.y - villageA.y)**2))} cases du Village A]\n`);
 
   console.log('--- 🚀 Seeding terminé avec succès ---');
   console.log(`\n📋 Comptes disponibles :`);

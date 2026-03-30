@@ -689,6 +689,12 @@ export function initAttackWorker(fastify: FastifyInstance) {
 
       // ── Points après conquête ────────────────────────────────────
       if (isConquest) {
+        // Vérifier si la partie est finie (Phase 11)
+        const gameEnd = await fastify.gameEndService.checkGameEnd(defenderVillageId, attackerVillageId);
+        if (gameEnd?.gameId) {
+          safeEmit(fastify, `game:${gameEnd.gameId}`, 'game:over', { winnerId: gameEnd.winnerId });
+        }
+
         // Recalculer les totalPoints pour les deux joueurs
         const [atkVillages, defVillages] = await Promise.all([
           fastify.prisma.village.findMany({

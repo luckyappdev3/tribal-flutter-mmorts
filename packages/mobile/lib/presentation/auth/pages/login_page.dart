@@ -26,18 +26,18 @@ class _LoginPageState extends State<LoginPage> {
       final authApi = getIt<AuthApi>();
       final result  = await authApi.login(_emailController.text.trim(), _passwordController.text);
 
-      final String token     = result['token'];
-      final String villageId = result['villageId'].toString();
+      final String  token     = result['token'];
+      final String? villageId = result['villageId']?.toString();
 
       final socketService = getIt<SocketService>();
       socketService.init(baseUrl: 'http://localhost:3000', token: token);
       socketService.connect();
-      socketService.joinVillage(villageId);
+      if (villageId != null) socketService.joinVillage(villageId);
 
-          if (mounted) {
-      // Déclencher le chargement des blocs globaux avec le villageId
-      context.go('/');
-    }
+      if (mounted) {
+        // Partie en cours → jeu directement, sinon → lobby
+        context.go(villageId != null ? '/' : '/lobby');
+      }
     } catch (e) {
       if (mounted) {
         AppSnackBar.error(context, 'Identifiants invalides.');

@@ -17,7 +17,7 @@ import {
 
 // ── Paramètres ────────────────────────────────────────────────
 
-const TOTAL_TICKS     = 500;
+const TOTAL_TICKS     = 1500; // Augmenté pour laisser le temps aux conquêtes de se résoudre
 const TICK_MINUTES    = 0.75;
 const BASE_PROD       = 20;
 const TRAVEL_TICKS    = 5;
@@ -68,6 +68,9 @@ interface VillageState {
   // 27.3 — Troupes perdues au dernier combat
   troopsLostLastCombat: number;
   eliminated:     boolean;
+  eliminationRank: number; // 1 = premier éliminé, 2 = deuxième, etc. (0 = toujours en jeu)
+  // APM simulation : tick à partir duquel ce bot peut agir à nouveau
+  nextActionTick: number;
 }
 
 interface LogEntry { tick: number; villageId: string; phase: Phase; action: string; detail: string; }
@@ -93,25 +96,25 @@ const UNIT_DEFS: Record<string, BotUnit> = {
     id: 'spearman', name: 'Lancier', buildingType: 'barracks', type: 'defensive',
     attack: 10, defenseGeneral: 15, defenseCavalry: 45, defenseArcher: 20,
     speedSecondsPerTile: 0.54, cost: { wood: 50, stone: 30, iron: 10 },
-    recruitTimeSeconds: 26, carryCapacity: 25, isUnlocked: true,
+    populationCost: 1, recruitTimeSeconds: 26, carryCapacity: 25, isUnlocked: true,
   },
   axeman: {
     id: 'axeman', name: 'Guerrier', buildingType: 'barracks', type: 'offensive',
     attack: 40, defenseGeneral: 10, defenseCavalry: 5, defenseArcher: 10,
     speedSecondsPerTile: 0.54, cost: { wood: 60, stone: 30, iron: 40 },
-    recruitTimeSeconds: 36, carryCapacity: 10, isUnlocked: true,
+    populationCost: 1, recruitTimeSeconds: 36, carryCapacity: 10, isUnlocked: true,
   },
   scout: {
     id: 'scout', name: 'Éclaireur', buildingType: 'stable', type: 'scout',
     attack: 0, defenseGeneral: 2, defenseCavalry: 1, defenseArcher: 2,
     speedSecondsPerTile: 0.26, cost: { wood: 50, stone: 30, iron: 40 },
-    recruitTimeSeconds: 54, carryCapacity: 0, isUnlocked: true,
+    populationCost: 2, recruitTimeSeconds: 54, carryCapacity: 0, isUnlocked: true,
   },
   noble: {
     id: 'noble', name: 'Noble', buildingType: 'academy', type: 'conquest',
     attack: 0, defenseGeneral: 100, defenseCavalry: 50, defenseArcher: 100,
     speedSecondsPerTile: 1.05, cost: { wood: 4000, stone: 5000, iron: 5000 },
-    recruitTimeSeconds: 800, carryCapacity: 0, isUnlocked: true,
+    populationCost: 100, recruitTimeSeconds: 800, carryCapacity: 0, isUnlocked: true,
   },
 };
 
@@ -123,6 +126,17 @@ function offPow(troops: Record<string, number>): number {
 }
 function defPow_(troops: Record<string, number>): number {
   return Object.entries(troops).reduce((s, [u, n]) => s + n * (UNIT_DEFENSE[u] ?? 0), 0);
+}
+
+function calcPopUsed(v: VillageState): number {
+  let used = 0;
+  // Troupes
+  for (const [type, count] of Object.entries(v.troops)) {
+    used += count * (UNIT_DEFS[type]?.populationCost ?? 1);
+  }
+  // Bâtiments (approximation : 2 pop par niveau de bâtiment)
+  used += Object.values(v.buildings).reduce((s, l) => s + l * 2, 0); 
+  return used;
 }
 
 // ── Définitions des bâtiments ─────────────────────────────────
@@ -217,6 +231,12 @@ function buildSnapshot(v: VillageState, opponents: VillageState[], tick: number)
     });
   }
 
+  // Réinitialiser la cible si elle a été éliminée (village supprimé du jeu)
+  if (v.conquestTarget && !opponents.some(o => o.id === v.conquestTarget)) {
+    v.conquestTarget = null;
+    log(tick, v, 'TARGET_RESET', `cible éliminée, nouvelle cible à chercher`);
+  }
+
   // 24.1 — Désigner la cible dès la phase late (l'adversaire le plus faible en défense)
   if (v.phase === 'late' && !v.conquestTarget && opponents.length > 0) {
     const weakest = opponents.reduce((a, b) => defPow_(a.troops) <= defPow_(b.troops) ? a : b);
@@ -258,6 +278,10 @@ function buildSnapshot(v: VillageState, opponents: VillageState[], tick: number)
   const visS = Math.min(v.stone, v.maxStorage) * (1 - waste);
   const visI = Math.min(v.iron,  v.maxStorage) * (1 - waste);
 
+  // Calcul population réelle (100 de capacité par niveau de ferme pour la simulation)
+  const maxPop = (v.buildings['farm'] ?? 1) * 100;
+  const populationAvailable = Math.max(0, maxPop - calcPopUsed(v));
+
   return {
     villageId:           v.id,
     wood:  visW, stone: visS, iron:  visI,
@@ -279,7 +303,7 @@ function buildSnapshot(v: VillageState, opponents: VillageState[], tick: number)
     barracksLevel:       v.buildings['barracks'] ?? 0,
     wallLevel:           v.buildings['wall'] ?? 0,
     rallyPointBuilt:     rallyBuilt,
-    populationAvailable: 500,
+    populationAvailable,
     loyaltyPoints:       v.loyalty,
     bottleneckResource:  bottleneck,
     conquestTargetId:    v.conquestTarget,
@@ -287,8 +311,9 @@ function buildSnapshot(v: VillageState, opponents: VillageState[], tick: number)
     noEarlyPlayerAttack: v.level <= 3 && tick * TICK_MINUTES < 5,
     timeElapsedMinutes:  tick * TICK_MINUTES,
     alliedVillages:      [],
-    // 27.3 — Signal reconstruction : grosse défaite récente
     recentHeavyLoss:     v.troopsLostLastCombat > 10,
+    // 28.2 — Style comportemental pour le boost mines
+    botStyle:            v.style,
   };
 }
 
@@ -379,8 +404,14 @@ function resolveAttack(
 
   if (defender.loyalty <= 0) {
     attacker.stats.conquests++;
-    log(tick, attacker, '🏆 CONQUEST', `${defender.id} conquis ! (loyauté tombée à 0)`);
-    defender.loyalty = 100;
+    log(tick, attacker, '🏆 CONQUEST', `${defender.id} ÉLIMINÉ — conquis par ${attacker.id} !`);
+    // Élimination définitive (pas de reset de loyauté)
+    defender.eliminated = true;
+    // L'attaquant récupère 50 % des ressources restantes
+    const spoil = Math.floor((defender.wood + defender.stone + defender.iron) / 6);
+    attacker.wood  = Math.min(attacker.maxStorage, attacker.wood  + spoil);
+    attacker.stone = Math.min(attacker.maxStorage, attacker.stone + spoil);
+    attacker.iron  = Math.min(attacker.maxStorage, attacker.iron  + spoil);
     defender.wood = 0; defender.stone = 0; defender.iron = 0;
     if (atk.hasNoble) {
       attacker.troops['noble'] = Math.max(0, (attacker.troops['noble'] ?? 1) - 1);
@@ -394,7 +425,8 @@ function resolveAttack(
 
 function levelProdMultiplier(level: number): number {
   const l = Math.max(1, Math.min(10, level));
-  return 1.0 + (l - 6) * 0.035;
+  // nv10: +24% | nv8: +12% | nv6: 0% | nv4: -12% | nv1: -30%
+  return 1.0 + (l - 6) * 0.06;
 }
 
 function produce(v: VillageState): void {
@@ -562,8 +594,8 @@ function applyAction(
     }
   }
 
-  // Auto-cible de conquête
-  const liveOpponents = villages.filter(x => x.id !== v.id);
+  // Auto-cible de conquête (uniquement parmi les villages actifs non éliminés)
+  const liveOpponents = villages.filter(x => x.id !== v.id && !x.eliminated);
   if (!v.conquestTarget && (v.buildings['academy'] ?? 0) >= 1 && liveOpponents.length > 0) {
     const weakest = liveOpponents.reduce((a, b) => defPow_(a.troops) <= defPow_(b.troops) ? a : b);
     v.conquestTarget = weakest.id;
@@ -576,12 +608,16 @@ function applyAction(
 function initVillage(id: string, name: string, level: number, style: BotStyle): VillageState {
   const bonusWood  = style === 'builder' ? 400 : 0;
   const bonusIron  = style === 'rusher'  ? 300 : 0;
+  // Troupes initiales selon le niveau : bot plus expérimenté = mieux préparé dès le départ
+  // nv4 → 6 axe | nv6 → 10 axe | nv8 → 14 axe | nv10 → 18 axe
+  const initAxe = Math.round((level - 1) * 2);
+
   return {
     id, name, level, style, phase: 'early',
     wood: 500 + bonusWood, stone: 500, iron: 300 + bonusIron,
     maxStorage: 5000,
-    buildings: { timber_camp:1, quarry:1, iron_mine:1, barracks:0, stable:0, wall:0, rally_point:0, farm:4, academy:0 },
-    troops: {},
+    buildings: { timber_camp:2, quarry:2, iron_mine:2, barracks:0, stable:0, wall:0, rally_point:0, farm:4, academy:0 },
+    troops: { axeman: initAxe },
     buildQueue: [], recruitQueue: null,
     loyalty: 100, conquestTarget: null,
     resourceHistory: [],
@@ -593,64 +629,101 @@ function initVillage(id: string, name: string, level: number, style: BotStyle): 
     attackCooldownTick: new Map(),
     troopsLostLastCombat: 0,
     eliminated: false,
+    eliminationRank: 0,
+    nextActionTick: 1,
   };
+}
+
+// ── APM simulation ────────────────────────────────────────────
+// Nombre de ticks entre deux décisions selon le niveau.
+// Niveau 10 → 1 tick (réaction immédiate)
+// Niveau  4 → 6 ticks (lent, réfléchit peu souvent)
+// Niveau  1 → 12 ticks (très lent)
+function getActionInterval(level: number): number {
+  const l = Math.max(1, Math.min(10, level));
+  // nv10 → 1t | nv8 → 2t | nv6 → 3t | nv4 → 4t | nv1 → 5t
+  // Progression arithmétique douce : évite un écart APM trop extrême
+  return Math.max(1, Math.ceil((11 - l) / 2));
 }
 
 // ── Simulation ────────────────────────────────────────────────
 
-function simulate() {
+function simulate(levelA: number, levelB: number, levelC: number, levelD: number, verbose = true) {
   const villages = [
-    initVillage('Alpha', 'Alpha', 6, 'rusher'),
-    initVillage('Beta',  'Beta',  6, 'builder'),
-    initVillage('Gamma', 'Gamma', 6, 'balanced'),
+    initVillage('Alpha', 'Alpha', levelA, 'rusher'),
+    initVillage('Beta',  'Beta',  levelB, 'builder'),
+    initVillage('Gamma', 'Gamma', levelC, 'balanced'),
+    initVillage('Delta', 'Delta', levelD, 'balanced'),
   ];
 
   const weightsMap = new Map(villages.map(v => [v.id, buildStyleWeights(v.style)]));
   const pending: PendingAttack[] = [];
+  let winner: VillageState | null = null;
 
-  console.log(`\n${'═'.repeat(64)}`);
-  console.log(`  TRUEL À 3 BOTS`);
-  console.log(`  Alpha (rusher) vs Beta (builder) vs Gamma (balanced)`);
-  console.log(`  ${TOTAL_TICKS} ticks × ${TICK_MINUTES} min`);
-  console.log(`${'═'.repeat(64)}\n`);
+  if (verbose) {
+    console.log(`\n🚀 DÉMARRAGE — TRUEL À 4 BOTS`);
+    console.log(`  Alpha nv${levelA}(rusher) vs Beta nv${levelB}(builder) vs Gamma nv${levelC}(balanced) vs Delta nv${levelD}(balanced)`);
+    console.log(`  Intervalles APM : Alpha=${getActionInterval(levelA)}t  Beta=${getActionInterval(levelB)}t  Gamma=${getActionInterval(levelC)}t  Delta=${getActionInterval(levelD)}t`);
+    console.log(`  ${TOTAL_TICKS} ticks × ${TICK_MINUTES} min`);
+    console.log(`${'═'.repeat(64)}\n`);
+  }
 
   for (let tick = 1; tick <= TOTAL_TICKS; tick++) {
 
+    const activeVillages = villages.filter(v => !v.eliminated);
+
+    // Condition de victoire : un seul survivant
+    if (activeVillages.length === 1) {
+      winner = activeVillages[0];
+      log(tick, winner, '🏆 WINNER', `${winner.name} remporte la partie !`);
+      break;
+    }
+    if (activeVillages.length === 0) break;
+
     // 1. Production
-    for (const v of villages) {
+    for (const v of activeVillages) {
       produce(v);
       v.resourceHistory.push({ wood: v.wood, stone: v.stone, iron: v.iron });
       if (v.resourceHistory.length > 10) v.resourceHistory.shift();
     }
 
-    // 2. Files
-    for (const v of villages) {
+    // 2. Files de construction/recrutement
+    for (const v of activeVillages) {
       completeBuildJobs(v, tick);
       completeRecruitJobs(v, tick);
     }
 
-    // 3. Résoudre attaques
+    // 3. Nettoyer les attaques impliquant des villages éliminés
+    pending.splice(0, pending.length, ...pending.filter(p => {
+      const from = villages.find(v => v.id === p.fromId);
+      const to   = villages.find(v => v.id === p.toId);
+      return from && !from.eliminated && to && !to.eliminated;
+    }));
+
+    // 4. Résoudre attaques arrivantes + attribuer rang d'élimination
     const arriving = pending.filter(p => p.arrivesAt === tick);
     for (const atk of arriving) {
       resolveAttack(atk, villages, tick);
     }
     pending.splice(0, pending.length, ...pending.filter(p => p.arrivesAt > tick));
-
-    // ── BUG WATCH : attaques en transit depuis un village invalide ─
-    for (const p of pending) {
-      if (!villages.find(v => v.id === p.fromId)) {
-        bug(tick, p.fromId, 'GHOST_ATTACK_IN_TRANSIT', `fromId=${p.fromId} introuvable`);
+    // Attribuer le rang d'élimination aux nouveaux éliminés de ce tick
+    {
+      const nextRank = villages.filter(v => v.eliminationRank > 0).length + 1;
+      for (const v of villages) {
+        if (v.eliminated && v.eliminationRank === 0) v.eliminationRank = nextRank;
       }
     }
 
-    // 4. Décisions — ordre aléatoire
-    const order = [...villages].sort(() => Math.random() - 0.5);
+    // 5. Décisions — ordre aléatoire, uniquement villages actifs non-en-cooldown APM
+    const order = [...activeVillages].sort(() => Math.random() - 0.5);
     for (const v of order) {
-      const opponents = villages.filter(x => x.id !== v.id);
+      // ── APM simulation : bots de bas niveau agissent moins souvent ──
+      if (tick < v.nextActionTick) continue;
+
+      const opponents = activeVillages.filter(x => x.id !== v.id);
       const weights   = weightsMap.get(v.id)!;
       const snap      = buildSnapshot(v, opponents, tick);
 
-      // ── BUG WATCH : snapshot sans cibles en phase late ─────────
       if (v.phase === 'late' && snap.allTargets.length === 0 && (v.troops['noble'] ?? 0) > 0) {
         bug(tick, v.id, 'NO_TARGETS_WITH_NOBLE', `late phase, noble present, but 0 targets in snap`);
       }
@@ -661,8 +734,8 @@ function simulate() {
         log(tick, v, 'PHASE_CHANGE', `${prevPhase} → ${v.phase}`);
       }
 
-      const profile  = buildProfile(v.level);
-      const epsilon  = profile.scoreNoiseEpsilon;
+      const profile = buildProfile(v.level);
+      const epsilon = profile.scoreNoiseEpsilon;
 
       let candidates;
       try {
@@ -670,50 +743,66 @@ function simulate() {
           .map(a => ({ ...a, score: a.score * (1 - epsilon + Math.random() * 2 * epsilon) }));
       } catch (e: any) {
         bug(tick, v.id, 'SCORE_ENGINE_CRASH', e.message ?? String(e));
+        v.nextActionTick = tick + getActionInterval(v.level);
         continue;
       }
 
       if (candidates.length === 0) {
         bug(tick, v.id, 'EMPTY_CANDIDATES', `computeAllScores retourné 0 actions`);
+        v.nextActionTick = tick + getActionInterval(v.level);
         continue;
       }
 
       const best = candidates.reduce((a, b) => a.score > b.score ? a : b);
 
-      // ── BUG WATCH : score NaN ou négatif ──────────────────────
       if (isNaN(best.score)) {
         bug(tick, v.id, 'NAN_SCORE', `best action type=${best.type} score=NaN`);
+        v.nextActionTick = tick + getActionInterval(v.level);
         continue;
-      }
-      if (best.score < 0) {
-        bug(tick, v.id, 'NEGATIVE_SCORE', `best action type=${best.type} score=${best.score}`);
       }
 
       applyAction(best, v, opponents, pending, tick);
+      // Planifier la prochaine décision (APM)
+      v.nextActionTick = tick + getActionInterval(v.level);
     }
 
-    // 5. Rapport de progression tous les 100 ticks
-    if (tick % 100 === 0) {
-      console.log(`── tick ${tick} ───────────────────────────────────────────────`);
-      for (const v of villages) {
+    // 6. Rapport de progression tous les 100 ticks (mode verbose seulement)
+    if (verbose && tick % 100 === 0) {
+      console.log(`── tick ${tick} ─────────────────────────────────────────────`);
+      for (const v of activeVillages) {
         const off = offPow(v.troops);
         const def = defPow_(v.troops);
-        console.log(`  ${v.name.padEnd(6)} [${v.phase.padEnd(5)}] off=${String(off).padStart(5)} def=${String(def).padStart(5)} axe=${v.troops['axeman']??0} noble=${v.troops['noble']??0} loy=${v.loyalty}`);
+        const tag = v.eliminated ? '[ÉLIMINÉ]' : `[${v.phase.padEnd(5)}]`;
+        console.log(`  ${v.name.padEnd(6)} ${tag} off=${String(off).padStart(5)} def=${String(def).padStart(5)} axe=${v.troops['axeman']??0} noble=${v.troops['noble']??0} loy=${v.loyalty} nextAct=${v.nextActionTick}`);
       }
-      console.log(`  pending attacks: ${pending.length}`);
-      console.log(`  bugs so far    : ${BUGS.length}`);
+      console.log(`  pending: ${pending.length}  bugs: ${BUGS.length}`);
       console.log('');
     }
   }
 
-  return villages;
+  // Si fin des ticks sans vainqueur, trouver le plus fort
+  if (!winner) {
+    const survivors = villages.filter(v => !v.eliminated);
+    if (survivors.length > 0) {
+      winner = survivors.reduce((a, b) =>
+        (a.stats.conquests * 1000 + offPow(a.troops)) >= (b.stats.conquests * 1000 + offPow(b.troops)) ? a : b
+      );
+    }
+  }
+
+  return { villages, winner };
 }
 
 // ── Rapport final ─────────────────────────────────────────────
 
-function report(villages: VillageState[]) {
+function report(villages: VillageState[], winner: VillageState | null) {
   console.log(`\n${'═'.repeat(64)}`);
-  console.log(`  RÉSULTAT FINAL — TRUEL`);
+  console.log(`  RÉSULTAT FINAL — TRUEL À 4 BOTS`);
+  if (winner) {
+    console.log(`  🏆 VAINQUEUR : ${winner.name} (nv${winner.level}, ${winner.style})`);
+  } else {
+    console.log(`  ⏱  Aucun vainqueur après ${TOTAL_TICKS} ticks`);
+  }
   console.log(`${'═'.repeat(64)}\n`);
 
   for (const v of villages) {
@@ -799,5 +888,36 @@ function report(villages: VillageState[]) {
 
 // ── Point d'entrée ────────────────────────────────────────────
 
-const villages = simulate();
-report(villages);
+const MULTI_RUNS = 40;
+const winCounts:  Record<string, number> = {};
+const rankSums:   Record<string, number> = {}; // somme des rangs d'élim (0 = gagnant)
+
+console.log(`\n📊 STATISTIQUES SUR ${MULTI_RUNS} PARTIES (silencieuses)…`);
+for (let i = 0; i < MULTI_RUNS; i++) {
+  LOG.length = 0; BUGS.length = 0;
+  const { villages: vs, winner } = simulate(10, 8, 6, 4, false);
+  const name = winner?.name ?? 'Aucun';
+  winCounts[name] = (winCounts[name] ?? 0) + 1;
+  // Ordre d'élimination : gagnant = rang 4 (dernier survivant)
+  for (const v of vs) {
+    const rank = v.eliminationRank > 0 ? v.eliminationRank : 4; // gagnant = dernier
+    rankSums[v.name] = (rankSums[v.name] ?? 0) + rank;
+  }
+}
+console.log(`${'─'.repeat(52)}`);
+console.log(`  ${'Bot'.padEnd(6)} ${'Victoires'.padStart(10)}  ${'Rang élim moy'.padStart(14)}`);
+console.log(`${'─'.repeat(52)}`);
+const allNames = ['Alpha', 'Beta', 'Gamma', 'Delta'];
+for (const name of allNames) {
+  const wins = winCounts[name] ?? 0;
+  const pct  = (wins / MULTI_RUNS * 100).toFixed(0);
+  const bar  = '█'.repeat(Math.round(wins / MULTI_RUNS * 20));
+  const avgRank = ((rankSums[name] ?? 0) / MULTI_RUNS).toFixed(2);
+  console.log(`  ${name.padEnd(6)} ${String(wins).padStart(2)}/${MULTI_RUNS} ${pct.padStart(4)}%  ${bar.padEnd(22)} rang~${avgRank}`);
+}
+console.log(`${'─'.repeat(52)}\n`);
+
+// Simulation détaillée finale
+LOG.length = 0; BUGS.length = 0;
+const { villages, winner } = simulate(10, 8, 6, 4);
+report(villages, winner);

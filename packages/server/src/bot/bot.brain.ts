@@ -81,6 +81,8 @@ export class BotBrain {
   private consecutiveErrors = 0;
   onCriticalError?: () => void; // callback injecté par BotService
 
+  private gameSpeed: number = 1.0; // Sera chargé au démarrage
+
   constructor(
     private readonly villageId:   string,
     private readonly level:       number,         // 1–10
@@ -291,6 +293,9 @@ export class BotBrain {
     // 21.1 — Peupler les villages alliés depuis BotService
     snap = { ...snap, alliedVillages: this.getAllies() };
 
+    // 28.2 — Injecter le style pour le boost mines dans scoreBuild
+    snap = { ...snap, botStyle: this.style };
+
     // 21.3 — Signaler au hub si noble prêt et cible de conquête définie
     if (this.phase === 'late' && snap.conquestTargetId && (snap.troopsHome['noble'] ?? 0) > 0) {
       this.coordHub.register(this.botPlayerId, this.villageId, snap.conquestTargetId);
@@ -371,11 +376,12 @@ export class BotBrain {
 
     this.logger.logTick(this.level, this.phase, rawSnap, best, top3);
 
-    // 7. Délai APM (humanisation)
+    // 7. Délai APM (humanisation) — appliqué au gameSpeed
     // BOT_TICK_MS=500 en test pour accélérer les observations
     const tickOverride = process.env.BOT_TICK_MS ? Number(process.env.BOT_TICK_MS) : null;
     const [min, max]   = this.profile.apmDelayRange;
-    const delay        = tickOverride ?? (min + Math.random() * (max - min));
+    const basDelay     = tickOverride ?? (min + Math.random() * (max - min));
+    const delay        = Math.max(100, basDelay / this.gameSpeed); // Min 100ms pour éviter les surcharges
     await sleep(delay);
 
     // Mettre à jour les métriques exposées à BotService (21.1)
@@ -412,6 +418,7 @@ export class BotBrain {
           this.villageId,
           action.targetId,
           units,
+          action.catapultTarget
         );
         // Enregistrer le cooldown pour cette cible (sauf cible de conquête)
         if (action.targetId !== this.conquestTarget) {
@@ -422,6 +429,10 @@ export class BotBrain {
           // Le résultat arrive plus tard ; on remet le compteur à 0 à l'envoi
           // (le service combat appellera un callback si l'attaque est perdue)
           this.conquestFailStreak = 0;
+        }
+        // Phase 29.3 — Log du sauvetage noble
+        if (action.debugLabel?.startsWith('noble_evacuation:')) {
+          this.logger.logEvent(`Sauvetage noble → ${action.targetId.slice(-6)} (attaque imminente)`);
         }
         break;
       }
@@ -506,7 +517,32 @@ export class BotBrain {
   // ── Boucle autonome ───────────────────────────────────────
   async start(): Promise<void> {
     this.isRunning = true;
-    this.logger.logEvent(`Démarrage niveau=${this.level} style=${this.style}`);
+
+    // Charger le gameSpeed depuis la village (Game ou GameWorld)
+    try {
+      const village = await this.prisma.village.findUniqueOrThrow({
+        where: { id: this.villageId },
+      }) as any;
+
+      if (village.gameId) {
+        // Phase 8+ : Partie solo avec gameSpeed propre
+        const game = await this.prisma.game.findUnique({
+          where: { id: village.gameId },
+        });
+        if (game?.gameSpeed) {
+          this.gameSpeed = game.gameSpeed;
+        }
+      } else {
+        // Monde classique : utiliser la vitesse globale
+        const world = await this.prisma.gameWorld.findFirst();
+        if (world?.gameSpeed) {
+          this.gameSpeed = world.gameSpeed;
+        }
+      }
+      this.logger.logEvent(`Démarrage niveau=${this.level} style=${this.style} gameSpeed=×${this.gameSpeed}`);
+    } catch (err) {
+      this.logger.logEvent(`Démarrage niveau=${this.level} style=${this.style} (gameSpeed non déterminé)`);
+    }
 
     while (this.isRunning) {
       // 15.2b — Pause anti-frustration : attendre que la pause expire

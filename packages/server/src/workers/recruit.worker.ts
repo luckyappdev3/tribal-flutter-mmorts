@@ -4,6 +4,7 @@ import { FastifyInstance } from 'fastify';
 import { RecruitJobData, RecruitQueue } from '../engine/queue/queues/recruit.queue';
 import { GameDataRegistry } from '../engine/game-data-registry';
 import { io } from '../infra/ws/socket.server';
+import { getVillageGameSpeed } from '../modules/game/game-speed.utils';
 
 // ── Formule partagée avec TroopsService ─────────────────────
 function calcRecruitTimeMs(baseTimeSec: number, buildingLevel: number, gameSpeed: number): number {
@@ -68,17 +69,13 @@ export function initRecruitWorker(
 
       // 4. Planifier la prochaine unité
       const getSpeedData = async () => {
-        const [building, village] = await Promise.all([
-          fastify.prisma.buildingInstance.findUnique({
-            where: { villageId_buildingId: { villageId, buildingId: buildingType } },
-          }),
-          fastify.prisma.village.findUnique({
-            where: { id: villageId }, include: { world: { select: { gameSpeed: true } } },
-          }),
-        ]);
+        const building = await fastify.prisma.buildingInstance.findUnique({
+          where: { villageId_buildingId: { villageId, buildingId: buildingType } },
+        });
+        const gameSpeed = await getVillageGameSpeed(fastify.prisma, villageId);
         return {
           buildingLevel: building?.level ?? 1,
-          gameSpeed:     (village as any)?.world?.gameSpeed ?? 1.0,
+          gameSpeed,
         };
       };
 

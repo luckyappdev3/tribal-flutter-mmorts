@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { GameDataRegistry } from '../../engine/game-data-registry';
 import { AttackQueue } from '../../engine/queue/queues/attack.queue';
 import { calculateTravelTime } from '@mmorts/shared';
+import { getVillageGameSpeed } from '../game/game-speed.utils';
 
 export class CombatService {
   constructor(
@@ -73,7 +74,7 @@ export class CombatService {
       where: { id: attackerVillageId },
       include: { world: { select: { gameSpeed: true } } },
     });
-    const gameSpeed = (villageWithWorld as any)?.world?.gameSpeed ?? 1.0;
+    const gameSpeed = await this._getGameSpeed(attackerVillageId);
 
     const travelSec = calculateTravelTime(
       attacker.x, attacker.y,
@@ -166,7 +167,7 @@ export class CombatService {
       where: { id: attackerVillageId },
       include: { world: { select: { gameSpeed: true } } },
     });
-    const gameSpeed = (villageWithWorld as any)?.world?.gameSpeed ?? 1.0;
+    const gameSpeed = await this._getGameSpeed(attackerVillageId);
 
     const travelSec = calculateTravelTime(
       attacker.x, attacker.y,
@@ -348,5 +349,9 @@ export class CombatService {
       attackerVillage:  m.attackerVillage,
       defenderVillage:  m.defenderVillage,
     }));
+  }
+
+  private async _getGameSpeed(villageId: string): Promise<number> {
+    return await getVillageGameSpeed(this.prisma, villageId);
   }
 }

@@ -125,10 +125,10 @@ async function main() {
   const createdVillages: string[] = [];
 
   try {
-    // Créer 2 villages de test (niveau 5 et niveau 8)
-    const v5id = await ensureTestVillage(prisma, gameData, 5);
+    // Créer 2 villages de test (niveau 10 et niveau 8)
+    const v10id = await ensureTestVillage(prisma, gameData, 10);
     const v8id = await ensureTestVillage(prisma, gameData, 8);
-    createdVillages.push(v5id, v8id);
+    createdVillages.push(v10id, v8id);
 
     const services = {
       construction: noopConstruction as any,
@@ -162,14 +162,16 @@ async function main() {
       return brain;
     };
 
-    const brain5 = makeSnappedBrain(v5id, 5);
+    const brain10 = makeSnappedBrain(v10id, 10);
     const brain8 = makeSnappedBrain(v8id, 8);
 
     console.log('\n[smoke] Démarrage des 2 bots (500 ticks max, BOT_TICK_MS=' + process.env.BOT_TICK_MS + ')...\n');
+    console.log(`[smoke] Log Maître (nv10) : ${brain10.logger.path}`);
+    console.log(`[smoke] Log Expert (nv8)  : ${brain8.logger.path}\n`);
 
     // Observer les phases
     const monitorInterval = setInterval(() => {
-      if (brain5.currentPhase === 'late') reachedLate.add(v5id);
+      if (brain10.currentPhase === 'late') reachedLate.add(v10id);
       if (brain8.currentPhase === 'late') reachedLate.add(v8id);
 
       const done = reachedLate.size === 2 && sentNoble.size >= 1;
@@ -177,7 +179,7 @@ async function main() {
         console.log('\n[smoke] ✅ Critères atteints :');
         console.log(`  Phase late : ${reachedLate.size}/2 bots`);
         console.log(`  Nobles envoyés : ${sentNoble.size} bot(s)`);
-        brain5.stop();
+        brain10.stop();
         brain8.stop();
         clearInterval(monitorInterval);
       }
@@ -185,7 +187,7 @@ async function main() {
 
     // Lancer les 2 bots en parallèle (ils s'arrêtent seuls ou après stop())
     await Promise.allSettled([
-      brain5.start(),
+      brain10.start(),
       brain8.start(),
     ]);
 

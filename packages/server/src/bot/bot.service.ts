@@ -116,7 +116,10 @@ export class BotService {
 
   async resumeAllBots(): Promise<void> {
     const botVillages = await this.prisma.village.findMany({
-      where: { isBot: true },
+      where: { 
+        isBot: true,
+        player: { isBot: true } // Assure-toi que le joueur lié est aussi marqué bot
+      },
       select: { id: true, botDifficulty: true, botPlayerId: true },
     });
 
@@ -144,10 +147,11 @@ export class BotService {
     playerId:     string,
     level:        number,
     count:        number = 1,
+    gameId?:      string,   // Phase 8 : scope les villages bot à la partie
   ): Promise<void> {
     // Récupérer le village du joueur pour le centrer
     const playerVillage = await this.prisma.village.findFirst({
-      where:  { playerId, isBot: false },
+      where:  { playerId, isBot: false, ...(gameId ? { gameId } : {}) },
       select: { x: true, y: true, worldId: true },
     });
     if (!playerVillage) {
@@ -177,7 +181,7 @@ export class BotService {
       if (taken.has(`${x},${y}`)) continue;
       taken.add(`${x},${y}`);
 
-      await this._spawnOneBot(x, y, playerId, level, playerVillage.worldId ?? undefined);
+      await this._spawnOneBot(x, y, playerId, level, playerVillage.worldId ?? undefined, gameId);
       spawned++;
     }
 
@@ -300,6 +304,7 @@ export class BotService {
     botPlayerId: string,
     level:    number,
     worldId?: string,
+    gameId?:  string,
   ): Promise<void> {
     const uid = randomUUID().slice(0, 8);
 
@@ -324,6 +329,7 @@ export class BotService {
         botDifficulty: level,
         botPlayerId,
         ...(worldId ? { worldId } : {}),
+        ...(gameId  ? { gameId }  : {}),
         buildings: { create: STARTER_BUILDINGS },
       },
       select: { id: true },

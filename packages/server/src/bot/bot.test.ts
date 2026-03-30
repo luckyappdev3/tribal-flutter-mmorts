@@ -92,19 +92,19 @@ const BASE_SNAP: GameSnapshot = {
       id: 'axeman', name: 'Guerrier', buildingType: 'barracks', type: 'offensive',
       attack: 40, defenseGeneral: 10, defenseCavalry: 5, defenseArcher: 10,
       speedSecondsPerTile: 0.54, cost: { wood: 60, stone: 30, iron: 40 },
-      recruitTimeSeconds: 0.6, carryCapacity: 10, isUnlocked: true,
+      populationCost: 1, recruitTimeSeconds: 0.6, carryCapacity: 10, isUnlocked: true,
     },
     {
       id: 'spearman', name: 'Lancier', buildingType: 'barracks', type: 'defensive',
       attack: 10, defenseGeneral: 15, defenseCavalry: 45, defenseArcher: 20,
       speedSecondsPerTile: 0.54, cost: { wood: 50, stone: 30, iron: 10 },
-      recruitTimeSeconds: 0.44, carryCapacity: 25, isUnlocked: true,
+      populationCost: 1, recruitTimeSeconds: 0.44, carryCapacity: 25, isUnlocked: true,
     },
     {
       id: 'noble', name: 'Noble', buildingType: 'academy', type: 'conquest',
       attack: 0, defenseGeneral: 100, defenseCavalry: 50, defenseArcher: 100,
       speedSecondsPerTile: 1.05, cost: { wood: 40000, stone: 50000, iron: 50000 },
-      recruitTimeSeconds: 17.85, carryCapacity: 0, isUnlocked: true,
+      populationCost: 100, recruitTimeSeconds: 17.85, carryCapacity: 0, isUnlocked: true,
     },
   ],
   allTargets: [
@@ -838,7 +838,7 @@ const LIGHT_CAV_UNIT = {
   id: 'light_cavalry', name: 'Cavalerie légère', buildingType: 'stable',
   type: 'offensive' as const, attack: 130, defenseGeneral: 30, defenseCavalry: 40,
   defenseArcher: 50, speedSecondsPerTile: 0.18, cost: { wood: 125, stone: 100, iron: 250 },
-  recruitTimeSeconds: 1.35, carryCapacity: 80, isUnlocked: true,
+  populationCost: 4, recruitTimeSeconds: 1.35, carryCapacity: 80, isUnlocked: true,
 };
 
 test('19.1 — cavalerie légère boostée en late si ratio < 30%', () => {
@@ -912,6 +912,123 @@ test('19.3 — noble non recruté si 2 nobles au total (home + transit)', () => 
   const scores = computeAllScores(snap, 'late');
   const noble  = scores.find(a => a.type === 'recruit' && a.targetId === 'noble');
   expect(noble).toBeUndefined();
+});
+
+// ─────────────────────────────────────────────────────────────
+// SUITE 7 — Phase 29 : Réponse défensive
+// ─────────────────────────────────────────────────────────────
+
+console.log('\n📋 Phase 29 — Réponse défensive');
+
+test('29.1 — rappel avec TRAVEL_TICKS : attaque dans 2s → rappel', () => {
+  const snap = {
+    ...BASE_SNAP,
+    incomingAttacks: [{ id: 'atk-1', attackerPower: 500, arrivalTimeSeconds: 2, isConfirmed: true }],
+    outgoingTraveling: [{ id: 'out-1', units: { axeman: 20 }, returnEstimatedSeconds: 5 }],
+  };
+  const scores = computeAllScores(snap, 'mid');
+  const recall = scores.find(a => a.type === 'recall');
+  expect(recall).toBeDefined();
+  expect((recall?.score ?? 0)).toBeGreaterThan(0);
+});
+
+test('29.1 — rappel avec TRAVEL_TICKS : attaque dans 5s → pas de rappel (trop loin)', () => {
+  const snap = {
+    ...BASE_SNAP,
+    incomingAttacks: [{ id: 'atk-1', attackerPower: 500, arrivalTimeSeconds: 5, isConfirmed: true }],
+    outgoingTraveling: [{ id: 'out-1', units: { axeman: 20 }, returnEstimatedSeconds: 10 }],
+  };
+  const scores = computeAllScores(snap, 'mid');
+  const recall = scores.find(a => a.type === 'recall');
+  expect(recall).toBeUndefined();
+});
+
+test('29.1 — rappel avec bonus noble : armée contient un noble', () => {
+  const snap = {
+    ...BASE_SNAP,
+    incomingAttacks: [{ id: 'atk-1', attackerPower: 500, arrivalTimeSeconds: 2, isConfirmed: true }],
+    outgoingTraveling: [{ id: 'out-1', units: { noble: 1, axeman: 10 }, returnEstimatedSeconds: 3 }],
+  };
+  const scores = computeAllScores(snap, 'mid');
+  const recall = scores.find(a => a.type === 'recall');
+  expect(recall).toBeDefined();
+  expect((recall?.score ?? 0)).toBeGreaterThan(0.5); // Bonus noble
+});
+
+test('29.2 — mur boost ×2.0 sous attaque', () => {
+  const snap = {
+    ...BASE_SNAP,
+    incomingAttacks: [{ id: 'atk-1', attackerPower: 500, arrivalTimeSeconds: 10, isConfirmed: true }],
+  };
+  const scores = computeAllScores(snap, 'mid');
+  const wall = scores.find(a => a.type === 'build' && a.targetId === 'wall');
+  expect(wall).toBeDefined();
+  // Le mur doit avoir un score boosté (×2.0)
+  const wallScore = wall?.score ?? 0;
+  expect(wallScore).toBeGreaterThan(0);
+});
+
+test('29.2 — mur sans boost si pas d\'attaque', () => {
+  const snap = {
+    ...BASE_SNAP,
+    incomingAttacks: [],
+  };
+  const scores = computeAllScores(snap, 'mid');
+  const wall = scores.find(a => a.type === 'build' && a.targetId === 'wall');
+  expect(wall).toBeDefined();
+  // Le mur doit avoir un score normal (pas de boost)
+});
+
+test('29.3 — sauvetage noble : noble à la maison + attaque imminente', () => {
+  const snap = {
+    ...BASE_SNAP,
+    troopsHome: { ...BASE_SNAP.troopsHome, noble: 1 },
+    incomingAttacks: [{ id: 'atk-1', attackerPower: 500, arrivalTimeSeconds: 2, isConfirmed: true }],
+  };
+  const scores = computeAllScores(snap, 'mid');
+  const evacuation = scores.find(a => a.debugLabel?.startsWith('noble_evacuation:'));
+  expect(evacuation).toBeDefined();
+  expect(evacuation?.score).toBe(9.0);
+  expect(evacuation?.units).toBeDefined();
+  expect(evacuation?.units?.['noble']).toBe(1);
+});
+
+test('29.3 — sauvetage noble : pas de noble → pas d\'action', () => {
+  const snap = {
+    ...BASE_SNAP,
+    troopsHome: { ...BASE_SNAP.troopsHome, noble: 0 },
+    incomingAttacks: [{ id: 'atk-1', attackerPower: 500, arrivalTimeSeconds: 2, isConfirmed: true }],
+  };
+  const scores = computeAllScores(snap, 'mid');
+  const evacuation = scores.find(a => a.debugLabel?.startsWith('noble_evacuation:'));
+  expect(evacuation).toBeUndefined();
+});
+
+test('29.3 — sauvetage noble : attaque pas imminente (5s) → pas d\'action', () => {
+  const snap = {
+    ...BASE_SNAP,
+    troopsHome: { ...BASE_SNAP.troopsHome, noble: 1 },
+    incomingAttacks: [{ id: 'atk-1', attackerPower: 500, arrivalTimeSeconds: 5, isConfirmed: true }],
+  };
+  const scores = computeAllScores(snap, 'mid');
+  const evacuation = scores.find(a => a.debugLabel?.startsWith('noble_evacuation:'));
+  expect(evacuation).toBeUndefined();
+});
+
+test('29.3 — sauvetage noble : cible barbare la plus proche', () => {
+  const snap = {
+    ...BASE_SNAP,
+    troopsHome: { ...BASE_SNAP.troopsHome, noble: 1 },
+    incomingAttacks: [{ id: 'atk-1', attackerPower: 500, arrivalTimeSeconds: 2, isConfirmed: true }],
+    allTargets: [
+      { id: 'barb-far', type: 'barbarian' as const, distanceTiles: 10, travelTimeSeconds: 20, estimatedResources: 1000, defensivePower: 50, points: 0, lastScouted: null },
+      { id: 'barb-near', type: 'barbarian' as const, distanceTiles: 2, travelTimeSeconds: 4, estimatedResources: 500, defensivePower: 30, points: 0, lastScouted: null },
+    ],
+  };
+  const scores = computeAllScores(snap, 'mid');
+  const evacuation = scores.find(a => a.debugLabel?.startsWith('noble_evacuation:'));
+  expect(evacuation).toBeDefined();
+  expect(evacuation?.targetId).toBe('barb-near'); // Cible la plus proche
 });
 
 // ─────────────────────────────────────────────────────────────

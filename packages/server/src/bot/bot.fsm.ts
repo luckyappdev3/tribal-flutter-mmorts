@@ -51,6 +51,13 @@ export function evaluatePhase(current: Phase, snap: GameSnapshot): Phase {
     if (normal || opportunist) return 'late';
   }
 
+  // 28.8 — Réversion de phase : si en late mais totalement ruiné, repasser en mid
+  // Évite de rester bloqué en "staging" sans pouvoir reconstruire.
+  const isRuin = snap.offensivePower < 100 && (snap.wood + snap.stone + snap.iron) < 1000;
+  if (current === 'late' && isRuin && snap.loyaltyPoints > 50) {
+    return 'mid';
+  }
+
   // ── Loyauté critique → forcer late (défense prioritaire) ─
   if (snap.loyaltyPoints < 30 && current !== 'late') {
     return 'late';

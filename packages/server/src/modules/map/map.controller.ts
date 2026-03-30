@@ -10,23 +10,28 @@ export async function mapRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // GET /api/map?x=20&y=20&radius=20
+  // GET /api/map — Carte complète 0,0 à 40,40
   fastify.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
-    const { x = 20, y = 20, radius = 20 } = request.query as {
-      x?: number; y?: number; radius?: number;
-    };
-
-    const cx     = Number(x);
-    const cy     = Number(y);
-    const r      = Number(radius);
     const player = request.user as { id: string };
 
     try {
-      // Tous les villages dans la zone
+      // Déterminer si le joueur est dans une Game active
+      const activeGame = await fastify.prisma.game.findFirst({
+        where: {
+          playerId: player.id,
+          status: { in: ['running', 'finished'] },
+        },
+        select: { id: true },
+      });
+
+      // Tous les villages de la carte (0,0 à 40,40)
       const villages = await fastify.prisma.village.findMany({
         where: {
-          x: { gte: cx - r, lte: cx + r },
-          y: { gte: cy - r, lte: cy + r },
+          x: { gte: 0, lte: 40 },
+          y: { gte: 0, lte: 40 },
+          // Phase 8 : si le joueur est dans une Game, afficher seulement les villages de cette Game
+          // Sinon : afficher les villages du GameWorld classique (gameId=null)
+          ...(activeGame ? { gameId: activeGame.id } : { gameId: null }),
         },
         select: {
           id:             true,

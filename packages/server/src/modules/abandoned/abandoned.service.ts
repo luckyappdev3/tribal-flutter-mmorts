@@ -57,8 +57,8 @@ export class AbandonedVillageService {
       attempts++;
 
       // Placer les villages abandonnés loin de la zone joueur (200-999)
-      const x = MAP_MIN + Math.floor(Math.random() * (MAP_MAX - MAP_MIN));
-      const y = MAP_MIN + Math.floor(Math.random() * (MAP_MAX - MAP_MIN));
+      const x = MAP_MIN + Math.floor(Math.random() * (MAP_MAX - MAP_MIN + 1));
+      const y = MAP_MIN + Math.floor(Math.random() * (MAP_MAX - MAP_MIN + 1));
       const key = `${x},${y}`;
 
       if (occupiedSet.has(key)) continue;
@@ -91,6 +91,70 @@ export class AbandonedVillageService {
     }
 
     console.log(`✅ ${created} villages abandonnés créés`);
+  }
+
+  // Crée 200 villages abandonnés pour une Game spécifique (Phase 8)
+  async seedAbandonedForGame(gameId: string) {
+    const toCreate = ABANDONED_COUNT;
+    console.log(`🏚️  Création de ${toCreate} villages abandonnés pour la game ${gameId.slice(-6)}...`);
+
+    try {
+      // Récupérer toutes les cases occupées dans cette game
+      const occupied = await this.prisma.village.findMany({
+        where: { gameId },
+        select: { x: true, y: true },
+      });
+      const occupiedSet = new Set(occupied.map(v => `${v.x},${v.y}`));
+      console.log(`[Abandoned] Positions occupées: ${occupiedSet.size}, commençant création de ${toCreate} villages...`);
+
+      let created = 0;
+      let attempts = 0;
+      const maxAttempts = toCreate * 20;
+
+      while (created < toCreate && attempts < maxAttempts) {
+        attempts++;
+
+        const x = MAP_MIN + Math.floor(Math.random() * (MAP_MAX - MAP_MIN + 1));
+        const y = MAP_MIN + Math.floor(Math.random() * (MAP_MAX - MAP_MIN + 1));
+        const key = `${x},${y}`;
+
+        if (occupiedSet.has(key)) continue;
+        occupiedSet.add(key);
+
+        const level     = Math.ceil(Math.random() * 10);
+        const resources = initialResources(level);
+        const buildings = buildingsForLevel(level);
+
+        try {
+          await this.prisma.village.create({
+            data: {
+              name:          `Ruines (${x},${y})`,
+              x,
+              y,
+              gameId,  // ← Scoped à la game
+              isAbandoned:   true,
+              abandonedLevel: level,
+              wood:          resources.wood,
+              stone:         resources.stone,
+              iron:          resources.iron,
+              buildings: {
+                create: buildings,
+              },
+            },
+          });
+          created++;
+          if (created % 50 === 0) {
+            console.log(`[Abandoned] ${created}/${toCreate} villages créés pour game ${gameId.slice(-6)}...`);
+          }
+        } catch (err) {
+          // Conflit de coordonnées → retry
+        }
+      }
+
+      console.log(`✅ ${created}/${toCreate} villages abandonnés créés (${attempts} tentatives) pour game ${gameId.slice(-6)}`);
+    } catch (err) {
+      console.error(`❌ Erreur dans seedAbandonedForGame: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   // Remet les ressources d'un village abandonné après pillage

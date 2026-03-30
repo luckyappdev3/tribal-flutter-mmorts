@@ -63,9 +63,20 @@ class VillageInfoSheet extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      _isAbandoned ? 'Village Abandonné' : village.name,
-                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _isAbandoned ? 'Village Abandonné' : village.name,
+                            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        if (village.isBot)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 8.0),
+                            child: Text('🤖', style: TextStyle(fontSize: 16)),
+                          ),
+                      ],
                     ),
                     Text(
                       '(${village.x}, ${village.y})',

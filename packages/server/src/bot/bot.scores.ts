@@ -31,6 +31,11 @@ const MINE_RESOURCE: Record<string, 'wood' | 'stone' | 'iron'> = {
 // Seuil minimum de troupes offensives à la maison avant d'attaquer
 const MIN_OFFENSIVE_TROOPS_TO_ATTACK = 10;
 
+// Phase 29.1 — Seuil de rappel urgent (en secondes)
+// Si une attaque entrante arrive dans ≤ TRAVEL_TICKS secondes,
+// on rappelle immédiatement les troupes (même si elles ne reviendraient pas à temps)
+const TRAVEL_TICKS = 3; // 3 secondes = ~3 ticks à 1 tick/sec
+
 // ── Utilitaires ──────────────────────────────────────────────
 
 /** Normalise une valeur brute entre 0 et 1 */
@@ -85,20 +90,32 @@ function scoreBuild(b: BotBuilding, snap: GameSnapshot, phase: Phase, W: PhaseWe
     if (belowFloor && !isEmergencyBuild) return -Infinity;
   }
 
-  // Rally point : priorité absolue en early si pas encore construit
-  if (b.id === 'rally_point' && !snap.rallyPointBuilt) {
-    return 10.0;
+  // 29.1 — Rally point : priorité n°1 absolue tant qu'il n'est pas construit (outil d'attaque)
+  if (b.id === 'rally_point' && !snap.rallyPointBuilt && b.currentLevel === 0) {
+    return 20.0; 
   }
 
-  // Urgence ferme : si pop saturée, construire la ferme avant tout le reste
+  // Urgence ferme : si pop saturée ou presque (< 15), construire la ferme avant tout le reste
   // → placé avant buildQueueCount pour qu'elle soit scorée même si file presque pleine
-  if (b.id === 'farm' && snap.populationAvailable <= 0) {
+  if (b.id === 'farm' && snap.populationAvailable < 15) {
     if (snap.buildQueueCount >= 2) return -Infinity; // file pleine, impossible
-    return 9.0;
+    return 15.0; // priorité absolue
+  }
+
+  // 28.1 — Urgence ferme : ressources qui débordent → agrandir le stockage en priorité absolue
+  // (la ferme augmente maxStorage — évite de gaspiller la production des mines)
+  if (b.id === 'farm' || b.id === 'warehouse') {
+    const woodRatio80  = snap.wood  / Math.max(snap.maxStorage, 1);
+    const stoneRatio80 = snap.stone / Math.max(snap.maxStorage, 1);
+    const ironRatio80  = snap.iron  / Math.max(snap.maxStorage, 1);
+    if (woodRatio80 > 0.80 || stoneRatio80 > 0.80 || ironRatio80 > 0.80) {
+      if (snap.buildQueueCount >= 2) return -Infinity;
+      return 14.0; // priorité très élevée — dépenser avant de gaspiller
+    }
   }
 
   // Bloquer les autres builds si pop critique (garder un slot pour la ferme)
-  if (snap.populationAvailable <= 0 && snap.buildQueueCount >= 1) {
+  if (snap.populationAvailable < 15 && b.id !== 'farm' && snap.buildQueueCount >= 1) {
     return -Infinity;
   }
 
@@ -115,11 +132,20 @@ function scoreBuild(b: BotBuilding, snap: GameSnapshot, phase: Phase, W: PhaseWe
     if (snap.buildQueueCount >= 2) return -Infinity;
     // Seuil relatif au coût réel du bâtiment (fonctionne en jeu réel ET en simulation)
     const academyCost = b.cost.wood + b.cost.stone + b.cost.iron;
-    // 24.1 — Seuil abaissé à 400 (10 axemen) : le noble train n'exige pas une armée massive
-    if (snap.offensivePower < 400) return -Infinity;
+    // 28.3 — Seuil académie dynamique (5% du stockage max)
+    const academyPowerThreshold = Math.max(600, snap.maxStorage * 0.05);
+    if (snap.offensivePower < academyPowerThreshold) return -Infinity;
     if (!canAfford(b.cost, snap)) return -Infinity;
     if (snap.wood + snap.stone + snap.iron < academyCost * 1.2) return -Infinity;
-    return 9.0; // priorité absolue quand les conditions sont remplies
+    return 18.0; // Priorité quasi-totale (passe devant tout sauf la ferme en urgence)
+  }
+
+  // 29.3 — Réservation de file pour l'Académie : 
+  // Si on a les ressources pour l'Académie mais qu'on ne l'a pas encore construite,
+  // on arrête de monter les mines pour libérer un slot de construction.
+  const hasAcademy = snap.availableUnits.some(u => u.type === 'conquest');
+  if (phase === 'late' && !hasAcademy && (b.id.includes('mine') || b.id === 'timber_camp' || b.id === 'quarry')) {
+    if (snap.wood + snap.stone + snap.iron > 10000) return -Infinity;
   }
 
   // Écurie : score fixe en mid/late si pas encore construite — débloque les scouts (15.x)
@@ -156,10 +182,28 @@ function scoreBuild(b: BotBuilding, snap: GameSnapshot, phase: Phase, W: PhaseWe
   - queuePenalty
   );
 
+  // Phase 29.2 — Boost mur sous attaque : ×2.0 si attaques entrantes détectées
+  // S'applique AVANT les autres conditions (mode siège, loyauté)
+  if (b.id === 'wall' && snap.incomingAttacks.length > 0) {
+    score *= 2.0;
+  }
+
   // 12.3 — Mode siège : construire le mur en priorité absolue si 3+ attaques entrantes
   if (b.id === 'wall' && snap.incomingAttacks.length >= 3) {
     if (snap.buildQueueCount >= 2) return -Infinity;
     return 8.5;
+  }
+
+  // Urgence Mur : si loyauté < 100, le village est sous pression, monter le mur
+  if (b.id === 'wall' && snap.loyaltyPoints < 100 && b.currentLevel < 15) {
+    const urgency = normalize(100 - snap.loyaltyPoints, 0, 100);
+    score += 2.0 + urgency * 5.0; // Boost significatif
+  }
+
+  // 29.5 — Priorité Infrastructure pour haut niveau :
+  // Les bots nv 8+ doivent monter la caserne/écurie au max pour produire plus vite.
+  if ((b.id === 'barracks' || b.id === 'stable') && b.currentLevel < 5 && snap.timeElapsedMinutes > 30) {
+    score += 3.0;
   }
 
   // Boost casernes en mid : monter lv1→2→3 accélère le recrutement d'axemen (-6%/niveau)
@@ -182,6 +226,16 @@ function scoreBuild(b: BotBuilding, snap: GameSnapshot, phase: Phase, W: PhaseWe
   if (mineRes) {
     const resLevel = snap[mineRes] / Math.max(snap.maxStorage, 1);
     if (resLevel > 0.90) score *= 0.3; // entrepôt quasi-plein pour cette ressource
+  }
+
+  // ── 28.2 — Boost mines selon le style comportemental ──────
+  // rusher   : priorité à iron_mine (forger les armes)
+  // builder  : mines équilibrées (tous à ×1.2)
+  // defender : priorité wood + stone (fortifications)
+  if (mineRes && snap.botStyle) {
+    if (snap.botStyle === 'rusher'   && b.id === 'iron_mine')  score *= 1.5;
+    if (snap.botStyle === 'builder')                            score *= 1.2;
+    if (snap.botStyle === 'defender' && (b.id === 'timber_camp' || b.id === 'quarry')) score *= 1.4;
   }
 
   // ── 13.2 — Overflow entrepôt ──────────────────────────────
@@ -219,6 +273,23 @@ function scoreRecruit(u: BotUnit, snap: GameSnapshot, phase: Phase, W: PhaseWeig
   if (!u.isUnlocked)                               return 0;
   if (!canAfford(u.cost, snap))                    return 0;
   if (snap.recruitQueues[u.buildingType] === true) return 0;
+
+  // 29.2 — Mode Épargne Académie : 
+  // Si on a l'armée pour l'académie mais qu'on manque de bois/pierre, on arrête de recruter
+  const academy = snap.availableBuildings.find(b => b.id === 'academy');
+  const woodRatio = snap.wood / (academy?.cost.wood ?? 1);
+  if (academy && snap.offensivePower >= 600 && woodRatio < 1.2 && u.type === 'offensive') {
+    return 0; 
+  }
+
+  // 29.6 — Mode Épargne Noble : 
+  // Si l'académie est construite mais qu'on n'a pas de noble, on bloque le recrutement off
+  // pour laisser les ressources s'accumuler (besoin de 4000w/5000s/5000i)
+  const hasAcademyBuilt = snap.availableUnits.some(au => au.type === 'conquest');
+  const noblesTotal = (snap.troopsHome['noble'] ?? 0) + (snap.troopsInTransit['noble'] ?? 0);
+  if (hasAcademyBuilt && noblesTotal < 1 && u.type === 'offensive') {
+    if (snap.wood < 4000 || snap.iron < 5000) return 0;
+  }
 
   // Interdit en early : pas de recrutement offensif
   if (phase === 'early' && (u.type === 'offensive' || u.type === 'siege')) return 0;
@@ -325,15 +396,33 @@ function scoreAttack(t: BotTarget, snap: GameSnapshot, phase: Phase, W: PhaseWei
   const travelMinutes = t.travelTimeSeconds / 60;
   if (travelMinutes > 30 && snap.incomingAttacks.length > 0) return -1;
 
+  // 28.5 — Trêve de Staging : en late, si pas d'académie, on n'attaque pas les joueurs
+  // On garde nos troupes pour atteindre le seuil de puissance de l'académie.
+  // Exception : si nos ressources sont pleines (> 90%), on attaque quand même pour vider
+  const hasAcademy = snap.availableUnits.some(u => u.type === 'conquest');
+  const resourcesFull = (snap.wood / snap.maxStorage > 0.9);
+  if (phase === 'late' && !hasAcademy && t.type === 'player' && !resourcesFull) return -1;
+
+  let economicBoost = 0;
+  // 28.9 — Déblocage économique : si en late mais très pauvre, piller les barbares est prioritaire
+  if (phase === 'late' && t.type === 'barbarian' && (snap.wood + snap.stone + snap.iron) < 2000) {
+    economicBoost = 5.0;
+  }
+
   // 15.2a — Anti-frustration : pas d'attaque joueur avant 5 min pour bot niveau ≤ 3
   if (snap.noEarlyPlayerAttack && t.type === 'player') return -1;
 
   // Guard : suicide — puissance offensive insuffisante
   // 15.1 — attackRecklessness : bas niveau attaque avec un ratio moindre (plus téméraire)
-  if (snap.offensivePower < t.defensivePower * 0.6 * snap.attackRecklessness) return -1;
+  const safetyMargin = t.type === 'player' ? 1.5 : 0.6;
+  if (snap.offensivePower < t.defensivePower * safetyMargin * snap.attackRecklessness) return -1;
 
   // Guard : armée insuffisante pour attaquer (évite les raids à 1 axeman)
-  if (offensiveTroopsHome(snap) < MIN_OFFENSIVE_TROOPS_TO_ATTACK) return -1;
+  // Les bots téméraires (bas niveau, recklessness faible) attaquent avec moins de troupes.
+  // nv10 (recklessness=1.0) → 40 troupes min | nv6 (0.69) → 28 | nv4 (0.53) → 21
+  const minTroopsPlayer = Math.max(8, Math.round(40 * snap.attackRecklessness));
+  const minTroops = t.type === 'player' ? minTroopsPlayer : MIN_OFFENSIVE_TROOPS_TO_ATTACK;
+  if (offensiveTroopsHome(snap) < minTroops) return -1;
 
   // 18.2 — Préparation avant noble : le score boost (×1.3) est appliqué dans computeAllScores.
   // On ne bloque PAS ici : le guard standard à 0.6× suffit pour éviter les suicides.
@@ -379,7 +468,7 @@ function scoreAttack(t: BotTarget, snap: GameSnapshot, phase: Phase, W: PhaseWei
     * scoutBonus
     * unknownPenalty
     * recentRaidMalus
-    - W.W_loss * lossPenalty
+    + economicBoost - W.W_loss * lossPenalty
     - distanceMalus
   );
 }
@@ -413,15 +502,33 @@ function scoreRecall(atk: BotOutgoingAttack, snap: GameSnapshot): number {
   // Trouver l'attaque entrante la plus proche
   const earliestIncomingSec = Math.min(...snap.incomingAttacks.map(a => a.arrivalTimeSeconds));
 
+  // Phase 29.1 — Rappel urgent si attaque imminente (≤ TRAVEL_TICKS secondes)
+  // Même si les troupes ne reviendraient pas à temps, on rappelle pour les sauver
+  const isImminent = earliestIncomingSec <= TRAVEL_TICKS;
+
   // Rappel utile seulement si les troupes reviendraient AVANT l'impact
-  if (atk.returnEstimatedSeconds >= earliestIncomingSec) return 0;
+  // OU si l'attaque est imminente (≤ TRAVEL_TICKS)
+  if (!isImminent && atk.returnEstimatedSeconds >= earliestIncomingSec) return 0;
 
   // Plus les vagues sont nombreuses, plus c'est urgent (base 0.3 + bonus)
   const urgency    = Math.min(1, snap.incomingAttacks.length / 3);
   // Plus les troupes arrivent tôt avant l'impact, plus le cushion est confortable
   const timeCushion = 1 - normalize(atk.returnEstimatedSeconds, 0, earliestIncomingSec);
 
-  return 0.3 + urgency * 0.3 + timeCushion * 0.2;
+  let score = 0.3 + urgency * 0.3 + timeCushion * 0.2;
+
+  // Phase 29.1 — Bonus si l'armée contient des nobles (sauvetage prioritaire)
+  const hasNoble = Object.keys(atk.units).some(u => u === 'noble');
+  if (hasNoble) {
+    score += 0.5; // Bonus significatif pour sauver les nobles
+  }
+
+  // Bonus supplémentaire si attaque imminente (urgence maximale)
+  if (isImminent) {
+    score += 0.3;
+  }
+
+  return score;
 }
 
 // ── Score : transférer des troupes vers un village allié (21.2) ─
@@ -450,17 +557,45 @@ function scoreNobleTrain(t: BotTarget, snap: GameSnapshot): number {
   const noblesHome = snap.troopsHome['noble'] ?? 0;
   if (noblesHome < 1) return 0;
 
-  // Besoin d'un minimum de troupes offensives pour le cleaner (sinon le noble arrive seul)
-  if (snap.offensivePower < 200) return 0;
+  // 28.4 — Escorte Noble dynamique : le seuil dépend de la capacité d'attaque du bot
+  // et de la défense connue de la cible pour éviter les suicides.
+  const minimumEscort = Math.max(1200, t.defensivePower * 1.5);
+  if (snap.offensivePower < minimumEscort) return 0;
 
   // 26.1 — Cleaner efficace : le cleaner (80 % des offensifs) doit être ≥ 2× la défense connue.
   // Évite d'envoyer des nobles derrière un cleaner trop faible qui se ferait anéantir.
   const estimatedCleanerPow = snap.offensivePower * 0.8;
-  if (estimatedCleanerPow < t.defensivePower * 2) return 0;
+  if (estimatedCleanerPow < t.defensivePower * 2.0) return 0;
 
   // Score croît avec le nombre de nobles disponibles (1→8.0, 3+→10.0)
   const nobleFactor = Math.min(noblesHome / 3, 1.0);
   return 8.0 + nobleFactor * 2.0;
+}
+
+// ── Score : sauver un noble par une fausse attaque (29.3) ─────
+// Si un noble est à la maison et qu'une attaque arrive dans ≤ TRAVEL_TICKS,
+// on l'envoie vers une cible barbare proche pour le sauver.
+
+function scoreNobleEvacuation(snap: GameSnapshot): { score: number; targetId: string } | null {
+  // Guard : pas de noble à la maison
+  const noblesHome = snap.troopsHome['noble'] ?? 0;
+  if (noblesHome < 1) return null;
+
+  // Guard : pas d'attaque imminente (≤ TRAVEL_TICKS)
+  if (snap.incomingAttacks.length === 0) return null;
+  const earliestIncomingSec = Math.min(...snap.incomingAttacks.map(a => a.arrivalTimeSeconds));
+  if (earliestIncomingSec > TRAVEL_TICKS) return null;
+
+  // Trouver la cible barbare la plus proche (distance minimale)
+  const barbarianTargets = snap.allTargets.filter(t => t.type === 'barbarian');
+  if (barbarianTargets.length === 0) return null;
+
+  const nearestBarbarian = barbarianTargets.reduce((nearest, current) =>
+    current.distanceTiles < nearest.distanceTiles ? current : nearest,
+  );
+
+  // Score élevé pour prioriser le sauvetage
+  return { score: 9.0, targetId: nearestBarbarian.id };
 }
 
 // ── Calcul de l'ensemble des actions candidates ───────────────
@@ -473,10 +608,19 @@ export function computeAllScores(
   const actions: ScoredAction[] = [];
   const W = weights[phase];
 
+  let popNeededForDesiredUnits = false;
+
   // ── Construire ────────────────────────────────────────────
   for (const b of snap.availableBuildings) {
     const score = scoreBuild(b, snap, phase, W);
     if (score === -Infinity) continue;
+
+    // 28.7 — Blocage population bâtiment : si bloqué, on signale le besoin de ferme
+    if (b.id !== 'farm' && b.populationCost && snap.populationAvailable < b.populationCost) {
+      popNeededForDesiredUnits = true;
+      continue;
+    }
+
     actions.push({
       type:       'build',
       targetId:   b.id,
@@ -505,11 +649,22 @@ export function computeAllScores(
     if (score <= 0) continue;
 
     // Phase 16.1 — Recrutement de masse en mid/late pour les offensifs
-    // Batch max : 10 (au lieu de 5) pour accélérer l'accumulation de l'armée
+    // 29.1 — Batch dynamique : les bots experts recrutent par lots de 20 pour vider les mines
+    const levelBonus = snap.timeElapsedMinutes > 60 ? Math.floor(snap.minesLevel / 2) : 0;
     const maxBatch = (u.type === 'conquest' || u.id === 'paladin') ? 1
       : u.id === 'scout' ? 3
-      : (u.type === 'offensive' && phase !== 'early') ? 10
+      : (u.type === 'offensive' && phase !== 'early') ? (10 + levelBonus)
       : 5;
+
+    // 28.5 — Réserve Noble : en late, garder 100 de pop libre pour le noble
+    const isLateNobleNeeded = phase === 'late' && (snap.troopsHome['noble'] ?? 0) === 0;
+    const popReserve = (isLateNobleNeeded && u.id !== 'noble') ? 100 : 0;
+
+    // 28.6 — Anticipation Ferme : si on veut recruter mais qu'on a moins de 2 batchs de place
+    // On ignore la réserve ici pour anticiper l'agrandissement même si on économise
+    if (snap.populationAvailable < u.populationCost * maxBatch * 2) {
+      popNeededForDesiredUnits = true;
+    }
 
     // Chercher le plus grand batch abordable compte tenu de la réserve endgame
     let count = 0;
@@ -517,7 +672,11 @@ export function computeAllScores(
       const bw = u.cost.wood  * n;
       const bs = u.cost.stone * n;
       const bi = u.cost.iron  * n;
-      if (availW >= bw && availS >= bs && availI >= bi) {
+      const bp = u.populationCost * n;
+      if (
+        availW >= bw && availS >= bs && availI >= bi &&
+        (snap.populationAvailable - popReserve) >= bp
+      ) {
         count = n;
         break;
       }
@@ -537,6 +696,15 @@ export function computeAllScores(
     });
   }
 
+  // Si le recrutement est bloqué par la population, on booste la ferme
+  if (popNeededForDesiredUnits) {
+    const farmAction = actions.find(a => a.targetId === 'farm' && a.type === 'build');
+    if (farmAction) {
+      farmAction.score += 5.0; // Bonus massif pour débloquer la situation
+      farmAction.debugLabel += ' (pop-boost)';
+    }
+  }
+
   // ── Attaquer ──────────────────────────────────────────────
   for (const t of snap.allTargets) {
     const score = scoreAttack(t, snap, phase, W);
@@ -546,18 +714,34 @@ export function computeAllScores(
     // - Barbare/abandonné (0 défense) → 80% (razzia max)
     // - Joueur faible (force ratio > 2) → 60%
     // - Joueur fort → 50% (garder une réserve défensive)
-    const ratio = t.type === 'barbarian' ? 0.8
-      : snap.offensivePower > t.defensivePower * 2 ? 0.6
-      : 0.5;
+    // 29.4 — Home Guard : si late, garder une réserve pour éviter le backstab.
+    // nv10 (Master) est encore plus prudent et ne sort jamais plus de 60% de son armée.
+    let ratio = t.type === 'barbarian' ? 0.8 : 0.5;
+    if (snap.offensivePower > t.defensivePower * 2) ratio = 0.6;
+    
+    const isMaster = snap.attackRecklessness > 0.9; // nv9 ou 10
+    if (phase === 'late') {
+      // Exception Noble : si on envoie un noble, on monte le ratio à 0.9 pour garantir la victoire
+      const hasNobleHome = (snap.troopsHome['noble'] ?? 0) > 0;
+      const nobleRisk = (t.id === snap.conquestTargetId && hasNobleHome) ? 0.9 : 0.6;
+      ratio = isMaster ? Math.min(ratio, nobleRisk) : Math.min(ratio, 0.7);
+    }
 
     const units: Record<string, number> = {};
+    let hasCatapults = false;
     for (const [unitType, count] of Object.entries(snap.troopsHome)) {
       if (count <= 0) continue;
       const role = getUnitRole(unitType);
       if (role === 'offensive' || role === 'siege') {
         units[unitType] = Math.floor(count * ratio);
+        if (unitType === 'catapult') hasCatapults = true;
       }
     }
+
+    // 29.0 — Cible catapultes : viser la ferme par défaut, ou le mur si défense forte
+    const catapultTarget = hasCatapults 
+      ? (t.defensivePower > 1000 ? 'wall' : 'farm')
+      : undefined;
 
     // 14.2 — Inclure le noble si cible de conquête (réduction de loyauté)
     const isConquestTarget = t.id === snap.conquestTargetId;
@@ -590,6 +774,7 @@ export function computeAllScores(
       score:      score * conquestBoost * lockedBonus,
       debugLabel: `attack:${t.type}:${t.id}`,
       units,
+      catapultTarget,
     });
   }
 
@@ -679,6 +864,18 @@ export function computeAllScores(
     });
   }
 
+  // ── Sauvetage noble (29.3) ──────────────────────────────────
+  const evacuation = scoreNobleEvacuation(snap);
+  if (evacuation) {
+    actions.push({
+      type:       'attack',
+      targetId:   evacuation.targetId,
+      score:      evacuation.score,
+      debugLabel: `noble_evacuation:${evacuation.targetId}`,
+      units:      { noble: 1 }, // Envoyer uniquement le noble
+    });
+  }
+
   // ── Idle (fallback) ───────────────────────────────────────
   actions.push({
     type:       'idle',
@@ -728,7 +925,7 @@ if (require.main === module) {
         id: 'axeman', name: 'Guerrier à la hache', buildingType: 'barracks',
         type: 'offensive', attack: 40, defenseGeneral: 10, defenseCavalry: 5,
         defenseArcher: 10, speedSecondsPerTile: 0.54, cost: { wood: 60, stone: 30, iron: 40 },
-        recruitTimeSeconds: 0.6, carryCapacity: 10, isUnlocked: true,
+        populationCost: 1, recruitTimeSeconds: 0.6, carryCapacity: 10, isUnlocked: true,
       },
     ],
     allTargets: [

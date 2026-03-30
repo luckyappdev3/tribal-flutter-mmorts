@@ -52,6 +52,7 @@ model Player {
   password       String
   villages       Village[]
   worlds         PlayerWorld[]
+  games          Game[]
   createdAt      DateTime  @default(now())
   totalPoints    Int       @default(0)
   attackPoints   Int       @default(0)  // kills offensifs
@@ -93,6 +94,10 @@ model Village {
   botDifficulty  Int?                    // niveau du bot (1–10)
   botPlayerId    String?                 // id du joueur humain qui a "généré" ce bot
 
+  // ── Partie solo (Phase 8) ─────────────────────────────
+  gameId         String?
+  game           Game?   @relation(fields: [gameId], references: [id], onDelete: SetNull)
+
   shieldUntil DateTime?
   lastTick    DateTime  @default(now())
 
@@ -118,6 +123,24 @@ model Village {
   supportReceived       ActiveSupport[] @relation("SupportTo")
 
   @@unique([x, y])
+}
+
+// ── Partie solo contre bots (Phase 8) ───────────────────────
+model Game {
+  id        String    @id @default(uuid())
+  playerId  String
+  botCount  Int                       // 1–7
+  botLevel  Int                       // 1–10
+  gameSpeed Float                     // 1–20000
+  status    String    @default("lobby") // 'lobby' | 'running' | 'finished'
+  winnerId  String?                   // playerId du gagnant (humain ou bot)
+  createdAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  player   Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  villages Village[]
+
+  @@index([playerId, status])
 }
 
 // ── Instances de bâtiments (existant, inchangé) ─────────────

@@ -786,7 +786,7 @@ Phase 22 →  Phase 23
 
 ---
 
-## Phase 28 — Gestion ressources ⬜
+## Phase 28 — Gestion ressources ✅
 
 > Plus de caps à 10000/10000/10000 — fermes et entrepôts.
 
@@ -796,7 +796,7 @@ Phase 22 →  Phase 23
 
 ---
 
-## Phase 29 — Réponse défensive ⬜
+## Phase 29 — Réponse défensive ✅
 
 > Sauver ses nobles et ses troupes avant l'impact.
 

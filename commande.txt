@@ -1,6 +1,6 @@
 GITHUB 
 
-cd /Users/yildirim/tribal-flutterV4/mmorts && git add . && git commit -m "scout ok pop ok rapport scout ok 24 mars 22H30" && git push
+cd /Users/yildirim/tribal-flutterV4/mmorts && git add . && git commit -m "23h27 - bot en cours phase 27 ok" && git push
 
 SERVEUR 
 

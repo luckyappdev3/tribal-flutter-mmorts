@@ -227,10 +227,7 @@ export class ConstructionService {
   }
 
   private async _getGameSpeed(villageId: string): Promise<number> {
-    const village = await this.prisma.village.findUnique({
-      where:   { id: villageId },
-      include: { world: { select: { gameSpeed: true } } },
-    });
-    return village?.world?.gameSpeed ?? 1.0;
+    const { getVillageGameSpeed } = await import('../game/game-speed.utils');
+    return await getVillageGameSpeed(this.prisma, villageId);
   }
 }

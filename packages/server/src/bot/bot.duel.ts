@@ -41,7 +41,7 @@ interface PendingAttack {
   hasNoble:      boolean;
 }
 
-interface VillageState {
+export interface VillageState {
   id:    string;
   name:  string;
   level: number;
@@ -126,25 +126,25 @@ const UNIT_DEFS: Record<string, BotUnit> = {
     id: 'spearman', name: 'Lancier', buildingType: 'barracks', type: 'defensive',
     attack: 10, defenseGeneral: 15, defenseCavalry: 45, defenseArcher: 20,
     speedSecondsPerTile: 0.54, cost: { wood: 50, stone: 30, iron: 10 },
-    recruitTimeSeconds: 26, carryCapacity: 25, isUnlocked: true,
+    populationCost: 1, recruitTimeSeconds: 26, carryCapacity: 25, isUnlocked: true,
   },
   axeman: {
     id: 'axeman', name: 'Guerrier', buildingType: 'barracks', type: 'offensive',
     attack: 40, defenseGeneral: 10, defenseCavalry: 5, defenseArcher: 10,
     speedSecondsPerTile: 0.54, cost: { wood: 60, stone: 30, iron: 40 },
-    recruitTimeSeconds: 36, carryCapacity: 10, isUnlocked: true,
+    populationCost: 1, recruitTimeSeconds: 36, carryCapacity: 10, isUnlocked: true,
   },
   scout: {
     id: 'scout', name: 'Éclaireur', buildingType: 'stable', type: 'scout',
     attack: 0, defenseGeneral: 2, defenseCavalry: 1, defenseArcher: 2,
     speedSecondsPerTile: 0.26, cost: { wood: 50, stone: 30, iron: 40 },
-    recruitTimeSeconds: 54, carryCapacity: 0, isUnlocked: true,
+    populationCost: 2, recruitTimeSeconds: 54, carryCapacity: 0, isUnlocked: true,
   },
   noble: {
     id: 'noble', name: 'Noble', buildingType: 'academy', type: 'conquest',
     attack: 0, defenseGeneral: 100, defenseCavalry: 50, defenseArcher: 100,
     speedSecondsPerTile: 1.05, cost: { wood: 4000, stone: 5000, iron: 5000 },
-    recruitTimeSeconds: 800, carryCapacity: 0, isUnlocked: true,
+    populationCost: 100, recruitTimeSeconds: 800, carryCapacity: 0, isUnlocked: true,
   },
 };
 
@@ -379,8 +379,9 @@ function buildSnapshot(v: VillageState, opp: VillageState, tick: number): GameSn
     noEarlyPlayerAttack: v.level <= 3 && tick * TICK_MINUTES < 5,
     timeElapsedMinutes:  tick * TICK_MINUTES,
     alliedVillages:      [],
-    // 27.3 — Signal reconstruction : grosse défaite récente
     recentHeavyLoss:     v.troopsLostLastCombat > 10,
+    // 28.2 — Style comportemental pour le boost mines
+    botStyle:            v.style,
   };
 }
 
@@ -752,7 +753,7 @@ export function simulate(
 
 // ── Rapport ───────────────────────────────────────────────────
 
-function report(A: VillageState, B: VillageState, conquestAt: number | null, conqueror: string | null) {
+export function report(A: VillageState, B: VillageState, conquestAt: number | null, conqueror: string | null) {
 
   // ── Journal filtré ───────────────────────────────────────────
   console.log('── Journal des actions clés ─────────────────────────────\n');

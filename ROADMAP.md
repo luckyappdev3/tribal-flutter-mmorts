@@ -121,11 +121,119 @@
 
 ---
 
+## Phase 7 — Authentification Email/Mot de passe ✅
+> Déjà entièrement implémentée
+
+### Backend ✅
+- [x] `POST /auth/register` — email, password (bcrypt), username, botDifficulty → crée Player + Village de départ avec bâtiments initiaux
+- [x] `POST /auth/login` — vérifie bcrypt, retourne JWT signé via `@fastify/jwt`
+- [x] Middleware JWT utilisé sur tous les endpoints (villages, troupes, combat, carte, ranking)
+
+### Mobile ✅
+- [x] `LoginPage` — email + password, init SocketService, join village, route vers home
+- [x] `RegisterPage` — username, email, password + picker difficulté bots (1–10)
+- [x] `AuthApi` — `login()` / `register()`, sauvegarde JWT + villageId dans Hive
+- [x] `LoginResponseDto` — extrait token, userId, villageId depuis la réponse
+
+---
+
+## Phase 8 — Lobby : Configuration de la Partie
+> Le joueur configure une partie solo contre des bots avant le lancement
+
+### Règles
+- Nombre de bots : **1 à 7** (total 8 joueurs max sur une carte 40×40)
+- Niveau de difficulté bot : **1 à 10** (déjà calibré dans `bot.profile.ts` — 1=débutant lent, 10=expert quasi-parfait)
+- Vitesse de jeu : **×1 à ×20 000** (slider ou saisie libre, valeur entière)
+- Un seul joueur humain par partie (mode solo)
+- La partie est créée côté serveur avec un `gameId` unique
+
+### Backend
+- [ ] Modèle `Game` dans `schema.prisma` : `id`, `playerId`, `botCount`, `botLevel` (1–10), `gameSpeed` (1–20000), `status` (`lobby | running | finished`), `createdAt`
+- [ ] Modèle `GamePlayer` : `gameId`, `playerId | null` (null = bot), `villageId`
+- [ ] `POST /games` — crée une partie, valide les paramètres, retourne `gameId`
+- [ ] `POST /games/:id/start` — génère la carte, place les villages, lance les `BotBrain` avec le `botLevel` choisi
+- [ ] `GET /games/:id` — état courant de la partie
+
+### Mobile
+- [ ] `LobbyPage` — 3 sections :
+  - Slider **Nombre de bots** (1–7)
+  - Slider **Niveau des bots** (1–10) avec label descriptif (`bot.profile.ts` : 1-3 débutant, 4-7 normal, 8-10 expert)
+  - Champ / slider **Vitesse** (×1 → ×20 000)
+- [ ] Bouton **LANCER LA PARTIE** → `POST /games` + `POST /games/:id/start` → navigation vers la carte
+- [ ] `GameCubit` — stocke `gameId`, `gameSpeed`, `botLevel`, `botCount` dans Hive
+
+---
+
+## Phase 9 — Génération de Carte ✅
+> Le serveur génère une carte 40×40 et positionne les villages de façon équidistante
+
+### Règles ✅
+- Carte : **(0,0) à (40,40)** — 41×41 cases
+- Placement équidistant : grille adaptée (cellSize 8) + jitter ±2 cases
+- Garantit équité de position de départ
+
+### Backend ✅
+- [x] `_findFreePosition()` dans `game.service.ts` — Poisson disk sampling simplifié
+  - Divise la carte en cellules ~8×8
+  - Applique jitter aléatoire (±2) sur chaque cellule
+  - Sélectionne position libre aléatoirement
+- [x] Villages créés lors de `startGame()` avec placement équidistant
+
+### Mobile ✅
+- [x] `MapPage` existante utilise les villages avec leurs coordonnées
+
+---
+
+## Phase 10 — Intelligence Artificielle des Bots ✅ (existant)
+> Système IA complet déjà implémenté dans `packages/server/src/bot/`
+
+### Ce qui existe déjà
+- [x] **`bot.brain.ts`** — boucle de décision principale, tick adaptatif, gestion erreurs
+- [x] **`bot.fsm.ts`** — machine à états : `early` → `mid` → `late` (transitions conditionnelles)
+- [x] **`bot.profile.ts`** — calibration niveaux 1–10 (délai APM, bruit, rayon de vision, gaspillage, témérité)
+- [x] **`bot.scores.ts`** — moteur de scoring (construire, recruter, attaquer, espionner, noble, transfert)
+- [x] **`bot.snapshot.ts`** — capture complète de l'état de jeu pour la prise de décision
+- [x] **`bot.service.ts`** — `spawnBotsForPlayer()`, `resumeAllBots()`, `onBotConquest()`, `onBotConquered()`
+- [x] **`bot.types.ts`** — `ActionType`, `BotStyle` (rusher/builder/balanced/defender), `DifficultyProfile`
+- [x] **`bot.logger.ts`** + **`bot.controller.ts`** — logs par bot, endpoints admin `/admin/bots/status`
+
+### À connecter (Phase 8 → Phase 10)
+- [ ] `spawnBotsForPlayer()` appelé avec le `botLevel` et `botCount` de la `Game` créée en Phase 8
+- [ ] `gameSpeed` de la `Game` transmis au tick de décision des bots (déjà supporté par `bot.service.ts`)
+- [ ] Villages bots scopés au `gameId` (évite les conflits entre parties simultanées)
+- [ ] Indicateur 🤖 sur les villages bots dans `VillageInfoSheet` (mobile)
+
+---
+
+## Phase 11 — Déroulement & Fin de Partie ✅
+> Gérer le cycle de vie complet d'une partie solo
+
+### Règles ✅
+- Élimination : joueur perd son unique village → éliminé
+- Victoire : joueur possède tous les villages de la partie
+
+### Backend ✅
+- [x] `GameEndService` — check après conquête si partie finie
+- [x] Hook post-conquête dans `attack.worker.ts` — appel `checkGameEnd()`
+- [x] Socket event `game:over` émis vers room `game:{gameId}`
+
+### Mobile ✅
+- [x] `GameOverPage` — victoire / défaite + stats (durée, gagnant)
+- [x] Route `/game-over` avec paramètres extra
+- [x] Listener socket `game:over` → navigation GameOverPage
+- [x] Boutons REJOUER + RETOUR LOBBY
+
+---
+
 ## Ordre d'exécution
 
 ```
 Phase 1  →  Phase 2  →  Phase 3  →  Phase 4 + Phase 5
 (multi)     (noble)     (support)   (carte + polish)
+
+Phase 7  →  Phase 8  →  Phase 9  →  Phase 10  →  Phase 11
+(auth)      (lobby)     (génération  (IA bots)    (fin de
+                         carte)                    partie)
 ```
 
 ---

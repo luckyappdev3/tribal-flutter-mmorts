@@ -107,8 +107,8 @@ export async function combatRoutes(fastify: FastifyInstance) {
       }
 
       // Vérifier dispo des troupes et déduire
-      const world     = await fastify.prisma.gameWorld.findFirst({ select: { gameSpeed: true } });
-      const gameSpeed = world?.gameSpeed ?? 1.0;
+      const { getVillageGameSpeed } = await import('../game/game-speed.utils');
+      const gameSpeed = await getVillageGameSpeed(fastify.prisma, id);
 
       // Vitesse = unité la plus lente parmi les types envoyés
       let slowestSpeed = 0;
